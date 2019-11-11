@@ -14,10 +14,27 @@ TEST(TestData, dump_dumpByteArray_outputIsHexString) {
 
 class MockReadCoilsDataChecker {
 public:
-  static size_t calculateResponseSize(modbus::DataChecker::Result &result,
-                                      const modbus::ByteArray &byteArray) {
-    result = modbus::DataChecker::Result::kNeedMoreData;
-    return -1;
+  static modbus::DataChecker::Result
+  calculateRequestSize(size_t &size, const modbus::ByteArray &byteArray) {
+    size = 4;
+    return modbus::DataChecker::Result::kSizeOk;
+  }
+  static modbus::DataChecker::Result
+  calculateResponseSize(size_t &size, const modbus::ByteArray &byteArray) {
+    if (byteArray.size() < 1) {
+      return modbus::DataChecker::Result::kNeedMoreData;
+    }
+    size_t bytes = byteArray[0];
+    size = bytes + 1;
+    return modbus::DataChecker::Result::kSizeOk;
+  }
+  static modbus::DataChecker newDataChecker() {
+    modbus::DataChecker dataChecker;
+    dataChecker.calculateRequestSize = [](size_t &size,
+                                          const modbus::ByteArray &byteArray) {
+      return MockReadCoilsDataChecker::calculateResponseSize(size, byteArray);
+    };
+    return dataChecker;
   }
 };
 
@@ -64,12 +81,7 @@ TEST(TestData, modbusDataApiWorks) {
 }
 
 TEST(TestPdu, modbusPduApiWorks) {
-  modbus::DataChecker dataChecker;
-
-  dataChecker.calculateRequestSize =
-      std::bind(&MockReadCoilsDataChecker::calculateResponseSize,
-                std::placeholders::_1, std::placeholders::_2);
-
+  auto dataChecker = MockReadCoilsDataChecker::newDataChecker();
   modbus::Pdu pdu0(modbus::FunctionCode::kReadCoils, dataChecker);
   auto fcode0 = pdu0.functionCode();
   EXPECT_EQ(fcode0, modbus::FunctionCode::kReadCoils);
@@ -91,13 +103,8 @@ TEST(TestPdu, modbusPduApiWorks) {
 }
 
 TEST(TestAdu, modbusAduApiWorks) {
-  modbus::DataChecker dataChecker;
 
-  dataChecker.calculateRequestSize = [](modbus::DataChecker::Result &result,
-                                        const modbus::ByteArray &byteArray) {
-    return MockReadCoilsDataChecker::calculateResponseSize(result, byteArray);
-  };
-
+  auto dataChecker = MockReadCoilsDataChecker::newDataChecker();
   modbus::Adu adu0(modbus::ServerAddress(1), modbus::FunctionCode::kReadCoils,
                    dataChecker);
   EXPECT_EQ(modbus::FunctionCode::kReadCoils, adu0.functionCode());
