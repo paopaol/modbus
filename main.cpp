@@ -1,4 +1,4 @@
-#include "any.h"
+
 #include "modbus_types.h"
 #include <iostream>
 #include <map>
@@ -70,7 +70,7 @@ public:
 private:
   modbus::CoilAddress coilAddress_;
   modbus::Quantity quantity_;
-  std::map<modbus::CoilAddress, modbus::CoilStatus> coilStatusMap_;
+  std::map<modbus::CoilAddress, modbus::BitValue> coilBitValueMap_;
 };
 } // namespace pub
 

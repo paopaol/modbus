@@ -1,7 +1,7 @@
 #ifndef __MODBUS_QT_H_
 #define __MODBUS_QT_H_
 
-#include <modbus.h>
+#include "modbus.h"
 
 namespace modbus {
 // for qt framework
