@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <modbus/modbus.h>
-#include <modbus/modbus_serial_client.h>
-#include <modbus/modbus_tool.h>
+#include <modbus/base/modbus.h>
+#include <modbus/base/modbus_tool.h>
+#include <modbus/tools/modbus_serial_client.h>
 
 TEST(TestData, dump_dumpByteArray_outputIsHexString) {
   uint8_t binary[5] = {0x01, 0x33, 0x4b, 0xab, 0x3b};
