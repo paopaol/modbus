@@ -7,18 +7,20 @@
 #include <queue>
 
 namespace modbus {
-class ConnectionState {
+
+template <typename StateType> class StateManager {
 public:
-  enum class State { kOpening, kOpened, kClosing, kClosed, kError };
-  void setConnectionState(State state) { state_ = state; }
-  State connectionState() { return state_; }
-  void setErrorCode(const QString &errorString) { errorString_ = errorString; }
-  QString error() { return errorString_; }
+  StateManager() {}
+  StateManager(StateType state) : state_(state) {}
+  void setState(StateType state) { state_ = state; }
+  StateType state() { return state_; }
 
 private:
-  State state_;
-  QString errorString_;
+  StateType state_;
 };
+
+enum class ConnectionState { kOpening, kOpened, kClosing, kClosed, kError };
+
 enum class SessionState {
   kIdle,
   kWaitingResponse,
@@ -59,19 +61,17 @@ class QSerialClient : public Client {
   Q_OBJECT
 public:
   QSerialClient(QObject *parent = nullptr)
-      : Client(parent), sessionState_(SessionState::kIdle) {
-    connectionState_.setConnectionState(ConnectionState::State::kClosed);
-  }
+      : Client(parent), sessionState_(SessionState::kIdle) {}
   void open() override {
     if (!isClosed()) {
       // FIXME:add log
       return;
     }
-    connectionState_.setConnectionState(ConnectionState::State::kOpening);
+    connectionState_.setState(ConnectionState::kOpening);
     bool opened = serialPort_.open(QIODevice::ReadWrite);
     if (opened) {
-      connectionState_.setConnectionState(ConnectionState::State::kOpened);
-      emit streamOpened();
+      connectionState_.setState(ConnectionState::kOpened);
+      emit clientOpened();
       return;
     } else {
       emit errorOccur(serialPort_.errorString());
@@ -79,24 +79,21 @@ public:
     }
   }
   void close() override {
-    auto currentState = connectionState_.connectionState();
-    if (currentState != ConnectionState::State::kOpened) {
+    if (!isOpened()) {
       return;
     }
-    connectionState_.setConnectionState(ConnectionState::State::kClosing);
+    connectionState_.setState(ConnectionState::kClosing);
     serialPort_.close();
-    connectionState_.setConnectionState(ConnectionState::State::kClosed);
-    emit streamClosed();
+    connectionState_.setState(ConnectionState::kClosed);
+    emit clientClosed();
   }
   void sendRequest(const Request &request) override {}
 
   bool isClosed() override {
-    return connectionState_.connectionState() ==
-           ConnectionState::State::kClosed;
+    return connectionState_.state() == ConnectionState::kClosed;
   }
   bool isOpened() override {
-    return connectionState_.connectionState() ==
-           ConnectionState::State::kOpened;
+    return connectionState_.state() == ConnectionState::kOpened;
   }
 signals:
   void streamOpened();
@@ -108,7 +105,7 @@ protected:
   void enqueueElement(const Client::Element &element) override {
     elementQueue_.push(element);
 
-    if (sessionState_ != SessionState::kIdle) {
+    if (sessionState_.state() != SessionState::kIdle) {
       return;
     }
     runAfter(t3_5_, [&]() {
@@ -134,8 +131,8 @@ private:
   }
 
   ElementQueue elementQueue_;
-  ConnectionState connectionState_;
-  SessionState sessionState_;
+  StateManager<ConnectionState> connectionState_;
+  StateManager<SessionState> sessionState_;
   QSerialPort serialPort_;
   int waitResponseDeley_;
   int waitConversionDelay_;
