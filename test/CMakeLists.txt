@@ -8,8 +8,12 @@ add_subdirectory(../thrd/googletest googletest)
 
 include(GoogleTest)
 
-add_executable(modbus_test "./modbus_test_bytearray_dump.cpp")
+set(src-list "./modbus_test_bytearray_dump.cpp"
+  "../include/modbus/modbus_serial_client.h")
+
+add_executable(modbus_test ${src-list})
 target_link_libraries(modbus_test gtest_main )
 target_link_libraries(modbus_test gtest)
-target_link_libraries(modbus_test Qt5::Core Qt5::SerialPort)
+target_link_libraries(modbus_test Qt5::Core)
+target_link_libraries(modbus_test Qt5::SerialPort)
 gtest_add_tests(modbus_test "./modbus_test_bytearray_dump.cpp" AUTO)

@@ -1,104 +1,146 @@
 #ifndef __MODBUS_SERIAL_CLIENT_H_
 #define __MODBUS_SERIAL_CLIENT_H_
 
+#include "modbus.h"
+#include "modbus_qt.h"
 #include <QSerialPort>
-#include <modbus.h>
-#include <modbus_qt.h>
+#include <QTimer>
+#include <queue>
 
 namespace modbus {
-class QRequest : public QObject {
+class ConnectionState {
 public:
-  QRequest(ServerAddress serverAddress, FunctionCode functionCode, Data &data,
-           QObject *parent = nullptr)
-      : QObject(parent), adu_(serverAddress, functionCode, data) {}
-  FunctionCode functionCode() const { return adu_.functionCode(); }
-  Adu adu() const { return adu_; }
-  bool isException() { return adu_.isException(); }
-  template <typename T> T data() const { return T; }
+  enum class State { kOpening, kOpened, kClosing, kClosed, kError };
+  void setConnectionState(State state) { state_ = state; }
+  State connectionState() { return state_; }
+  void setErrorCode(const QString &errorString) { errorString_ = errorString; }
+  QString error() { return errorString_; }
 
 private:
-  Adu adu_;
+  State state_;
+  QString errorString_;
 };
-class QSerialClient : public QObject {
-  Q_OBJECT
-public:
-  enum class Mode { kAscii, kRtu };
-
-  bool
-  setBaudRate(qint32 baudRate,
-              QSerialPort::Directions directions = QSerialPort::AllDirections) {
-    return serialPort_.setBaudRate(baudRate, directions);
-  }
-  bool setDataBits(QSerialPort::DataBits dataBits) {
-    return serialPort_.setDataBits(dataBits);
-  }
-  bool setParity(QSerialPort::Parity parity) {
-    return serialPort_.setParity(parity);
-  }
-  void setPort(const QSerialPortInfo &serialPortInfo) {
-    serialPort_.setPort(serialPortInfo);
-  }
-  bool setStopBits(QSerialPort::StopBits stopBits) {
-    serialPort_.setStopBits(stopBits);
-  }
-
-  template <typename RequestType>
-  QResponse *sendRequest(const modbus::QRequest &request,
-                         Mode mode = Mode::kRtu) {
-    Request request;
-
-    request.setAdu(adu);
-
-    auto reqData = request.dataGenerator<RequestType>();
-    auto array = reqData.toByteArray();
-    switch (mode) {
-    case kRtu: {
-    }
-    case kAscii: {
-    }
-    }
-    return nullptr;
-  }
-
-  bool open() { return false; }
-  bool close() { return false; }
-
-  // void send(const std::vector<char> &byteArray) {
-  // serial_.write(byteArray); }
-
-private:
-  // FIXME:need dip
-  QSerialPort serialPort_;
-  Client client_;
+enum class SessionState {
+  kIdle,
+  kWaitingResponse,
+  kProcessingResponse,
+  kWaitingConversionDelay,
+  kProcessingError
 };
 
 class Client : public QObject {
+  Q_OBJECT
+protected:
+  struct Element {
+    Request request;
+    Response response;
+  };
+  using ElementQueue = std::queue<Element>;
+
 public:
-  enum class Type { kTcp, kSerial };
-  Client(const Stream *stream) {}
+  Client(QObject *parent = nullptr) : QObject(parent) {}
+  virtual ~Client() {}
 
-  void connect() {}
-  void close() {}
-  void setTimeout() {}
+  virtual void open() = 0;
+  virtual void close() = 0;
+  virtual void sendRequest(const Request &request) = 0;
+  virtual void enqueueElement(const Element &element) = 0;
 
-  template <typename T0, typename T1>
-  QResponse *sendRequest(const QRequest &request) {
-    auto element = createRequestElement(request);
-    stream->enqueueRequestElement();
-    return nullptr;
-  }
-  static Client *NewSerial(const SerialPortInfo &info) {}
-  static Client *NewTcp(const QString &ip, int port) {}
-  static Client *NewUdp(const QString &ip) {}
-public
+  virtual bool isClosed() = 0;
+  virtual bool isOpened() = 0;
 signals:
-  void requestFinished(QRequest *request, QResponse *response);
+  void clientOpened();
+  void clientClosed();
+  void requestFinished(const Request &request, const Response &response);
 
 protected:
-  void processPrivateResponse(QRequest *request, QResponse *response) {}
+};
+
+class QSerialClient : public Client {
+  Q_OBJECT
+public:
+  QSerialClient(QObject *parent = nullptr)
+      : Client(parent), sessionState_(SessionState::kIdle) {
+    connectionState_.setConnectionState(ConnectionState::State::kClosed);
+  }
+  void open() override {
+    if (!isClosed()) {
+      // FIXME:add log
+      return;
+    }
+    connectionState_.setConnectionState(ConnectionState::State::kOpening);
+    bool opened = serialPort_.open(QIODevice::ReadWrite);
+    if (opened) {
+      connectionState_.setConnectionState(ConnectionState::State::kOpened);
+      emit streamOpened();
+      return;
+    } else {
+      emit errorOccur(serialPort_.errorString());
+      return;
+    }
+  }
+  void close() override {
+    auto currentState = connectionState_.connectionState();
+    if (currentState != ConnectionState::State::kOpened) {
+      return;
+    }
+    connectionState_.setConnectionState(ConnectionState::State::kClosing);
+    serialPort_.close();
+    connectionState_.setConnectionState(ConnectionState::State::kClosed);
+    emit streamClosed();
+  }
+  void sendRequest(const Request &request) override {}
+
+  bool isClosed() override {
+    return connectionState_.connectionState() ==
+           ConnectionState::State::kClosed;
+  }
+  bool isOpened() override {
+    return connectionState_.connectionState() ==
+           ConnectionState::State::kOpened;
+  }
+signals:
+  void streamOpened();
+  void streamClosed();
+  void errorOccur(const QString &errorString);
+  void requestFinished(const Request &request, const Response &response);
+
+protected:
+  void enqueueElement(const Client::Element &element) override {
+    elementQueue_.push(element);
+
+    if (sessionState_ != SessionState::kIdle) {
+      return;
+    }
+    runAfter(t3_5_, [&]() {
+      auto ele = elementQueue_.front();
+      auto request = ele.request;
+      auto array = request.data();
+      serialPort_.write(
+          QByteArray(reinterpret_cast<const char *>(array.data())),
+          array.size());
+    });
+  }
 
 private:
-  Stream *stream;
+  Element createElement(const Request &request) {
+    Element element;
+
+    element.request = request;
+    return element;
+  }
+
+  void runAfter(int delay, const std::function<void()> &functor) {
+    QTimer::singleShot(delay, functor);
+  }
+
+  ElementQueue elementQueue_;
+  ConnectionState connectionState_;
+  SessionState sessionState_;
+  QSerialPort serialPort_;
+  int waitResponseDeley_;
+  int waitConversionDelay_;
+  int t3_5_;
 };
 } // namespace modbus
 #endif // __MODBUS_SERIAL_CLIENT_H_

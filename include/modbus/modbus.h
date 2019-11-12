@@ -55,6 +55,7 @@ public:
     serverAddress_ = serverAddress;
   }
   ServerAddress serverAddress() const { return serverAddress_; }
+  bool isBrocast() { return serverAddress_ == kBrocastAddress; }
 
   void setFunctionCode(FunctionCode functionCode) {
     pdu_.setFunctionCode(functionCode);
@@ -74,6 +75,7 @@ public:
   bool isException() { return pdu_.isException(); }
 
 private:
+  static const ServerAddress kBrocastAddress = 0;
   ServerAddress serverAddress_;
   Pdu pdu_;
 };

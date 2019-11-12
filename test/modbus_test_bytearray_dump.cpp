@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <modbus/modbus.h>
+#include <modbus/modbus_serial_client.h>
 #include <modbus/modbus_tool.h>
-// #include <modbus/modbus_serial_client.h>
 
 TEST(TestData, dump_dumpByteArray_outputIsHexString) {
   uint8_t binary[5] = {0x01, 0x33, 0x4b, 0xab, 0x3b};
@@ -103,7 +103,6 @@ TEST(TestPdu, modbusPduApiWorks) {
 }
 
 TEST(TestAdu, modbusAduApiWorks) {
-
   auto dataChecker = MockReadCoilsDataChecker::newDataChecker();
   modbus::Adu adu0(modbus::ServerAddress(1), modbus::FunctionCode::kReadCoils,
                    dataChecker);
@@ -151,6 +150,14 @@ TEST(TestResponse, modbusResponseApiWorks) {
     response.setFunctionCode(modbus::FunctionCode::kReadCoils);
     EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
   }
+}
+
+TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
+  modbus::QSerialClient serialClient;
+
+  EXPECT_EQ(serialClient.isClosed(), true);
+  serialClient.open();
+  EXPECT_EQ(serialClient.isOpened(), true);
 }
 
 // TEST(TestClient, sss) {
