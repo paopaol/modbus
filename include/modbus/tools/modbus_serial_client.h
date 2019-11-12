@@ -1,8 +1,7 @@
 #ifndef __MODBUS_SERIAL_CLIENT_H_
 #define __MODBUS_SERIAL_CLIENT_H_
 
-#include "modbus.h"
-#include "modbus_qt.h"
+#include "modbus/base/modbus.h"
 #include <QSerialPort>
 #include <QTimer>
 #include <queue>
