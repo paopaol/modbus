@@ -21,14 +21,6 @@ private:
 
 enum class ConnectionState { kOpening, kOpened, kClosing, kClosed, kError };
 
-enum class SessionState {
-  kIdle,
-  kWaitingResponse,
-  kProcessingResponse,
-  kWaitingConversionDelay,
-  kProcessingError
-};
-
 class Client : public QObject {
   Q_OBJECT
 protected:
@@ -37,6 +29,12 @@ protected:
     Response response;
   };
   using ElementQueue = std::queue<Element>;
+  Element createElement(const Request &request) {
+    Element element;
+
+    element.request = request;
+    return element;
+  }
 
 public:
   Client(QObject *parent = nullptr) : QObject(parent) {}
@@ -119,12 +117,13 @@ protected:
   }
 
 private:
-  Element createElement(const Request &request) {
-    Element element;
-
-    element.request = request;
-    return element;
-  }
+  enum class SessionState {
+    kIdle,
+    kWaitingResponse,
+    kProcessingResponse,
+    kWaitingConversionDelay,
+    kProcessingError
+  };
 
   void runAfter(int delay, const std::function<void()> &functor) {
     QTimer::singleShot(delay, functor);
