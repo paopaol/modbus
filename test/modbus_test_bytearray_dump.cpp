@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <QSignalSpy>
+#include <gmock/gmock.h>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/tools/modbus_serial_client.h>
@@ -11,6 +13,21 @@ TEST(TestData, dump_dumpByteArray_outputIsHexString) {
   auto hexString = modbus::tool::dumpHex(byteArray);
   EXPECT_EQ(hexString, "01334bab3b");
 }
+
+class MockSerialPort : public modbus::AbstractSerialPort {
+public:
+  MockSerialPort(QObject *parent = nullptr)
+      : modbus::AbstractSerialPort(parent) {}
+  ~MockSerialPort() {}
+  MOCK_METHOD(void, open, (), (override));
+  MOCK_METHOD(void, close, (), (override));
+  MOCK_METHOD(void, write, (const char *data, size_t size), (override));
+
+  void setupDelegate() {
+    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
+    // ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+  }
+};
 
 class MockReadCoilsDataChecker {
 public:
@@ -36,42 +53,6 @@ public:
     };
     return dataChecker;
   }
-};
-
-class MockReadCoilsRequest {
-public:
-  MockReadCoilsRequest() {}
-  ~MockReadCoilsRequest() {}
-  modbus::ByteArray toByteArray() { return {}; }
-  std::error_code fromByteArray(const modbus::ByteArray &byteArray) {
-    return std::error_code();
-  }
-  std::string dumpReadable() { return ""; }
-
-  inline bool operator==(const MockReadCoilsRequest &other) const {
-    return byteArray_ == other.byteArray_;
-  }
-
-private:
-  modbus::ByteArray byteArray_;
-};
-
-class MockReadCoilsResponse {
-public:
-  MockReadCoilsResponse() {}
-  ~MockReadCoilsResponse() {}
-  modbus::ByteArray toByteArray() { return {}; }
-  std::error_code fromByteArray(const modbus::ByteArray &byteArray) {
-    return std::error_code();
-  }
-  std::string dumpReadable() { return ""; }
-
-  inline bool operator==(const MockReadCoilsResponse &other) const {
-    return byteArray_ == other.byteArray_;
-  }
-
-private:
-  modbus::ByteArray byteArray_;
 };
 
 TEST(TestData, modbusDataApiWorks) {
@@ -152,11 +133,25 @@ TEST(TestResponse, modbusResponseApiWorks) {
   }
 }
 
-TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
-  modbus::QSerialClient serialClient;
+TEST(TestSerialClient, serialClientConstrct_IsClosed) {
+  // modbus::QSerialClient serialClient;
+  // EXPECT_EQ(serialClient.isClosed(), true);
 
-  EXPECT_EQ(serialClient.isClosed(), true);
+  modbus::QSerialClient mockSerialClient(new MockSerialPort());
+  EXPECT_EQ(mockSerialClient.isClosed(), true);
+}
+
+TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
+  auto serialPort = new MockSerialPort();
+  modbus::QSerialClient serialClient(serialPort);
+
+  QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+
+  serialPort->setupDelegate();
+  EXPECT_CALL(*serialPort, open());
+
   serialClient.open();
+  EXPECT_EQ(spy.count(), 1);
   EXPECT_EQ(serialClient.isOpened(), true);
 }
 
