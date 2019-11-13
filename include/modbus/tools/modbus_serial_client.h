@@ -108,8 +108,6 @@ public:
     }
     connectionState_.setState(ConnectionState::kClosing);
     serialPort_->close();
-    connectionState_.setState(ConnectionState::kClosed);
-    emit clientClosed();
   }
   void sendRequest(const Request &request) override {}
 
@@ -160,6 +158,10 @@ private:
     connect(serialPort_, &AbstractSerialPort::opened, [&]() {
       connectionState_.setState(ConnectionState::kOpened);
       emit clientOpened();
+    });
+    connect(serialPort_, &AbstractSerialPort::closed, [&]() {
+      connectionState_.setState(ConnectionState::kClosed);
+      emit clientClosed();
     });
     connect(serialPort_, &AbstractSerialPort::error,
             [&](const QString &errorString) {
