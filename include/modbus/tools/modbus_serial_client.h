@@ -4,6 +4,7 @@
 #include "modbus/base/modbus.h"
 #include <QSerialPort>
 #include <QTimer>
+#include <assert.h>
 #include <queue>
 
 namespace modbus {
@@ -55,33 +56,58 @@ signals:
 protected:
 };
 
+class AbstractSerialPort : public QObject {
+  Q_OBJECT
+public:
+  AbstractSerialPort(QObject *parent = nullptr) {}
+  ~AbstractSerialPort() {}
+  virtual void open() = 0;
+  virtual void close() = 0;
+  virtual void write(const char *data, size_t size) = 0;
+signals:
+  void opened();
+  void closed();
+  void error(const QString &errorString);
+};
+
 class QSerialClient : public Client {
   Q_OBJECT
 public:
-  QSerialClient(QObject *parent = nullptr)
-      : Client(parent), sessionState_(SessionState::kIdle) {}
+  QSerialClient(AbstractSerialPort *serialPort, QObject *parent = nullptr)
+      : serialPort_(serialPort), Client(parent) {
+    initMemberValues();
+    setupEnvironment();
+  }
+
+  QSerialClient(QObject *parent = nullptr) : Client(parent) {
+    initMemberValues();
+    setupEnvironment();
+  }
+  ~QSerialClient() {
+    if (isOpened()) {
+      close();
+    }
+    // assert(isClosed() && "the QSerialClient is running, can't destrctor");
+    if (serialPort_) {
+      serialPort_->deleteLater();
+    }
+  }
+
   void open() override {
     if (!isClosed()) {
       // FIXME:add log
       return;
     }
     connectionState_.setState(ConnectionState::kOpening);
-    bool opened = serialPort_.open(QIODevice::ReadWrite);
-    if (opened) {
-      connectionState_.setState(ConnectionState::kOpened);
-      emit clientOpened();
-      return;
-    } else {
-      emit errorOccur(serialPort_.errorString());
-      return;
-    }
+    serialPort_->open();
+    return;
   }
   void close() override {
     if (!isOpened()) {
       return;
     }
     connectionState_.setState(ConnectionState::kClosing);
-    serialPort_.close();
+    serialPort_->close();
     connectionState_.setState(ConnectionState::kClosed);
     emit clientClosed();
   }
@@ -94,8 +120,8 @@ public:
     return connectionState_.state() == ConnectionState::kOpened;
   }
 signals:
-  void streamOpened();
-  void streamClosed();
+  void clientOpened();
+  void clientClosed();
   void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
 
@@ -110,7 +136,7 @@ protected:
       auto ele = elementQueue_.front();
       auto request = ele.request;
       auto array = request.data();
-      serialPort_.write(
+      serialPort_->write(
           QByteArray(reinterpret_cast<const char *>(array.data())),
           array.size());
     });
@@ -129,11 +155,30 @@ private:
     QTimer::singleShot(delay, functor);
   }
 
+  void setupEnvironment() {
+    assert(serialPort_ && "the serialport backend is invalid");
+    connect(serialPort_, &AbstractSerialPort::opened, [&]() {
+      connectionState_.setState(ConnectionState::kOpened);
+      emit clientOpened();
+    });
+    connect(serialPort_, &AbstractSerialPort::error,
+            [&](const QString &errorString) {
+              connectionState_.setState(ConnectionState::kClosed);
+              emit errorOccur(errorString);
+              emit clientClosed();
+            });
+  }
+  void initMemberValues() {
+    connectionState_.setState(ConnectionState::kClosed);
+    sessionState_.setState(SessionState::kIdle);
+    waitConversionDelay_ = 200;
+    t3_5_ = 100;
+  }
+
   ElementQueue elementQueue_;
   StateManager<ConnectionState> connectionState_;
   StateManager<SessionState> sessionState_;
-  QSerialPort serialPort_;
-  int waitResponseDeley_;
+  AbstractSerialPort *serialPort_ = nullptr;
   int waitConversionDelay_;
   int t3_5_;
 };
