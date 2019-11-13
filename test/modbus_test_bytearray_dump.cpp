@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <QCoreApplication>
 #include <QSignalSpy>
+#include <QTimer>
 #include <gmock/gmock.h>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
@@ -25,7 +27,7 @@ public:
 
   void setupDelegate() {
     ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
-    // ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
   }
 };
 
@@ -134,25 +136,60 @@ TEST(TestResponse, modbusResponseApiWorks) {
 }
 
 TEST(TestSerialClient, serialClientConstrct_IsClosed) {
-  // modbus::QSerialClient serialClient;
-  // EXPECT_EQ(serialClient.isClosed(), true);
-
-  modbus::QSerialClient mockSerialClient(new MockSerialPort());
+  auto serialPort = new MockSerialPort();
+  modbus::QSerialClient mockSerialClient(serialPort);
   EXPECT_EQ(mockSerialClient.isClosed(), true);
 }
 
 TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
+  int argc = 1;
+  char *argv[] = {"test"};
+  QCoreApplication app(argc, argv);
   auto serialPort = new MockSerialPort();
-  modbus::QSerialClient serialClient(serialPort);
-
-  QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
-
   serialPort->setupDelegate();
-  EXPECT_CALL(*serialPort, open());
+  {
+    modbus::QSerialClient serialClient(serialPort);
 
-  serialClient.open();
-  EXPECT_EQ(spy.count(), 1);
-  EXPECT_EQ(serialClient.isOpened(), true);
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, close());
+
+    serialClient.open();
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(serialClient.isOpened(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(TestSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
+  int argc = 1;
+  char *argv[] = {"test"};
+  QCoreApplication app(argc, argv);
+  auto serialPort = new MockSerialPort();
+  serialPort->setupDelegate();
+  {
+    modbus::QSerialClient serialClient(serialPort);
+    QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::clientOpened);
+    QSignalSpy spyClose(&serialClient, &modbus::QSerialClient::clientClosed);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, close());
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(spyOpen.count(), 1);
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    // now close the client
+    serialClient.close();
+    EXPECT_EQ(spyClose.count(), 1);
+
+    EXPECT_EQ(serialClient.isClosed(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
 }
 
 // TEST(TestClient, sss) {
