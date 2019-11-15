@@ -143,7 +143,7 @@ TEST(TestSerialClient, serialClientConstrct_IsClosed) {
 
 TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   int argc = 1;
-  char *argv[] = {"test"};
+  char *argv[] = {(char *)"test"};
   QCoreApplication app(argc, argv);
   auto serialPort = new MockSerialPort();
   serialPort->setupDelegate();
@@ -165,7 +165,7 @@ TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
 
 TEST(TestSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
   int argc = 1;
-  char *argv[] = {"test"};
+  char *argv[] = {(char *)"test"};
   QCoreApplication app(argc, argv);
   auto serialPort = new MockSerialPort();
   serialPort->setupDelegate();
