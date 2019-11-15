@@ -33,7 +33,15 @@ public:
   DataChecker dataChecker() const { return dataChecker_; }
   bool isException() { return functionCode_ & kExceptionByte; }
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
+
+  /**
+   * @brief this data is only payload, not include function code
+   */
   ByteArray data() const { return data_; }
+  /**
+   * @brief return the size of payload
+   */
+  size_t size() const { return data_.size(); }
 
 private:
   FunctionCode functionCode_ = FunctionCode::kInvalidCode;
@@ -73,6 +81,20 @@ public:
   ByteArray data() const { return pdu_.data(); }
 
   bool isException() { return pdu_.isException(); }
+
+  size_t marshalSize() const { return 1 + 1 + pdu_.size(); }
+  /**
+   * @brief marshalData,that is: serveraddress + fuction code + payload
+   */
+  ByteArray marshalData() {
+    ByteArray array;
+
+    array.push_back(serverAddress());
+    array.push_back(pdu_.functionCode());
+    const auto &data = pdu_.data();
+    array.insert(array.end(), data.begin(), data.end());
+    return array;
+  }
 
 private:
   static const ServerAddress kBrocastAddress = 0;

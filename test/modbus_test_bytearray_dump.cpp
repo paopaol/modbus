@@ -94,6 +94,17 @@ TEST(TestAdu, modbusAduApiWorks) {
   modbus::Adu adu1(modbus::ServerAddress(1),
                    modbus::Pdu(modbus::FunctionCode::kReadCoils, dataChecker));
   EXPECT_EQ(modbus::FunctionCode::kReadCoils, adu1.functionCode());
+
+  modbus::Adu adu2;
+
+  adu2.setServerAddress(0x1);
+  adu2.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  adu2.setData({1, 2, 3});
+  size_t buildSize = adu2.marshalSize();
+  EXPECT_EQ(buildSize, 1 + 1 + 3 /*serveraddress|function code|data*/);
+  modbus::ByteArray buildData = adu2.marshalData();
+  EXPECT_EQ(buildData,
+            modbus::ByteArray({1, modbus::FunctionCode::kReadCoils, 1, 2, 3}));
 }
 
 TEST(TestRequest, modbusRequestApiWorks) {
