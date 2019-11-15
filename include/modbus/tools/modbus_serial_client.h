@@ -51,6 +51,7 @@ public:
 signals:
   void clientOpened();
   void clientClosed();
+  void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
 
 protected:
@@ -117,11 +118,6 @@ public:
   bool isOpened() override {
     return connectionState_.state() == ConnectionState::kOpened;
   }
-signals:
-  void clientOpened();
-  void clientClosed();
-  void errorOccur(const QString &errorString);
-  void requestFinished(const Request &request, const Response &response);
 
 protected:
   void enqueueElement(const Client::Element &element) override {
