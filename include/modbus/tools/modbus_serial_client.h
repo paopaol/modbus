@@ -69,6 +69,7 @@ signals:
   void opened();
   void closed();
   void error(const QString &errorString);
+  void bytesWritten(qint64 bytes);
 };
 
 class QSerialClient : public Client {
@@ -88,7 +89,6 @@ public:
     if (isOpened()) {
       close();
     }
-    // assert(isClosed() && "the QSerialClient is running, can't destrctor");
     if (serialPort_) {
       serialPort_->deleteLater();
     }
@@ -165,6 +165,10 @@ private:
               emit errorOccur(errorString);
               emit clientClosed();
             });
+    connect(serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
+      auto &element = elementQueue_.front();
+      auto &request = element.request;
+    });
   }
   void initMemberValues() {
     connectionState_.setState(ConnectionState::kClosed);
