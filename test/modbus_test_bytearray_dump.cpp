@@ -80,7 +80,9 @@ TEST(TestPdu, modbusPduApiWorks) {
   EXPECT_EQ(true, pdu2.isException());
   fcode = pdu2.functionCode();
   EXPECT_EQ(fcode, modbus::FunctionCode::kReadCoils);
+}
 
+TEST(TestPdu, modbusPdu_defaultFunctionCode_isInvalid) {
   modbus::Pdu pdu4;
   EXPECT_EQ(modbus::FunctionCode::kInvalidCode, pdu4.functionCode());
 }
