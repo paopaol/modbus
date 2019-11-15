@@ -7,6 +7,7 @@
 #include <system_error>
 #include <type_traits>
 #include <typeindex>
+#include <typeinfo>
 #include <vector>
 
 namespace modbus {
@@ -49,7 +50,7 @@ public:
   }
 
   template <typename ValueType> static inline ValueType any_cast(any &operand) {
-    using nonref = std::remove_reference<ValueType>::type;
+    using nonref = typename std::remove_reference<ValueType>::type;
     nonref *result = any_cast<nonref>(&operand);
     if (!result)
       throw std::bad_cast();
@@ -58,7 +59,7 @@ public:
 
   template <typename ValueType>
   static inline ValueType any_cast(const any &operand) {
-    using nonref = std::remove_reference<ValueType>::type;
+    using nonref = typename std::remove_reference<ValueType>::type;
     return any_cast<const nonref &>(const_cast<any &>(operand));
   }
 
