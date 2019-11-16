@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(modbus)
 
+
+
 set(modbus_root_dir ${CMAKE_SOURCE_DIR})
 set(CMAKE_CXX_FLAGS "-std=c++11")
 set(CMAKE_C_FLAGS "-std=c++11")
