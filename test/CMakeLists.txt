@@ -12,6 +12,11 @@ add_subdirectory(../thrd/googletest googletest)
 include(GoogleTest)
 
 set(src-list "./modbus_test_bytearray_dump.cpp"
+  "./modbus_test_adu.cpp"
+  "./modbus_test_mocker.h"
+  "./modbus_test_pdu.cpp"
+  "./modbus_test_request_response.cpp"
+  "./modbus_test_serial_client.cpp"
   "${modbus_root_dir}/include/modbus/tools/modbus_serial_client.h")
 
 add_executable(modbus_test ${src-list})
