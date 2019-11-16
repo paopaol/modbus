@@ -29,6 +29,18 @@ public:
     ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
     ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
   }
+  void setupOpenSuccessWriteFailedDelegate() {
+    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
+    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      emit error("write serial failed");
+    });
+  }
+  void setupOpenFailed() {
+    ON_CALL(*this, open).WillByDefault([&]() {
+      emit error("open serial failed");
+    });
+  }
 };
 
 class MockReadCoilsDataChecker {
@@ -148,13 +160,13 @@ TEST(TestResponse, modbusResponseApiWorks) {
   }
 }
 
-TEST(TestSerialClient, serialClientConstrct_IsClosed) {
+TEST(TestModbusSerialClient, serialClientConstrct_IsClosed) {
   auto serialPort = new MockSerialPort();
   modbus::QSerialClient mockSerialClient(serialPort);
   EXPECT_EQ(mockSerialClient.isClosed(), true);
 }
 
-TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
+TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   int argc = 1;
   char *argv[] = {(char *)"test"};
   QCoreApplication app(argc, argv);
@@ -176,7 +188,7 @@ TEST(TestSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   app.exec();
 }
 
-TEST(TestSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
+TEST(TestModbusSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
   int argc = 1;
   char *argv[] = {(char *)"test"};
   QCoreApplication app(argc, argv);
@@ -200,6 +212,60 @@ TEST(TestSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
     EXPECT_EQ(spyClose.count(), 1);
 
     EXPECT_EQ(serialClient.isClosed(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
+  int argc = 1;
+  char *argv[] = {(char *)"test"};
+  QCoreApplication app(argc, argv);
+  auto serialPort = new MockSerialPort();
+  serialPort->setupOpenFailed();
+  {
+    modbus::QSerialClient serialClient(serialPort);
+    QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::errorOccur);
+
+    EXPECT_CALL(*serialPort, open());
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(spyOpen.count(), 1);
+    EXPECT_EQ(serialClient.isOpened(), false);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
+  int argc = 1;
+  char *argv[] = {(char *)"test"};
+  QCoreApplication app(argc, argv);
+
+  modbus::Request request;
+
+  request.setServerAddress(1);
+  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  request.setData({1, 2, 3});
+
+  auto serialPort = new MockSerialPort();
+  modbus::QSerialClient serialClient(serialPort);
+  serialPort->setupOpenSuccessWriteFailedDelegate();
+  {
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::errorOccur);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+    serialClient.sendRequest(request);
+    spy.wait(300);
+    EXPECT_EQ(spy.count(), 1);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
