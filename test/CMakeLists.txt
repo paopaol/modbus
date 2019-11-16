@@ -1,5 +1,4 @@
 
-enable_testing()
 
 find_package(Qt5 REQUIRED Test)
 
