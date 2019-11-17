@@ -18,6 +18,8 @@ find_package(Qt5 REQUIRED Core SerialPort)
 include_directories(".")
 include_directories(include)
 
+add_subdirectory(src)
+
 enable_testing()
 add_subdirectory(test)
 

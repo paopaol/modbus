@@ -2,41 +2,14 @@
 #define __MODBUS_SERIAL_CLIENT_H_
 
 #include "modbus/base/modbus.h"
-#include <QSerialPort>
-#include <QTimer>
-#include <assert.h>
+#include <QObject>
+#include <QScopedPointer>
 #include <queue>
 
 namespace modbus {
 
-template <typename StateType> class StateManager {
-public:
-  StateManager() {}
-  StateManager(StateType state) : state_(state) {}
-  void setState(StateType state) { state_ = state; }
-  StateType state() { return state_; }
-
-private:
-  StateType state_;
-};
-
-enum class ConnectionState { kOpening, kOpened, kClosing, kClosed, kError };
-
 class Client : public QObject {
   Q_OBJECT
-protected:
-  struct Element {
-    Request request;
-    Response response;
-  };
-  using ElementQueue = std::queue<Element>;
-  Element createElement(const Request &request) {
-    Element element;
-
-    element.request = request;
-    return element;
-  }
-
 public:
   Client(QObject *parent = nullptr) : QObject(parent) {}
   virtual ~Client() {}
@@ -44,7 +17,6 @@ public:
   virtual void open() = 0;
   virtual void close() = 0;
   virtual void sendRequest(const Request &request) = 0;
-  virtual void enqueueElement(const Element &element) = 0;
 
   virtual bool isClosed() = 0;
   virtual bool isOpened() = 0;
@@ -72,119 +44,29 @@ signals:
   void bytesWritten(qint64 bytes);
 };
 
+class QSerialClientPrivate;
 class QSerialClient : public Client {
   Q_OBJECT
+  Q_DECLARE_PRIVATE(QSerialClient);
+
 public:
-  QSerialClient(AbstractSerialPort *serialPort, QObject *parent = nullptr)
-      : serialPort_(serialPort), Client(parent) {
-    initMemberValues();
-    setupEnvironment();
-  }
+  QSerialClient(AbstractSerialPort *serialPort, QObject *parent = nullptr);
+  QSerialClient(QObject *parent = nullptr);
+  ~QSerialClient();
 
-  QSerialClient(QObject *parent = nullptr) : Client(parent) {
-    initMemberValues();
-    setupEnvironment();
-  }
-  ~QSerialClient() {
-    if (isOpened()) {
-      close();
-    }
-    if (serialPort_) {
-      serialPort_->deleteLater();
-    }
-  }
+  void open() override;
+  void close() override;
+  void sendRequest(const Request &request);
 
-  void open() override {
-    if (!isClosed()) {
-      // FIXME:add log
-      return;
-    }
-    connectionState_.setState(ConnectionState::kOpening);
-    serialPort_->open();
-    return;
-  }
-  void close() override {
-    if (!isOpened()) {
-      return;
-    }
-    connectionState_.setState(ConnectionState::kClosing);
-    serialPort_->close();
-  }
-  void sendRequest(const Request &request) override {
-    auto element = createElement(request);
-    enqueueElement(element);
-  }
-
-  bool isClosed() override {
-    return connectionState_.state() == ConnectionState::kClosed;
-  }
-  bool isOpened() override {
-    return connectionState_.state() == ConnectionState::kOpened;
-  }
-
-protected:
-  void enqueueElement(const Client::Element &element) override {
-    elementQueue_.push(element);
-
-    if (sessionState_.state() != SessionState::kIdle) {
-      return;
-    }
-    runAfter(t3_5_, [&]() {
-      auto ele = elementQueue_.front();
-      auto request = ele.request;
-      auto array = request.data();
-      serialPort_->write(
-          QByteArray(reinterpret_cast<const char *>(array.data())),
-          array.size());
-    });
-  }
+  bool isClosed() override;
+  bool isOpened() override;
 
 private:
-  enum class SessionState {
-    kIdle,
-    kWaitingResponse,
-    kProcessingResponse,
-    kWaitingConversionDelay,
-    kProcessingError
-  };
+  void runAfter(int delay, const std::function<void()> &functor);
+  void setupEnvironment();
+  void initMemberValues();
 
-  void runAfter(int delay, const std::function<void()> &functor) {
-    QTimer::singleShot(delay, functor);
-  }
-
-  void setupEnvironment() {
-    assert(serialPort_ && "the serialport backend is invalid");
-    connect(serialPort_, &AbstractSerialPort::opened, [&]() {
-      connectionState_.setState(ConnectionState::kOpened);
-      emit clientOpened();
-    });
-    connect(serialPort_, &AbstractSerialPort::closed, [&]() {
-      connectionState_.setState(ConnectionState::kClosed);
-      emit clientClosed();
-    });
-    connect(serialPort_, &AbstractSerialPort::error,
-            [&](const QString &errorString) {
-              emit errorOccur(errorString);
-              close();
-            });
-    connect(serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
-      auto &element = elementQueue_.front();
-      auto &request = element.request;
-    });
-  }
-  void initMemberValues() {
-    connectionState_.setState(ConnectionState::kClosed);
-    sessionState_.setState(SessionState::kIdle);
-    waitConversionDelay_ = 200;
-    t3_5_ = 100;
-  }
-
-  ElementQueue elementQueue_;
-  StateManager<ConnectionState> connectionState_;
-  StateManager<SessionState> sessionState_;
-  AbstractSerialPort *serialPort_ = nullptr;
-  int waitConversionDelay_;
-  int t3_5_;
+  QScopedPointer<QSerialClientPrivate> d_ptr;
 };
 } // namespace modbus
 #endif // __MODBUS_SERIAL_CLIENT_H_
