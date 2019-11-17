@@ -12,10 +12,10 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   int argc = 1;
   char *argv[] = {(char *)"test"};
   QCoreApplication app(argc, argv);
-  auto serialPort = new MockSerialPort();
-  serialPort->setupDelegate();
   {
+    auto serialPort = new MockSerialPort();
     modbus::QSerialClient serialClient(serialPort);
+    serialPort->setupDelegate();
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
 
