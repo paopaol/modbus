@@ -1,6 +1,7 @@
 #include "modbus_serial_client_p.h"
 #include <QTimer>
 #include <assert.h>
+#include <modbus/base/modbus_tool.h>
 
 namespace modbus {
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
@@ -51,14 +52,31 @@ void QSerialClient::close() {
 void QSerialClient::sendRequest(const Request &request) {
   Q_D(QSerialClient);
 
+  /*just queue the request, when the session state is in idle, it will be sent
+   * out*/
   auto element = createElement(request);
-  d->enqueueElement(element);
+  d->elementQueue_.push(element);
+  if (d->sessionState_.state() != SessionState::kIdle) {
+    return;
+  }
+  /*after some delay, the request will be sent,so we change the state to sending
+   * request*/
+  d->sessionState_.setState(SessionState::kSendingRequest);
+
   runAfter(d->t3_5_, [&]() {
     Q_D(QSerialClient);
 
-    auto ele = d->elementQueue_.front();
-    auto request = ele.request;
+    /**
+     * take out the first request,send it out,
+     */
+    auto &ele = d->elementQueue_.front();
+    auto &request = ele.request;
     auto array = request.marshalData();
+    uint16_t crc = tool::crc16_modbus(array.data(), array.size());
+    char crc2Bytes[2] = {0};
+    crc2Bytes[0] = crc % 256;
+    crc2Bytes[1] = crc / 256;
+    array.insert(array.end(), crc2Bytes, crc2Bytes + 2);
     d->serialPort_->write(
         QByteArray(reinterpret_cast<const char *>(array.data())), array.size());
   });
@@ -80,6 +98,8 @@ void QSerialClient::runAfter(int delay, const std::function<void()> &functor) {
   QTimer::singleShot(delay, functor);
 }
 void QSerialClient::setupEnvironment() {
+  qRegisterMetaType<Request>("Request");
+  qRegisterMetaType<Response>("Response");
   Q_D(QSerialClient);
 
   assert(d->serialPort_ && "the serialport backend is invalid");
@@ -101,8 +121,14 @@ void QSerialClient::setupEnvironment() {
   connect(d->serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
     Q_D(QSerialClient);
 
+    /*check the request is sent done*/
     auto &element = d->elementQueue_.front();
     auto &request = element.request;
+    element.byteWritten_ += bytes;
+    // if (element.byteWritten_ == request.marshalSize() + 2 /*crc len*/) {
+    //   d->waitResponseTimer_.start();
+    //   return;
+    // }
   });
 }
 
@@ -113,6 +139,7 @@ void QSerialClient::initMemberValues() {
   d->sessionState_.setState(SessionState::kIdle);
   d->waitConversionDelay_ = 200;
   d->t3_5_ = 100;
+  d->waitResponseTimeout_ = 1000;
 }
 
 } // namespace modbus

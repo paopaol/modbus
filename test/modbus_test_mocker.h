@@ -1,11 +1,16 @@
 #include <gtest/gtest.h>
 
+#include <QByteArray>
 #include <QCoreApplication>
 #include <gmock/gmock.h>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/tools/modbus_serial_client.h>
 
+/**
+ * a mock of serial port
+ * we use this class for testing of modbus::QSerialClient
+ */
 class MockSerialPort : public modbus::AbstractSerialPort {
 public:
   MockSerialPort(QObject *parent = nullptr)
@@ -31,6 +36,19 @@ public:
       emit error("open serial failed");
     });
   }
+
+  void setupTestForWrite() {
+    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
+    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      sendoutData_.insert(sendoutData_.end(), data, data + size);
+      emit bytesWritten(size);
+    });
+  }
+  modbus::ByteArray sendoutData() { return sendoutData_; }
+
+private:
+  modbus::ByteArray sendoutData_;
 };
 
 class MockReadCoilsDataChecker {
