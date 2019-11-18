@@ -18,6 +18,7 @@ enum class ConnectionState { kOpening, kOpened, kClosing, kClosed, kError };
 struct Element {
   Request request;
   Response response;
+  size_t byteWritten_ = 0;
 };
 using ElementQueue = std::queue<Element>;
 Element createElement(const Request &request) {
