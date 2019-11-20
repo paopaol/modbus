@@ -8,7 +8,6 @@
   QCoreApplication name(argc, argv);
 
 static const modbus::ServerAddress kServerAddress = 1;
-static modbus::ByteArray appendCrc(const modbus::ByteArray &data);
 
 TEST(TestModbusSerialClient, serialClientConstrct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
@@ -126,7 +125,7 @@ TEST(TestModbusSerialClient,
   request.setData({1, 2, 3});
   modbus::ByteArray dataWitoutCrc = {kServerAddress,
                                      modbus::FunctionCode::kReadCoils, 1, 2, 3};
-  modbus::ByteArray dataWithCrc = appendCrc(dataWitoutCrc);
+  modbus::ByteArray dataWithCrc = modbus::tool::appendCrc(dataWitoutCrc);
 
   {
     auto serialPort = new MockSerialPort();
@@ -152,15 +151,4 @@ TEST(TestModbusSerialClient,
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
-}
-
-modbus::ByteArray appendCrc(const modbus::ByteArray &data) {
-  uint16_t crc =
-      modbus::tool::crc16_modbus((uint8_t *)(data.data()), data.size());
-  auto dataWithCrc = data;
-  /// first push low bit
-  dataWithCrc.push_back(crc % 256);
-  /// second push high bit
-  dataWithCrc.push_back(crc / 256);
-  return dataWithCrc;
 }
