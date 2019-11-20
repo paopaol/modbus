@@ -61,6 +61,9 @@ public:
   bool isClosed() override;
   bool isOpened() override;
 
+  void setTimeout(uint64_t timeout);
+  uint64_t timeout();
+
 private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();
