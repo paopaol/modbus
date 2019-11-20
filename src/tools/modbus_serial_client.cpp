@@ -132,6 +132,18 @@ void QSerialClient::setupEnvironment() {
   });
 }
 
+void modbus::QSerialClient::setTimeout(uint64_t timeout) {
+  Q_D(QSerialClient);
+
+  d->waitResponseTimeout_ = timeout;
+}
+
+uint64_t modbus::QSerialClient::timeout() {
+  Q_D(QSerialClient);
+
+  return d->waitResponseTimeout_;
+}
+
 void QSerialClient::initMemberValues() {
   Q_D(QSerialClient);
 
