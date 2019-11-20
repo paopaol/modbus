@@ -44,6 +44,7 @@ public:
   int waitConversionDelay_;
   int t3_5_;
   int waitResponseTimeout_;
+  uint32_t retryTimes_;
   QTimer waitResponseTimer_;
 };
 
