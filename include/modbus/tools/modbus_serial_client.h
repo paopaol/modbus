@@ -64,6 +64,9 @@ public:
   void setTimeout(uint64_t timeout);
   uint64_t timeout();
 
+  void setRetryTimes(uint32_t times);
+  uint32_t retryTimes();
+
 private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();

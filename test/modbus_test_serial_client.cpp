@@ -158,6 +158,20 @@ TEST(TestModbusSerialClient, setTimeout) {
   app.exec();
 }
 
+TEST(TestModbusSerialClient, setRetryTimes) {
+  declare_app(app);
+
+  {
+    auto serialPort = new MockSerialPort();
+    modbus::QSerialClient serialClient(serialPort);
+
+    serialClient.setRetryTimes(5);
+    EXPECT_EQ(5, serialClient.retryTimes());
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createTestRequest() {
   modbus::Request request;
 
