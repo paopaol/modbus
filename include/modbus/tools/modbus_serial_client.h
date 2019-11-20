@@ -56,7 +56,7 @@ public:
 
   void open() override;
   void close() override;
-  void sendRequest(const Request &request);
+  void sendRequest(const Request &request) override;
 
   bool isClosed() override;
   bool isOpened() override;
