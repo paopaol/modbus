@@ -71,14 +71,14 @@ void QSerialClient::sendRequest(const Request &request) {
      */
     auto &ele = d->elementQueue_.front();
     auto &request = ele.request;
-    auto array = request.marshalData();
-    uint16_t crc = tool::crc16_modbus(array.data(), array.size());
-    char crc2Bytes[2] = {0};
-    crc2Bytes[0] = crc % 256;
-    crc2Bytes[1] = crc / 256;
-    array.insert(array.end(), crc2Bytes, crc2Bytes + 2);
+    auto data = request.marshalData();
+    /**
+     * we append crc, then write to serialport
+     */
+    auto modbusSerialData = tool::appendCrc(data);
     d->serialPort_->write(
-        QByteArray(reinterpret_cast<const char *>(array.data())), array.size());
+        QByteArray(reinterpret_cast<const char *>(modbusSerialData.data())),
+        modbusSerialData.size());
   });
 }
 
