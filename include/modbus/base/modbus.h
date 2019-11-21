@@ -111,7 +111,21 @@ private:
   any userData_;
 };
 
-using Response = Adu;
+class Response : public Adu {
+public:
+  Response() : errorCode_(Error::kNoError), Adu() {}
+  void setError(Error errorCode, const std::string &errorString) {
+    errorCode_ = errorCode;
+    errorString_ = errorString;
+  }
+
+  Error error() { return errorCode_; }
+  std::string errorString() { return errorString_; }
+
+private:
+  Error errorCode_;
+  std::string errorString_;
+};
 
 } // namespace modbus
 

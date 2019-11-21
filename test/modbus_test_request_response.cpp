@@ -24,7 +24,7 @@ TEST(TestRequest, modbusRequestApiWorks) {
   }
 }
 
-TEST(TestResponse, modbusResponseApiWorks) {
+TEST(TestModbusResponse, modbusResponseApiWorks) {
   {
     modbus::Response response;
 
@@ -37,4 +37,16 @@ TEST(TestResponse, modbusResponseApiWorks) {
     response.setFunctionCode(modbus::FunctionCode::kReadCoils);
     EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
   }
+}
+
+TEST(TestModbusResponse, Constructor_defaultError_isNoError) {
+  modbus::Response response;
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+}
+
+TEST(TestModbusResponse, setError) {
+  modbus::Response response;
+  response.setError(modbus::Error::kTimeout, "timeout");
+  EXPECT_EQ(response.error(), modbus::Error::kTimeout);
+  EXPECT_EQ(response.errorString(), "timeout");
 }
