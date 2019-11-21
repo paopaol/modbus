@@ -20,7 +20,10 @@ enum class Error {
   kSlaveDeviceBusy = 0x06,
   kStorageParityError = 0x08,
   kUnavailableGatewayPath = 0x0a,
-  kGatewayTargetDeviceResponseLoss = 0x0b
+  kGatewayTargetDeviceResponseLoss = 0x0b,
+
+  /// user defined error, not inlcuded in modbus protocol
+  kTimeout = 0x1000
 };
 
 using ByteArray = std::vector<uint8_t>;
