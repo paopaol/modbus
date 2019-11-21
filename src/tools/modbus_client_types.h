@@ -21,7 +21,7 @@ struct Element {
   size_t byteWritten_ = 0;
 };
 using ElementQueue = std::queue<Element>;
-Element createElement(const Request &request) {
+inline Element createElement(const Request &request) {
   Element element;
 
   element.request = request;
