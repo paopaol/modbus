@@ -78,6 +78,15 @@ public:
   QTimer waitResponseTimer_;
 };
 
+static inline ByteArray subArray(const ByteArray &array, size_t index,
+                                 int n = -1) {
+  if (n == -1) {
+    return ByteArray(array.begin() + index, array.end());
+  } else {
+    return ByteArray(array.begin() + index, array.begin() + index + n);
+  }
+}
+
 } // namespace modbus
 
 #endif /* MODBUS_SERIAL_CLIENT_P_H */
