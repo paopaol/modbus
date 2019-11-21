@@ -1,11 +1,12 @@
 #include "modbus_serial_client_p.h"
 #include <QTimer>
+#include <algorithm>
 #include <assert.h>
 #include <modbus/base/modbus_tool.h>
 
 namespace modbus {
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
-    : d_ptr(new QSerialClientPrivate(serialPort, parent)), Client(parent) {
+    : d_ptr(new QSerialClientPrivate(serialPort, this)), Client(parent) {
   initMemberValues();
   setupEnvironment();
 }
@@ -55,31 +56,7 @@ void QSerialClient::sendRequest(const Request &request) {
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
   auto element = createElement(request);
-  d->elementQueue_.push(element);
-  if (d->sessionState_.state() != SessionState::kIdle) {
-    return;
-  }
-  /*after some delay, the request will be sent,so we change the state to sending
-   * request*/
-  d->sessionState_.setState(SessionState::kSendingRequest);
-
-  runAfter(d->t3_5_, [&]() {
-    Q_D(QSerialClient);
-
-    /**
-     * take out the first request,send it out,
-     */
-    auto &ele = d->elementQueue_.front();
-    auto &request = ele.request;
-    auto data = request.marshalData();
-    /**
-     * we append crc, then write to serialport
-     */
-    auto modbusSerialData = tool::appendCrc(data);
-    d->serialPort_->write(
-        QByteArray(reinterpret_cast<const char *>(modbusSerialData.data())),
-        modbusSerialData.size());
-  });
+  d->enqueueElement(element);
 }
 
 bool QSerialClient::isClosed() {
@@ -94,9 +71,6 @@ bool QSerialClient::isOpened() {
   return d->connectionState_.state() == ConnectionState::kOpened;
 }
 
-void QSerialClient::runAfter(int delay, const std::function<void()> &functor) {
-  QTimer::singleShot(delay, functor);
-}
 void QSerialClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
@@ -125,12 +99,34 @@ void QSerialClient::setupEnvironment() {
     auto &element = d->elementQueue_.front();
     auto &request = element.request;
     element.byteWritten_ += bytes;
-    // if (element.byteWritten_ == request.marshalSize() + 2 /*crc len*/) {
-    //   d->waitResponseTimer_.start();
-    //   return;
-    // }
+    if (element.byteWritten_ != request.marshalSize() + 2 /*crc len*/) {
+      return;
+    }
+
+    /**
+     * According to the modebus rtu master station state diagram, when the
+     * request is sent to the child node, the response timeout timer is
+     * started. If the response times out, the next step is to retry. After
+     * the number of retries is exceeded, error processing is performed
+     * (return to the user).
+     */
+    d->waitResponseTimer_.start();
   });
-}
+
+  connect(&d->waitResponseTimer_, &QTimer::timeout, this, [&]() {
+    Q_D(QSerialClient);
+
+    auto &element = d->elementQueue_.front();
+    element.byteWritten_ = 0;
+
+    d->sessionState_.setState(SessionState::kIdle);
+
+    --d->retryTimes_;
+    if (d->retryTimes_ > 0) {
+      d->scheduleNextRequest();
+    }
+  });
+} // namespace modbus
 
 void modbus::QSerialClient::setTimeout(uint64_t timeout) {
   Q_D(QSerialClient);
