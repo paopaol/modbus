@@ -11,6 +11,7 @@ using Quantity = uint16_t;
 enum class BitValue { kOn, kOff };
 enum FunctionCode { kInvalidCode = 0x00, kReadCoils = 0x01 };
 enum class Error {
+  kNoError = 0,
   kIllegalFunctionCode = 0x01,
   kIllegalDataAddress = 0x02,
   kIllegalDataValue = 0x03,
