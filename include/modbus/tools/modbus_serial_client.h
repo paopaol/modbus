@@ -72,5 +72,8 @@ private:
 
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };
+
 } // namespace modbus
+Q_DECLARE_METATYPE(modbus::Response);
+Q_DECLARE_METATYPE(modbus::Request);
 #endif // __MODBUS_SERIAL_CLIENT_H_

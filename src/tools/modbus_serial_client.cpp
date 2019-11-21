@@ -95,6 +95,10 @@ void QSerialClient::setupEnvironment() {
   connect(d->serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
     Q_D(QSerialClient);
 
+    assert(d->sessionState_.state() == SessionState::kSendingRequest &&
+           "when write operation is not done, the session state must be in "
+           "kSendingRequest");
+
     /*check the request is sent done*/
     auto &element = d->elementQueue_.front();
     auto &request = element.request;
@@ -110,20 +114,40 @@ void QSerialClient::setupEnvironment() {
      * the number of retries is exceeded, error processing is performed
      * (return to the user).
      */
+    d->sessionState_.setState(SessionState::kWaitingResponse);
+    d->waitResponseTimer_.setInterval(d->waitResponseTimeout_);
     d->waitResponseTimer_.start();
   });
 
   connect(&d->waitResponseTimer_, &QTimer::timeout, this, [&]() {
     Q_D(QSerialClient);
+    assert(d->sessionState_.state() == SessionState::kWaitingResponse);
+
+    /// FIXME:add debug log
 
     auto &element = d->elementQueue_.front();
     element.byteWritten_ = 0;
 
+    /**
+     *  An error occurs when the response times out but no response is received.
+     *  Then the master node enters the "idle" state and issues a retry request.
+     *  The maximum number of retries depends on the settings of the primary
+     * node
+     *
+     */
     d->sessionState_.setState(SessionState::kIdle);
 
-    --d->retryTimes_;
-    if (d->retryTimes_ > 0) {
+    if (d->retryTimes_-- > 0) {
       d->scheduleNextRequest();
+    } else {
+      auto request = element.request;
+      auto response = element.response;
+      /**
+       * if have no retry times, remove this request
+       */
+      d->elementQueue_.pop();
+      response.setError(modbus::Error::kTimeout, "timeout");
+      emit requestFinished(request, response);
     }
   });
 } // namespace modbus
