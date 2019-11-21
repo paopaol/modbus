@@ -3,6 +3,7 @@
 
 #include "modbus_client_types.h"
 #include <QTimer>
+#include <modbus/base/modbus_tool.h>
 #include <modbus/tools/modbus_serial_client.h>
 #include <queue>
 
@@ -16,18 +17,44 @@ enum class SessionState {
   kProcessingError
 };
 
-class QSerialClientPrivate {
+class QSerialClientPrivate : public QObject {
+  Q_OBJECT
 public:
   QSerialClientPrivate(AbstractSerialPort *serialPort,
                        QObject *parent = nullptr)
-      : serialPort_(serialPort) {}
+      : serialPort_(serialPort), QObject(parent) {}
 
   void enqueueElement(const Element &element) {
     elementQueue_.push(element);
+    scheduleNextRequest();
+  }
 
+  void scheduleNextRequest() {
+    /**
+     * only in idle state can send request
+     */
     if (sessionState_.state() != SessionState::kIdle) {
       return;
     }
+
+    /*after some delay, the request will be sent,so we change the state to
+     * sending request*/
+    sessionState_.setState(SessionState::kSendingRequest);
+    QTimer::singleShot(t3_5_, this, [&]() {
+      /**
+       * take out the first request,send it out,
+       */
+      auto &ele = elementQueue_.front();
+      auto &request = ele.request;
+      auto data = request.marshalData();
+      /**
+       * we append crc, then write to serialport
+       */
+      auto modbusSerialData = tool::appendCrc(data);
+      serialPort_->write(
+          QByteArray(reinterpret_cast<const char *>(modbusSerialData.data())),
+          modbusSerialData.size());
+    });
   }
 
   /**
