@@ -25,8 +25,6 @@ signals:
   void clientClosed();
   void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
-
-protected:
 };
 
 class AbstractSerialPort : public QObject {
@@ -64,8 +62,8 @@ public:
   void setTimeout(uint64_t timeout);
   uint64_t timeout();
 
-  void setRetryTimes(uint32_t times);
-  uint32_t retryTimes();
+  void setRetryTimes(int times);
+  int retryTimes();
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);
