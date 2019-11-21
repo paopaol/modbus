@@ -7,6 +7,12 @@ TEST(TestPdu, modbusPduConstructor) {
   EXPECT_EQ(fcode0, modbus::FunctionCode::kReadCoils);
 }
 
+TEST(TestPdu, modbusPduConstructor_default_isInvalidFunctionCode) {
+  modbus::Pdu pdu0;
+  auto fcode0 = pdu0.functionCode();
+  EXPECT_EQ(fcode0, modbus::FunctionCode::kInvalidCode);
+}
+
 TEST(TestPdu, modbusPduFunctionCodeTest) {
   modbus::Pdu pdu1;
   pdu1.setFunctionCode(modbus::FunctionCode::kReadCoils);
