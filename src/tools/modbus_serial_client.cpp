@@ -144,13 +144,13 @@ uint64_t modbus::QSerialClient::timeout() {
   return d->waitResponseTimeout_;
 }
 
-void modbus::QSerialClient::setRetryTimes(uint32_t times) {
+void modbus::QSerialClient::setRetryTimes(int times) {
   Q_D(QSerialClient);
 
-  d->retryTimes_ = times;
+  d->retryTimes_ = std::max(0, times);
 }
 
-uint32_t modbus::QSerialClient::retryTimes() {
+int modbus::QSerialClient::retryTimes() {
   Q_D(QSerialClient);
   return d->retryTimes_;
 }
@@ -163,7 +163,7 @@ void QSerialClient::initMemberValues() {
   d->waitConversionDelay_ = 200;
   d->t3_5_ = 100;
   d->waitResponseTimeout_ = 1000;
-  d->retryTimes_ = 3;
+  d->retryTimes_ = 0; /// default no retry
 }
 
 } // namespace modbus
