@@ -172,6 +172,48 @@ TEST(TestModbusSerialClient, setRetryTimes) {
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     sendRequestSuccessed_waitingForResponse_timeoutedWhenRetryTimesIsZero) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createTestRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWrite();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    serialClient.setRetryTimes(2);
+    serialClient.setTimeout(500);
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    /**
+     * we set the retry times 2,so write() will be called twice
+     */
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_)).Times(3);
+    EXPECT_CALL(*serialPort, close());
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(100000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::Response response =
+        qvariant_cast<modbus::Response>(arguments.at(1));
+    EXPECT_EQ(modbus::Error::kTimeout, response.error());
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createTestRequest() {
   modbus::Request request;
 
