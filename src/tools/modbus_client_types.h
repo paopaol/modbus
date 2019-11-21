@@ -1,3 +1,6 @@
+#ifndef MODBUS_CLIENT_TYPES_H
+#define MODBUS_CLIENT_TYPES_H
+
 #include <modbus/base/modbus.h>
 #include <queue>
 
@@ -29,3 +32,5 @@ inline Element createElement(const Request &request) {
 }
 
 } // namespace modbus
+
+#endif /* MODBUS_CLIENT_TYPES_H */

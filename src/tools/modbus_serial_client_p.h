@@ -1,3 +1,6 @@
+#ifndef MODBUS_SERIAL_CLIENT_P_H
+#define MODBUS_SERIAL_CLIENT_P_H
+
 #include "modbus_client_types.h"
 #include <QTimer>
 #include <modbus/tools/modbus_serial_client.h>
@@ -49,3 +52,5 @@ public:
 };
 
 } // namespace modbus
+
+#endif /* MODBUS_SERIAL_CLIENT_P_H */

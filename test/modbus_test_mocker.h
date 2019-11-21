@@ -1,3 +1,6 @@
+#ifndef MODBUS_TEST_MOCKER_H
+#define MODBUS_TEST_MOCKER_H
+
 #include <gtest/gtest.h>
 
 #include <QByteArray>
@@ -76,3 +79,5 @@ public:
     return dataChecker;
   }
 };
+
+#endif /* MODBUS_TEST_MOCKER_H */
