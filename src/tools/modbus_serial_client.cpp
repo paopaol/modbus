@@ -223,7 +223,7 @@ void QSerialClient::setupEnvironment() {
     d->sessionState_.setState(SessionState::kIdle);
 
     if (d->retryTimes_-- > 0) {
-      d->scheduleNextRequest();
+      d->scheduleNextRequest(d->t3_5_);
     } else {
       auto request = element.request;
       auto response = element.response;

@@ -25,10 +25,10 @@ public:
 
   void enqueueElement(const Element &element) {
     elementQueue_.push(element);
-    scheduleNextRequest();
+    scheduleNextRequest(t3_5_);
   }
 
-  void scheduleNextRequest() {
+  void scheduleNextRequest(int delay) {
     /**
      * only in idle state can send request
      */
@@ -39,7 +39,11 @@ public:
     /*after some delay, the request will be sent,so we change the state to
      * sending request*/
     sessionState_.setState(SessionState::kSendingRequest);
-    QTimer::singleShot(t3_5_, this, [&]() {
+    QTimer::singleShot(delay, this, [&]() {
+      if (elementQueue_.empty()) {
+        sessionState_.setState(SessionState::kIdle);
+        return;
+      }
       /**
        * take out the first request,send it out,
        */
