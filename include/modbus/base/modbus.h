@@ -76,6 +76,7 @@ public:
   void setDataChecker(const DataChecker &dataChecker) {
     pdu_.setDataChecker(dataChecker);
   }
+  DataChecker dataChecker() const { return pdu_.dataChecker(); }
 
   void setData(const ByteArray &byteArray) { pdu_.setData(byteArray); }
   ByteArray data() const { return pdu_.data(); }
