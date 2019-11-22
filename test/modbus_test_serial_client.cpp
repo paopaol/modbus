@@ -9,6 +9,7 @@
 
 static const modbus::ServerAddress kServerAddress = 1;
 static modbus::Request createReadCoilsRequest();
+modbus::Request createBrocastRequest();
 
 TEST(TestModbusSerialClient, serialClientConstrct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
@@ -345,10 +346,60 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createBrocastRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWrite();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+
+    QByteArray responseData;
+    responseData.append(kServerAddress);
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /**
+     * If it is a broadcast request, then there will be no return results, just
+     * a delay for a short period of time, then enter the idle state
+     */
+    spy.wait(2000);
+    /// if some error occured, can not get requestFinished signal
+    EXPECT_EQ(spy.count(), 0);
+    EXPECT_EQ(serialClient.isIdle(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createReadCoilsRequest() {
   modbus::Request request;
 
   request.setServerAddress(kServerAddress);
+  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  request.setData({1, 2, 3});
+  return request;
+}
+
+modbus::Request createBrocastRequest() {
+  modbus::Request request;
+
+  request.setServerAddress(modbus::Adu::kBrocastAddress);
   request.setFunctionCode(modbus::FunctionCode::kReadCoils);
   request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   request.setData({1, 2, 3});

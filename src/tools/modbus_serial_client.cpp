@@ -126,6 +126,13 @@ void QSerialClient::setupEnvironment() {
       return;
     }
 
+    if (request.isBrocast()) {
+      d->elementQueue_.pop();
+      d->sessionState_.setState(SessionState::kIdle);
+      d->scheduleNextRequest(d->waitConversionDelay_);
+      return;
+    }
+
     /**
      * According to the modebus rtu master station state diagram, when the
      * request is sent to the child node, the response timeout timer is
