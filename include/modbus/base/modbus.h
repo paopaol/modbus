@@ -97,8 +97,9 @@ public:
     return array;
   }
 
-private:
   static const ServerAddress kBrocastAddress = 0;
+
+private:
   ServerAddress serverAddress_;
   Pdu pdu_;
 };
