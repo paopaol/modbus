@@ -91,7 +91,19 @@ void QSerialClient::setupEnvironment() {
   });
   connect(d->serialPort_, &AbstractSerialPort::error,
           [&](const QString &errorString) {
+            Q_D(QSerialClient);
+
+            switch (d->sessionState_.state()) {
+            case SessionState::kWaitingResponse:
+              d->waitResponseTimer_.stop();
+            case SessionState::kSendingRequest:
+              d->elementQueue_.pop();
+            default:
+              break;
+            }
+            d->sessionState_.setState(SessionState::kIdle);
             emit errorOccur(errorString);
+            // FIXME:log
             close();
           });
   connect(d->serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
@@ -123,6 +135,8 @@ void QSerialClient::setupEnvironment() {
   });
   connect(d->serialPort_, &AbstractSerialPort::readyRead, this, [&]() {
     Q_D(QSerialClient);
+
+    assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
     auto &element = d->elementQueue_.front();
     auto &dataRecived = element.dataRecived;
