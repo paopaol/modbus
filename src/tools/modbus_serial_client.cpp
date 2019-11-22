@@ -102,8 +102,8 @@ void QSerialClient::setupEnvironment() {
     /*check the request is sent done*/
     auto &element = d->elementQueue_.front();
     auto &request = element.request;
-    element.byteWritten_ += bytes;
-    if (element.byteWritten_ != request.marshalSize() + 2 /*crc len*/) {
+    element.byteWritten += bytes;
+    if (element.byteWritten != request.marshalSize() + 2 /*crc len*/) {
       return;
     }
 
@@ -126,7 +126,7 @@ void QSerialClient::setupEnvironment() {
     /// FIXME:add debug log
 
     auto &element = d->elementQueue_.front();
-    element.byteWritten_ = 0;
+    element.byteWritten = 0;
 
     /**
      *  An error occurs when the response times out but no response is received.
