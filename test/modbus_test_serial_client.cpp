@@ -214,6 +214,95 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     sendRequestSuccessed_waitingForResponse_responseGetSuccessed) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createTestRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWriteRead();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+
+    /**
+     *In this test case, we simulate that the data returned by the serial port
+     *is not all over the time. Therefore, it may be necessary to read it many
+     *times before the data can be completely read. Here, we simulate that it
+     *needs to read four times to finish reading.
+     *
+     * first time, only read server address (1 byte) //need more data
+     * second time, read function code(1byte) + data(1 bytes) //need more data
+     * thrd time, read data(1 byte)
+     * fourth time, read crc(2 bytes)
+     */
+    modbus::ByteArray responseWithoutCrc = {
+        kServerAddress, modbus::FunctionCode::kReadCoils,
+        modbus::CoilAddress(0x01), modbus::Quantity(0x02)};
+
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+
+    QByteArray firstReadData;
+    firstReadData.append(responseWithCrc[0]); /// server address
+
+    QByteArray secondReadData;
+    secondReadData.append(responseWithCrc[1]); /// function Code
+    secondReadData.append(responseWithCrc[2]); /// coil address
+
+    QByteArray thrdReadData;
+    thrdReadData.append(responseWithCrc[3]); /// quantity
+
+    QByteArray fourthReadData;
+    fourthReadData.append(responseWithCrc[4])
+        .append(responseWithCrc[5]); /// crc
+
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(4)
+        .WillOnce([&]() {
+          QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
+          return firstReadData;
+        })
+        .WillOnce([&]() {
+          QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
+          return secondReadData;
+        })
+        .WillOnce([&]() {
+          QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
+          return thrdReadData;
+        })
+        .WillOnce([&]() { return fourthReadData; });
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(200000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::Response response =
+        qvariant_cast<modbus::Response>(arguments.at(1));
+    EXPECT_EQ(modbus::Error::kNoError, response.error());
+    EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
+    EXPECT_EQ(request.serverAddress(), response.serverAddress());
+    EXPECT_EQ(response.data(), modbus::ByteArray({modbus::CoilAddress(0x01),
+                                                  modbus::Quantity(0x02)}));
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createTestRequest() {
   modbus::Request request;
 

@@ -35,11 +35,14 @@ public:
   virtual void open() = 0;
   virtual void close() = 0;
   virtual void write(const char *data, size_t size) = 0;
+  virtual QByteArray readAll() = 0;
+  virtual void clear() = 0;
 signals:
   void opened();
   void closed();
   void error(const QString &errorString);
   void bytesWritten(qint64 bytes);
+  void readyRead();
 };
 
 class QSerialClientPrivate;

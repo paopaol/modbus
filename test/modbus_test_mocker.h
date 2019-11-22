@@ -5,6 +5,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QTimer>
 #include <gmock/gmock.h>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
@@ -22,6 +23,8 @@ public:
   MOCK_METHOD(void, open, (), (override));
   MOCK_METHOD(void, close, (), (override));
   MOCK_METHOD(void, write, (const char *data, size_t size), (override));
+  MOCK_METHOD(QByteArray, readAll, (), (override));
+  MOCK_METHOD(void, clear, (), (override));
 
   void setupDelegate() {
     ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
@@ -46,6 +49,15 @@ public:
     ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
       sendoutData_.insert(sendoutData_.end(), data, data + size);
       emit bytesWritten(size);
+    });
+  }
+
+  void setupTestForWriteRead() {
+    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
+    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      emit bytesWritten(size);
+      QTimer::singleShot(10, [&]() { emit readyRead(); });
     });
   }
   modbus::ByteArray sendoutData() { return sendoutData_; }
@@ -74,6 +86,10 @@ public:
     modbus::DataChecker dataChecker;
     dataChecker.calculateRequestSize = [](size_t &size,
                                           const modbus::ByteArray &byteArray) {
+      return MockReadCoilsDataChecker::calculateRequestSize(size, byteArray);
+    };
+    dataChecker.calculateResponseSize = [](size_t &size,
+                                           const modbus::ByteArray &byteArray) {
       return MockReadCoilsDataChecker::calculateResponseSize(size, byteArray);
     };
     return dataChecker;

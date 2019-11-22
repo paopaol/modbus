@@ -22,6 +22,7 @@ struct Element {
   Request request;
   Response response;
   size_t byteWritten = 0;
+  ByteArray dataRecived; // recived data from serial or socket or other
 };
 using ElementQueue = std::queue<Element>;
 inline Element createElement(const Request &request) {
