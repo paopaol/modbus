@@ -5,6 +5,8 @@
 #include <modbus/base/modbus_tool.h>
 
 namespace modbus {
+static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
+
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
     : d_ptr(new QSerialClientPrivate(serialPort, this)), Client(parent) {
   initMemberValues();
@@ -115,8 +117,72 @@ void QSerialClient::setupEnvironment() {
      * (return to the user).
      */
     d->sessionState_.setState(SessionState::kWaitingResponse);
+    d->waitResponseTimer_.setSingleShot(true);
     d->waitResponseTimer_.setInterval(d->waitResponseTimeout_);
     d->waitResponseTimer_.start();
+  });
+  connect(d->serialPort_, &AbstractSerialPort::readyRead, this, [&]() {
+    Q_D(QSerialClient);
+
+    auto &element = d->elementQueue_.front();
+    auto &dataRecived = element.dataRecived;
+    auto request = element.request;
+    auto response = element.response;
+
+    appendQByteArray(dataRecived, d->serialPort_->readAll());
+    /// make sure got serveraddress + function code
+    if (dataRecived.size() < 2) {
+      return;
+    }
+
+    response.setServerAddress(dataRecived[0]);
+    response.setFunctionCode(static_cast<FunctionCode>(dataRecived[1]));
+
+    /**
+     * When receiving a response from an undesired child node,
+     * Should continue to time out
+     * discard all recived data
+     */
+    if (response.serverAddress() != request.serverAddress()) {
+      d->serialPort_->clear();
+      dataRecived.clear();
+      return;
+    }
+
+    const auto &dataChecker = request.dataChecker();
+    size_t expectSize = 0;
+
+    DataChecker::Result result =
+        dataChecker.calculateResponseSize(expectSize, subArray(dataRecived, 2));
+    if (result == DataChecker::Result::kNeedMoreData) {
+      return;
+    }
+    response.setData(subArray(dataRecived, 2, expectSize));
+    /// server address(1) + function code(1) + data(expectSize) + crc(2)
+    size_t totalSize = 2 + expectSize + 2;
+    if (dataRecived.size() != totalSize) {
+      /// need more data
+      return;
+    }
+    d->waitResponseTimer_.stop();
+    d->sessionState_.setState(SessionState::kIdle);
+
+    auto dataWithCrc =
+        tool::appendCrc(subArray(dataRecived, 0, 2 + expectSize));
+
+    /**
+     * Received frame error
+     */
+    if (dataWithCrc != dataRecived) {
+      response.setError(Error::kStorageParityError,
+                        "modbus frame parity error");
+    }
+
+    /**
+     * Pop at the end
+     */
+    d->elementQueue_.pop();
+    emit requestFinished(request, response);
   });
 
   connect(&d->waitResponseTimer_, &QTimer::timeout, this, [&]() {
@@ -129,10 +195,10 @@ void QSerialClient::setupEnvironment() {
     element.byteWritten = 0;
 
     /**
-     *  An error occurs when the response times out but no response is received.
-     *  Then the master node enters the "idle" state and issues a retry request.
-     *  The maximum number of retries depends on the settings of the primary
-     * node
+     *  An error occurs when the response times out but no response is
+     * received. Then the master node enters the "idle" state and issues a
+     * retry request. The maximum number of retries depends on the settings
+     * of the primary node
      *
      */
     d->sessionState_.setState(SessionState::kIdle);
@@ -184,6 +250,12 @@ void QSerialClient::initMemberValues() {
   d->t3_5_ = 100;
   d->waitResponseTimeout_ = 1000;
   d->retryTimes_ = 0; /// default no retry
+}
+
+static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
+  uint8_t *data = (uint8_t *)qarray.constData();
+  size_t size = qarray.size();
+  array.insert(array.end(), data, data + size);
 }
 
 } // namespace modbus
