@@ -8,7 +8,7 @@
   QCoreApplication name(argc, argv);
 
 static const modbus::ServerAddress kServerAddress = 1;
-static modbus::Request createTestRequest();
+static modbus::Request createReadCoilsRequest();
 
 TEST(TestModbusSerialClient, serialClientConstrct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
@@ -85,7 +85,7 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
 TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
   declare_app(app);
 
-  modbus::Request request = createTestRequest();
+  modbus::Request request = createReadCoilsRequest();
 
   {
     auto serialPort = new MockSerialPort();
@@ -113,7 +113,7 @@ TEST(TestModbusSerialClient,
      serialPortIsOpened_sendRequest_serialWriteSuccess) {
   declare_app(app);
 
-  modbus::Request request = createTestRequest();
+  modbus::Request request = createReadCoilsRequest();
   modbus::ByteArray dataWitoutCrc = {kServerAddress,
                                      modbus::FunctionCode::kReadCoils, 1, 2, 3};
   modbus::ByteArray dataWithCrc = modbus::tool::appendCrc(dataWitoutCrc);
@@ -177,7 +177,7 @@ TEST(TestModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createTestRequest();
+    modbus::Request request = createReadCoilsRequest();
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWrite();
@@ -219,7 +219,7 @@ TEST(TestModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createTestRequest();
+    modbus::Request request = createReadCoilsRequest();
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -308,7 +308,7 @@ TEST(TestModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createTestRequest();
+    modbus::Request request = createReadCoilsRequest();
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -345,7 +345,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-modbus::Request createTestRequest() {
+modbus::Request createReadCoilsRequest() {
   modbus::Request request;
 
   request.setServerAddress(kServerAddress);
