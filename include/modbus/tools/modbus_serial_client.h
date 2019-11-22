@@ -20,6 +20,7 @@ public:
 
   virtual bool isClosed() = 0;
   virtual bool isOpened() = 0;
+  virtual bool isIdle() = 0;
 signals:
   void clientOpened();
   void clientClosed();
@@ -58,6 +59,7 @@ public:
   void open() override;
   void close() override;
   void sendRequest(const Request &request) override;
+  bool isIdle() override;
 
   bool isClosed() override;
   bool isOpened() override;

@@ -73,6 +73,11 @@ bool QSerialClient::isOpened() {
   return d->connectionState_.state() == ConnectionState::kOpened;
 }
 
+bool modbus::QSerialClient::isIdle() {
+  Q_D(QSerialClient);
+  return d->sessionState_.state() == SessionState::kIdle;
+}
+
 void QSerialClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
