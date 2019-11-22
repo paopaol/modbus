@@ -13,7 +13,6 @@ enum class SessionState {
   kSendingRequest,
   kWaitingResponse,
   kProcessingResponse,
-  kWaitingConversionDelay,
   kProcessingError
 };
 
