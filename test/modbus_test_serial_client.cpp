@@ -303,6 +303,48 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     sendRequestSuccessed_waitingForResponse_readSomethingThenErrorOcurr) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createTestRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWriteRead();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+
+    QByteArray responseData;
+    responseData.append(kServerAddress);
+
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
+      QTimer::singleShot(10, [&]() { serialPort->error("read error"); });
+      return responseData;
+    });
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(2000);
+    /// if some error occured, can not get requestFinished signal
+    EXPECT_EQ(spy.count(), 0);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createTestRequest() {
   modbus::Request request;
 
