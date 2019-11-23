@@ -48,7 +48,7 @@ void QSerialClient::open() {
  */
 void QSerialClient::close() {
   Q_D(QSerialClient);
-  d->openRetryTimes_ = 0;
+  d->forceClose_ = true;
   closeNotClearOpenRetrys();
 }
 
@@ -100,14 +100,22 @@ void QSerialClient::setupEnvironment() {
     Q_D(QSerialClient);
     d->connectionState_.setState(ConnectionState::kClosed);
 
-    if (d->openRetryTimes_ > 0 ||
-        d->openRetryTimes_ == Client::kBrokenLineReconnection) {
-      d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-      QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
-      return;
-    } else {
+    /// force close, do not check reconnect
+    if (d->forceClose_) {
+      d->forceClose_ = false;
       emit clientClosed();
+      return;
     }
+
+    // check reconnect
+    if (d->openRetryTimes_ == 0) {
+      emit clientClosed();
+      return;
+    }
+
+    /// do reconnect
+    d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
+    QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
   });
   connect(d->serialPort_, &AbstractSerialPort::error,
           [&](const QString &errorString) {
