@@ -389,6 +389,44 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient, connect_connectFailed_reconnectSuccess) {
+  declare_app(app);
+
+  {
+    auto serialPort = new MockSerialPort();
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+
+    /**
+     * The first time we open, our simulation failed. The second time, we
+     * simulated successfully
+     */
+    EXPECT_CALL(*serialPort, open())
+        .Times(2)
+        .WillOnce([&]() {
+          serialPort->error("connect failed");
+          return;
+        })
+        .WillOnce([&]() { serialPort->opened(); });
+    EXPECT_CALL(*serialPort, close()).Times(2).WillRepeatedly([&]() {
+      serialPort->closed();
+    });
+
+    /**
+     * if open failed, retry 4 times, interval 2s
+     */
+    serialClient.setOpenRetryTimes(4, 2000);
+    serialClient.open();
+    spy.wait(10000);
+    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(serialClient.isOpened(), true);
+    EXPECT_EQ(serialClient.isIdle(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createReadCoilsRequest() {
   modbus::Request request;
 
