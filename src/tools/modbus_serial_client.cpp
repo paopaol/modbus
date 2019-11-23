@@ -93,6 +93,13 @@ void QSerialClient::setupEnvironment() {
   connect(d->serialPort_, &AbstractSerialPort::closed, [&]() {
     Q_D(QSerialClient);
     d->connectionState_.setState(ConnectionState::kClosed);
+
+    if (d->openRetryTimes_ > 0 ||
+        d->openRetryTimes_ == Client::kBrokenLineReconnection) {
+      d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
+      QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
+      return;
+    }
     emit clientClosed();
   });
   connect(d->serialPort_, &AbstractSerialPort::error,
@@ -108,7 +115,9 @@ void QSerialClient::setupEnvironment() {
               break;
             }
             d->sessionState_.setState(SessionState::kIdle);
-            emit errorOccur(errorString);
+            if (d->openRetryTimes_ == 0) {
+              emit errorOccur(errorString);
+            }
             // FIXME:log
             close();
           });
