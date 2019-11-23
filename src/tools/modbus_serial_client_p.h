@@ -79,6 +79,8 @@ public:
   int waitResponseTimeout_;
   int retryTimes_;
   QTimer waitResponseTimer_;
+  int openRetryTimes_;
+  int reopenDelay_;
 };
 
 static inline ByteArray subArray(const ByteArray &array, size_t index,
