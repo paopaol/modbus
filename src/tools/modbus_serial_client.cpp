@@ -48,6 +48,12 @@ void QSerialClient::open() {
  */
 void QSerialClient::close() {
   Q_D(QSerialClient);
+  d->openRetryTimes_ = 0;
+  closeNotClearOpenRetrys();
+}
+
+void modbus::QSerialClient::closeNotClearOpenRetrys() {
+  Q_D(QSerialClient);
 
   d->connectionState_.setState(ConnectionState::kClosing);
   d->serialPort_->close();
@@ -99,8 +105,9 @@ void QSerialClient::setupEnvironment() {
       d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
       QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
       return;
+    } else {
+      emit clientClosed();
     }
-    emit clientClosed();
   });
   connect(d->serialPort_, &AbstractSerialPort::error,
           [&](const QString &errorString) {
@@ -109,6 +116,7 @@ void QSerialClient::setupEnvironment() {
             switch (d->sessionState_.state()) {
             case SessionState::kWaitingResponse:
               d->waitResponseTimer_.stop();
+              // fallthough
             case SessionState::kSendingRequest:
               d->elementQueue_.pop();
             default:
@@ -119,7 +127,7 @@ void QSerialClient::setupEnvironment() {
               emit errorOccur(errorString);
             }
             // FIXME:log
-            close();
+            closeNotClearOpenRetrys();
           });
   connect(d->serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
     Q_D(QSerialClient);
