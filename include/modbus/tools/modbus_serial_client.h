@@ -11,6 +11,8 @@ namespace modbus {
 class Client : public QObject {
   Q_OBJECT
 public:
+  /// always reconnect if broken line
+  static const int kBrokenLineReconnection = -1;
   Client(QObject *parent = nullptr) : QObject(parent) {}
   virtual ~Client() {}
 
@@ -69,6 +71,9 @@ public:
 
   void setRetryTimes(int times);
   int retryTimes();
+  void setOpenRetryTimes(int retryTimes, int delay = 1000);
+  int openRetryTimes();
+  int openRetryDelay();
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);

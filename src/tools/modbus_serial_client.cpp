@@ -243,7 +243,7 @@ void QSerialClient::setupEnvironment() {
       emit requestFinished(request, response);
     }
   });
-} // namespace modbus
+}
 
 void modbus::QSerialClient::setTimeout(uint64_t timeout) {
   Q_D(QSerialClient);
@@ -268,6 +268,29 @@ int modbus::QSerialClient::retryTimes() {
   return d->retryTimes_;
 }
 
+void modbus::QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
+  Q_D(QSerialClient);
+  if (retryTimes < 0) {
+    retryTimes = Client::kBrokenLineReconnection;
+  }
+  d->openRetryTimes_ = retryTimes;
+
+  if (delay < 0) {
+    delay = 0;
+  }
+  d->reopenDelay_ = delay;
+}
+
+int modbus::QSerialClient::openRetryTimes() {
+  Q_D(QSerialClient);
+  return d->openRetryTimes_;
+}
+
+int modbus::QSerialClient::openRetryDelay() {
+  Q_D(QSerialClient);
+  return d->reopenDelay_;
+}
+
 void QSerialClient::initMemberValues() {
   Q_D(QSerialClient);
 
@@ -277,6 +300,8 @@ void QSerialClient::initMemberValues() {
   d->t3_5_ = 100;
   d->waitResponseTimeout_ = 1000;
   d->retryTimes_ = 0; /// default no retry
+  d->openRetryTimes_ = 0;
+  d->reopenDelay_ = 1000;
 }
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
