@@ -79,6 +79,7 @@ private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();
   void initMemberValues();
+  void closeNotClearOpenRetrys();
 
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };
