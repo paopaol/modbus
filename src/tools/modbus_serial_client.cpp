@@ -42,10 +42,11 @@ void QSerialClient::open() {
   return;
 }
 
+/**
+ * Allows shutdown and transmits clientClosed signal regardless of whether the
+ * device is already turned on
+ */
 void QSerialClient::close() {
-  if (!isOpened()) {
-    return;
-  }
   Q_D(QSerialClient);
 
   d->connectionState_.setState(ConnectionState::kClosing);

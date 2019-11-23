@@ -73,6 +73,9 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
     QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::errorOccur);
 
     EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+      serialPort->closed();
+    });
 
     // make sure the client is opened
     serialClient.open();
