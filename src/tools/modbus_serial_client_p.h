@@ -81,6 +81,11 @@ public:
   QTimer waitResponseTimer_;
   int openRetryTimes_;
   int reopenDelay_;
+  /**
+   * if user call QSerialClient::close(), this is force close
+   * if the connection broken,the device is closed, this is not force close
+   */
+  bool forceClose_ = false;
 };
 
 static inline ByteArray subArray(const ByteArray &array, size_t index,
