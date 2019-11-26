@@ -81,6 +81,13 @@ private:
   void initMemberValues();
   void closeNotClearOpenRetrys();
 
+  void onSerialPortOpened();
+  void onSerialPortClosed();
+  void onSerialPortError(const QString &errorString);
+  void onSerialPortBytesWritten(qint16 bytes);
+  void onSerialPortReadyRead();
+  void onSerialPortResponseTimeout();
+
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };
 
