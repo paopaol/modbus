@@ -91,183 +91,18 @@ void QSerialClient::setupEnvironment() {
   Q_D(QSerialClient);
 
   assert(d->serialPort_ && "the serialport backend is invalid");
-  connect(d->serialPort_, &AbstractSerialPort::opened, [&]() {
-    Q_D(QSerialClient);
-    d->connectionState_.setState(ConnectionState::kOpened);
-    emit clientOpened();
-  });
-  connect(d->serialPort_, &AbstractSerialPort::closed, [&]() {
-    Q_D(QSerialClient);
-    d->connectionState_.setState(ConnectionState::kClosed);
-
-    /// force close, do not check reconnect
-    if (d->forceClose_) {
-      d->forceClose_ = false;
-      emit clientClosed();
-      return;
-    }
-
-    // check reconnect
-    if (d->openRetryTimes_ == 0) {
-      emit clientClosed();
-      return;
-    }
-
-    /// do reconnect
-    d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-    QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
-  });
-  connect(d->serialPort_, &AbstractSerialPort::error,
-          [&](const QString &errorString) {
-            Q_D(QSerialClient);
-
-            switch (d->sessionState_.state()) {
-            case SessionState::kWaitingResponse:
-              d->waitResponseTimer_.stop();
-              // fallthough
-            case SessionState::kSendingRequest:
-              d->elementQueue_.pop();
-            default:
-              break;
-            }
-            d->sessionState_.setState(SessionState::kIdle);
-            if (d->openRetryTimes_ == 0) {
-              emit errorOccur(errorString);
-            }
-            // FIXME:log
-            closeNotClearOpenRetrys();
-          });
-  connect(d->serialPort_, &AbstractSerialPort::bytesWritten, [&](qint16 bytes) {
-    Q_D(QSerialClient);
-
-    assert(d->sessionState_.state() == SessionState::kSendingRequest &&
-           "when write operation is not done, the session state must be in "
-           "kSendingRequest");
-
-    /*check the request is sent done*/
-    auto &element = d->elementQueue_.front();
-    auto &request = element.request;
-    element.byteWritten += bytes;
-    if (element.byteWritten != request.marshalSize() + 2 /*crc len*/) {
-      return;
-    }
-
-    if (request.isBrocast()) {
-      d->elementQueue_.pop();
-      d->sessionState_.setState(SessionState::kIdle);
-      d->scheduleNextRequest(d->waitConversionDelay_);
-      return;
-    }
-
-    /**
-     * According to the modebus rtu master station state diagram, when the
-     * request is sent to the child node, the response timeout timer is
-     * started. If the response times out, the next step is to retry. After
-     * the number of retries is exceeded, error processing is performed
-     * (return to the user).
-     */
-    d->sessionState_.setState(SessionState::kWaitingResponse);
-    d->waitResponseTimer_.setSingleShot(true);
-    d->waitResponseTimer_.setInterval(d->waitResponseTimeout_);
-    d->waitResponseTimer_.start();
-  });
-  connect(d->serialPort_, &AbstractSerialPort::readyRead, this, [&]() {
-    Q_D(QSerialClient);
-
-    assert(d->sessionState_.state() == SessionState::kWaitingResponse);
-
-    auto &element = d->elementQueue_.front();
-    auto &dataRecived = element.dataRecived;
-    auto request = element.request;
-    auto response = element.response;
-
-    appendQByteArray(dataRecived, d->serialPort_->readAll());
-    /// make sure got serveraddress + function code
-    if (dataRecived.size() < 2) {
-      return;
-    }
-
-    response.setServerAddress(dataRecived[0]);
-    response.setFunctionCode(static_cast<FunctionCode>(dataRecived[1]));
-
-    /**
-     * When receiving a response from an undesired child node,
-     * Should continue to time out
-     * discard all recived data
-     */
-    if (response.serverAddress() != request.serverAddress()) {
-      d->serialPort_->clear();
-      dataRecived.clear();
-      return;
-    }
-
-    const auto &dataChecker = request.dataChecker();
-    size_t expectSize = 0;
-
-    DataChecker::Result result =
-        dataChecker.calculateResponseSize(expectSize, subArray(dataRecived, 2));
-    if (result == DataChecker::Result::kNeedMoreData) {
-      return;
-    }
-    response.setData(subArray(dataRecived, 2, expectSize));
-    /// server address(1) + function code(1) + data(expectSize) + crc(2)
-    size_t totalSize = 2 + expectSize + 2;
-    if (dataRecived.size() != totalSize) {
-      /// need more data
-      return;
-    }
-    d->waitResponseTimer_.stop();
-    d->sessionState_.setState(SessionState::kIdle);
-
-    auto dataWithCrc =
-        tool::appendCrc(subArray(dataRecived, 0, 2 + expectSize));
-
-    /**
-     * Received frame error
-     */
-    if (dataWithCrc != dataRecived) {
-      response.setError(Error::kStorageParityError,
-                        "modbus frame parity error");
-    }
-
-    /**
-     * Pop at the end
-     */
-    d->elementQueue_.pop();
-    emit requestFinished(request, response);
-  });
-
-  connect(&d->waitResponseTimer_, &QTimer::timeout, this, [&]() {
-    Q_D(QSerialClient);
-    assert(d->sessionState_.state() == SessionState::kWaitingResponse);
-
-    /// FIXME:add debug log
-
-    auto &element = d->elementQueue_.front();
-    element.byteWritten = 0;
-
-    /**
-     *  An error occurs when the response times out but no response is
-     * received. Then the master node enters the "idle" state and issues a
-     * retry request. The maximum number of retries depends on the settings
-     * of the primary node
-     *
-     */
-    d->sessionState_.setState(SessionState::kIdle);
-
-    if (d->retryTimes_-- > 0) {
-      d->scheduleNextRequest(d->t3_5_);
-    } else {
-      auto request = element.request;
-      auto response = element.response;
-      /**
-       * if have no retry times, remove this request
-       */
-      d->elementQueue_.pop();
-      response.setError(modbus::Error::kTimeout, "timeout");
-      emit requestFinished(request, response);
-    }
-  });
+  connect(d->serialPort_, &AbstractSerialPort::opened, this,
+          &QSerialClient::onSerialPortOpened);
+  connect(d->serialPort_, &AbstractSerialPort::closed, this,
+          &QSerialClient::onSerialPortClosed);
+  connect(d->serialPort_, &AbstractSerialPort::error, this,
+          &QSerialClient::onSerialPortError);
+  connect(d->serialPort_, &AbstractSerialPort::bytesWritten, this,
+          &QSerialClient::onSerialPortBytesWritten);
+  connect(d->serialPort_, &AbstractSerialPort::readyRead, this,
+          &QSerialClient::onSerialPortReadyRead);
+  connect(&d->waitResponseTimer_, &QTimer::timeout, this,
+          &QSerialClient::onSerialPortResponseTimeout);
 }
 
 void modbus::QSerialClient::setTimeout(uint64_t timeout) {
@@ -327,6 +162,185 @@ void QSerialClient::initMemberValues() {
   d->retryTimes_ = 0; /// default no retry
   d->openRetryTimes_ = 0;
   d->reopenDelay_ = 1000;
+}
+
+void QSerialClient::onSerialPortResponseTimeout() {
+  Q_D(QSerialClient);
+  assert(d->sessionState_.state() == SessionState::kWaitingResponse);
+
+  /// FIXME:add debug log
+
+  auto &element = d->elementQueue_.front();
+  element.byteWritten = 0;
+
+  /**
+   *  An error occurs when the response times out but no response is
+   * received. Then the master node enters the "idle" state and issues a
+   * retry request. The maximum number of retries depends on the settings
+   * of the primary node
+   *
+   */
+  d->sessionState_.setState(SessionState::kIdle);
+
+  if (d->retryTimes_-- > 0) {
+    d->scheduleNextRequest(d->t3_5_);
+  } else {
+    auto request = element.request;
+    auto response = element.response;
+    /**
+     * if have no retry times, remove this request
+     */
+    d->elementQueue_.pop();
+    response.setError(modbus::Error::kTimeout, "timeout");
+    emit requestFinished(request, response);
+  }
+}
+
+void QSerialClient::onSerialPortReadyRead() {
+  Q_D(QSerialClient);
+
+  assert(d->sessionState_.state() == SessionState::kWaitingResponse);
+
+  auto &element = d->elementQueue_.front();
+  auto &dataRecived = element.dataRecived;
+  auto request = element.request;
+  auto response = element.response;
+
+  appendQByteArray(dataRecived, d->serialPort_->readAll());
+  /// make sure got serveraddress + function code
+  if (dataRecived.size() < 2) {
+    return;
+  }
+
+  response.setServerAddress(dataRecived[0]);
+  response.setFunctionCode(static_cast<FunctionCode>(dataRecived[1]));
+
+  /**
+   * When receiving a response from an undesired child node,
+   * Should continue to time out
+   * discard all recived data
+   */
+  if (response.serverAddress() != request.serverAddress()) {
+    d->serialPort_->clear();
+    dataRecived.clear();
+    return;
+  }
+
+  const auto &dataChecker = request.dataChecker();
+  size_t expectSize = 0;
+
+  DataChecker::Result result =
+      dataChecker.calculateResponseSize(expectSize, subArray(dataRecived, 2));
+  if (result == DataChecker::Result::kNeedMoreData) {
+    return;
+  }
+  response.setData(subArray(dataRecived, 2, expectSize));
+  /// server address(1) + function code(1) + data(expectSize) + crc(2)
+  size_t totalSize = 2 + expectSize + 2;
+  if (dataRecived.size() != totalSize) {
+    /// need more data
+    return;
+  }
+  d->waitResponseTimer_.stop();
+  d->sessionState_.setState(SessionState::kIdle);
+
+  auto dataWithCrc = tool::appendCrc(subArray(dataRecived, 0, 2 + expectSize));
+
+  /**
+   * Received frame error
+   */
+  if (dataWithCrc != dataRecived) {
+    response.setError(Error::kStorageParityError, "modbus frame parity error");
+  }
+
+  /**
+   * Pop at the end
+   */
+  d->elementQueue_.pop();
+  emit requestFinished(request, response);
+}
+
+void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
+  Q_D(QSerialClient);
+
+  assert(d->sessionState_.state() == SessionState::kSendingRequest &&
+         "when write operation is not done, the session state must be in "
+         "kSendingRequest");
+
+  /*check the request is sent done*/
+  auto &element = d->elementQueue_.front();
+  auto &request = element.request;
+  element.byteWritten += bytes;
+  if (element.byteWritten != request.marshalSize() + 2 /*crc len*/) {
+    return;
+  }
+
+  if (request.isBrocast()) {
+    d->elementQueue_.pop();
+    d->sessionState_.setState(SessionState::kIdle);
+    d->scheduleNextRequest(d->waitConversionDelay_);
+    return;
+  }
+
+  /**
+   * According to the modebus rtu master station state diagram, when the
+   * request is sent to the child node, the response timeout timer is
+   * started. If the response times out, the next step is to retry. After
+   * the number of retries is exceeded, error processing is performed
+   * (return to the user).
+   */
+  d->sessionState_.setState(SessionState::kWaitingResponse);
+  d->waitResponseTimer_.setSingleShot(true);
+  d->waitResponseTimer_.setInterval(d->waitResponseTimeout_);
+  d->waitResponseTimer_.start();
+}
+
+void QSerialClient::onSerialPortError(const QString &errorString) {
+  Q_D(QSerialClient);
+
+  switch (d->sessionState_.state()) {
+  case SessionState::kWaitingResponse:
+    d->waitResponseTimer_.stop();
+    // fallthough
+  case SessionState::kSendingRequest:
+    d->elementQueue_.pop();
+  default:
+    break;
+  }
+  d->sessionState_.setState(SessionState::kIdle);
+  if (d->openRetryTimes_ == 0) {
+    emit errorOccur(errorString);
+  }
+  // FIXME:log
+  closeNotClearOpenRetrys();
+} // namespace modbus
+
+void QSerialClient::onSerialPortClosed() {
+  Q_D(QSerialClient);
+  d->connectionState_.setState(ConnectionState::kClosed);
+
+  /// force close, do not check reconnect
+  if (d->forceClose_) {
+    d->forceClose_ = false;
+    emit clientClosed();
+    return;
+  }
+
+  // check reconnect
+  if (d->openRetryTimes_ == 0) {
+    emit clientClosed();
+    return;
+  }
+
+  /// do reconnect
+  d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
+  QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
+}
+
+void QSerialClient::onSerialPortOpened() {
+  Q_D(QSerialClient);
+  d->connectionState_.setState(ConnectionState::kOpened);
+  emit clientOpened();
 }
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
