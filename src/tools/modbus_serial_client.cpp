@@ -52,7 +52,7 @@ void QSerialClient::close() {
   closeNotClearOpenRetrys();
 }
 
-void modbus::QSerialClient::closeNotClearOpenRetrys() {
+void QSerialClient::closeNotClearOpenRetrys() {
   Q_D(QSerialClient);
 
   d->connectionState_.setState(ConnectionState::kClosing);
@@ -80,7 +80,7 @@ bool QSerialClient::isOpened() {
   return d->connectionState_.state() == ConnectionState::kOpened;
 }
 
-bool modbus::QSerialClient::isIdle() {
+bool QSerialClient::isIdle() {
   Q_D(QSerialClient);
   return d->sessionState_.state() == SessionState::kIdle;
 }
@@ -105,30 +105,30 @@ void QSerialClient::setupEnvironment() {
           &QSerialClient::onSerialPortResponseTimeout);
 }
 
-void modbus::QSerialClient::setTimeout(uint64_t timeout) {
+void QSerialClient::setTimeout(uint64_t timeout) {
   Q_D(QSerialClient);
 
   d->waitResponseTimeout_ = timeout;
 }
 
-uint64_t modbus::QSerialClient::timeout() {
+uint64_t QSerialClient::timeout() {
   Q_D(QSerialClient);
 
   return d->waitResponseTimeout_;
 }
 
-void modbus::QSerialClient::setRetryTimes(int times) {
+void QSerialClient::setRetryTimes(int times) {
   Q_D(QSerialClient);
 
   d->retryTimes_ = std::max(0, times);
 }
 
-int modbus::QSerialClient::retryTimes() {
+int QSerialClient::retryTimes() {
   Q_D(QSerialClient);
   return d->retryTimes_;
 }
 
-void modbus::QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
+void QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
   Q_D(QSerialClient);
   if (retryTimes < 0) {
     retryTimes = Client::kBrokenLineReconnection;
@@ -141,12 +141,12 @@ void modbus::QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
   d->reopenDelay_ = delay;
 }
 
-int modbus::QSerialClient::openRetryTimes() {
+int QSerialClient::openRetryTimes() {
   Q_D(QSerialClient);
   return d->openRetryTimes_;
 }
 
-int modbus::QSerialClient::openRetryDelay() {
+int QSerialClient::openRetryDelay() {
   Q_D(QSerialClient);
   return d->reopenDelay_;
 }
