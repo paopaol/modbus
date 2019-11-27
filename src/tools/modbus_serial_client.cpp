@@ -250,10 +250,6 @@ void QSerialClient::onSerialPortReadyRead() {
   d->waitResponseTimer_.stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  if (response.isException()) {
-    response.setError(Error(response.data()[0]), "error return");
-  }
-
   auto dataWithCrc =
       tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
 
@@ -262,8 +258,10 @@ void QSerialClient::onSerialPortReadyRead() {
    */
   if (dataWithCrc != dataRecived) {
     response.setError(Error::kStorageParityError, "modbus frame parity error");
-    response.setFunctionCode(
-        FunctionCode(response.functionCode() | Pdu::kExceptionByte));
+  }
+
+  if (response.isException()) {
+    response.setError(Error(response.data()[0]), "error return");
   }
 
   /**
