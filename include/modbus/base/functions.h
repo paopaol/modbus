@@ -37,12 +37,16 @@ public:
     }
 
     ByteArray bitvalues(tool::subArray(array, 1));
+    Quantity quantity = quantity_;
+    Address nextAddress = startAddress_;
     for (const auto &n : bitvalues) {
-      for (int i = 0; i < quantity_; i++) {
-        Address address = startAddress_ + i;
+      Quantity remainQuantity = quantity >= 8 ? 8 : quantity % 8;
+      for (int i = 0; i < remainQuantity; i++) {
+        Address address = nextAddress++;
         bool status = n & (0x01 << i);
         valueMap_[address] = status ? BitValue::kOn : BitValue::kOff;
       }
+      quantity -= remainQuantity;
     }
     return true;
   }

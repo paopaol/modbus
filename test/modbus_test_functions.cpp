@@ -15,16 +15,23 @@ TEST(modbusSingleBitAccess, marshalRequest) {
 TEST(modbusSingleBitAccess, unmarshalResponse_dataIsValid_unmarshalSuccess) {
   modbus::SingleBitAccess access;
 
-  access.setStartAddress(1);
-  access.setQuantity(3);
+  access.setStartAddress(0x13);
+  access.setQuantity(0x13);
 
-  // address:   8               1(in this test, start address is 1)
-  // bit value: 0 0 0 0   0 1 0 1 ---> a0
   modbus::ByteArray goodData(
-      {0x01 /*bytes bumber*/, 0x05 /*coil/register status*/});
+      {0x03, 0xcd /*1100 1101*/, 0x6b, 0x05 /*0000 0101*/});
   bool ok = access.unmarshalResponse(goodData);
   EXPECT_EQ(ok, true);
-  EXPECT_EQ(access.value(1), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(2), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(3), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(0x13), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(0x14), modbus::BitValue::kOff);
+  EXPECT_EQ(access.value(0x15), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(0x16), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(23), modbus::BitValue::kOff);
+  EXPECT_EQ(access.value(24), modbus::BitValue::kOff);
+  EXPECT_EQ(access.value(25), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(26), modbus::BitValue::kOn);
+
+  EXPECT_EQ(access.value(35), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(36), modbus::BitValue::kOff);
+  EXPECT_EQ(access.value(37), modbus::BitValue::kOn);
 }
