@@ -1,16 +1,20 @@
 #include "modbus_test_mocker.h"
 #include <QSignalSpy>
 #include <QTimer>
+#include <modbus/base/functions.h>
 
 #define declare_app(name)                                                      \
   int argc = 1;                                                                \
   char *argv[] = {(char *)"test"};                                             \
   QCoreApplication name(argc, argv);
 
+static const modbus::Address kStartAddress = 10;
+static const modbus::Quantity kQuantity = 3;
 static const modbus::ServerAddress kServerAddress = 1;
 static const modbus::ServerAddress kBadServerAddress = 0x11;
 static modbus::Request createReadCoilsRequest();
-modbus::Request createBrocastRequest();
+static modbus::Request createSingleBitAccessRequest();
+static modbus::Request createBrocastRequest();
 
 TEST(TestModbusSerialClient, serialClientConstrct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
@@ -119,8 +123,10 @@ TEST(TestModbusSerialClient,
   declare_app(app);
 
   modbus::Request request = createReadCoilsRequest();
-  modbus::ByteArray dataWitoutCrc = {kServerAddress,
-                                     modbus::FunctionCode::kReadCoils, 1, 2, 3};
+  modbus::ByteArray dataWitoutCrc = {
+      kServerAddress, modbus::FunctionCode::kReadCoils,
+      0x00,           kStartAddress,
+      0x00,           kQuantity};
   modbus::ByteArray dataWithCrc = modbus::tool::appendCrc(dataWitoutCrc);
 
   {
@@ -632,17 +638,98 @@ TEST(TestModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
   app.exec();
 }
 
+TEST(TestModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createSingleBitAccessRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWriteRead();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+
+    modbus::ByteArray responseWithoutCrc = {kServerAddress,
+                                            modbus::FunctionCode::kReadCoils,
+                                            0x01, 0x05 /*b 0000 0101*/};
+
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+
+    QByteArray qarray((const char *)responseWithCrc.data(),
+                      responseWithCrc.size());
+
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
+      return qarray;
+    });
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(200000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    request = qvariant_cast<modbus::Request>(arguments.at(0));
+    modbus::Response response =
+        qvariant_cast<modbus::Response>(arguments.at(1));
+
+    EXPECT_EQ(modbus::Error::kNoError, response.error());
+    EXPECT_EQ(false, response.isException());
+    auto access =
+        modbus::any::any_cast<modbus::SingleBitAccess>(request.userData());
+    access.unmarshalReadResponse(response.data());
+    EXPECT_EQ(access.value(kStartAddress), modbus::BitValue::kOn);
+    EXPECT_EQ(access.value(kStartAddress + 1), modbus::BitValue::kOff);
+    EXPECT_EQ(access.value(kStartAddress + 2), modbus::BitValue::kOn);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createReadCoilsRequest() {
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(kStartAddress);
+  access.setQuantity(kQuantity);
+
   modbus::Request request;
 
   request.setServerAddress(kServerAddress);
   request.setFunctionCode(modbus::FunctionCode::kReadCoils);
   request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  request.setData({1, 2, 3});
+  request.setData(access.marshalReadRequest());
+  request.setUserData(access);
   return request;
 }
 
-modbus::Request createBrocastRequest() {
+static modbus::Request createSingleBitAccessRequest() {
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(kStartAddress);
+  access.setQuantity(kQuantity);
+
+  modbus::Request request;
+
+  request.setServerAddress(kServerAddress);
+  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  request.setData(access.marshalReadRequest());
+  request.setUserData(access);
+  return request;
+}
+
+static modbus::Request createBrocastRequest() {
   modbus::Request request;
 
   request.setServerAddress(modbus::Adu::kBrocastAddress);
