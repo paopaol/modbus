@@ -3,6 +3,7 @@
 
 #include "modbus.h"
 #include "modbus_tool.h"
+#include "smart_assert.h"
 #include <assert.h>
 #include <map>
 
@@ -44,6 +45,37 @@ public:
 
     return data;
   }
+
+  ByteArray marshalMultipleWriteRequest() {
+    ByteArray data;
+
+    data.push_back(startAddress_ / 256);
+    data.push_back(startAddress_ % 256);
+
+    data.push_back(quantity_ / 256);
+    data.push_back(quantity_ % 256);
+    data.push_back(quantity_ % 8 == 0 ? quantity_ / 8 : quantity_ / 8 + 1);
+
+    Address nextAddress = startAddress_;
+    Address endAddress = startAddress_ + quantity_;
+    uint8_t byte = 0;
+    int offset = 0;
+    for (; nextAddress < endAddress; nextAddress++) {
+      auto it = valueMap_.find(nextAddress);
+      smart_assert(it != valueMap_.end() &&
+                   "some value of address not set, bad operation!")(
+          nextAddress);
+
+      bool value = it->second == BitValue::kOn ? true : false;
+      byte |= value << offset++;
+      if (offset == 8) {
+        offset = 0;
+        data.push_back(byte);
+        byte = 0;
+      }
+    }
+    if (quantity_ % 8 != 0) {
+      data.push_back(byte);
     }
 
     return data;
