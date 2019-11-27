@@ -83,7 +83,8 @@ TEST(modbusSingleBitAccess, marshalMultipleWriteRequest) {
   EXPECT_EQ(data, expectData);
 }
 
-TEST(modbusSingleBitAccess, unmarshalResponse_dataIsValid_unmarshalSuccess) {
+TEST(modbusSingleBitAccess,
+     unmarshalReadResponse_dataIsValid_unmarshalSuccess) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0x13);
@@ -91,7 +92,7 @@ TEST(modbusSingleBitAccess, unmarshalResponse_dataIsValid_unmarshalSuccess) {
 
   modbus::ByteArray goodData(
       {0x03, 0xcd /*1100 1101*/, 0x6b, 0x05 /*0000 0101*/});
-  bool ok = access.unmarshalResponse(goodData);
+  bool ok = access.unmarshalReadResponse(goodData);
   EXPECT_EQ(ok, true);
   EXPECT_EQ(access.value(0x13), modbus::BitValue::kOn);
   EXPECT_EQ(access.value(0x14), modbus::BitValue::kOff);
@@ -105,4 +106,16 @@ TEST(modbusSingleBitAccess, unmarshalResponse_dataIsValid_unmarshalSuccess) {
   EXPECT_EQ(access.value(35), modbus::BitValue::kOn);
   EXPECT_EQ(access.value(36), modbus::BitValue::kOff);
   EXPECT_EQ(access.value(37), modbus::BitValue::kOn);
+}
+
+TEST(modbusSingleBitAccess,
+     unmarshalReadResponse_dataIsInValid_unmarshalFailed) {
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x13);
+  access.setQuantity(0x13);
+
+  modbus::ByteArray badData({0x03, 0xcd /*1100 1101*/, 0x6b});
+  bool ok = access.unmarshalReadResponse(badData);
+  EXPECT_EQ(ok, false);
 }

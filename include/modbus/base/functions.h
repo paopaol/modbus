@@ -80,7 +80,7 @@ public:
     return data;
   }
 
-  bool unmarshalResponse(const ByteArray &array) {
+  bool unmarshalReadResponse(const ByteArray &array) {
     if (array.empty()) {
       return false;
     }
