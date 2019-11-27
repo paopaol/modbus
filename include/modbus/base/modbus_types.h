@@ -7,8 +7,9 @@ namespace modbus {
 using ServerAddress = uint8_t;
 using CoilAddress = uint16_t;
 using RegisterAddress = uint16_t;
+using Address = uint16_t;
 using Quantity = uint16_t;
-enum class BitValue { kOn, kOff };
+enum class BitValue { kOff, kOn, kBadValue };
 enum FunctionCode { kInvalidCode = 0x00, kReadCoils = 0x01 };
 enum class Error {
   kNoError = 0,
