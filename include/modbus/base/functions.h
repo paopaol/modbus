@@ -3,6 +3,7 @@
 
 #include "modbus.h"
 #include "modbus_tool.h"
+#include <assert.h>
 #include <map>
 
 namespace modbus {
@@ -13,6 +14,9 @@ public:
   void buildFromArray(const ByteArray &array) {}
   void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
+  void setValue(BitValue value) { valueMap_[startAddress_] = value; }
+  void setNextValue(Address address, BitValue value) {}
+
   ByteArray marshalReadRequest() {
     ByteArray array;
 
@@ -22,6 +26,31 @@ public:
     array.push_back(quantity_ / 256);
     array.push_back(quantity_ % 256);
     return array;
+  }
+
+  ByteArray marshalSingleWriteRequest(bool *result = nullptr) {
+    ByteArray data;
+    bool ok = true;
+    if (valueMap_.size() != 1) {
+      ok = false;
+    }
+    auto it = valueMap_.find(startAddress_);
+    assert(it != valueMap_.end() && "has no value set");
+    data.push_back(startAddress_ / 256);
+    data.push_back(startAddress_ % 256);
+
+    if (it->second == BitValue::kOn) {
+      data.push_back(0xff);
+    } else {
+      data.push_back(0x00);
+    }
+    data.push_back(0x00);
+
+    if (result) {
+      *result = ok;
+    }
+
+    return data;
   }
 
   bool unmarshalResponse(const ByteArray &array) {

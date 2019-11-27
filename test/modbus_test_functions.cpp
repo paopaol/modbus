@@ -12,6 +12,18 @@ TEST(modbusSingleBitAccess, marshalReadRequest) {
   EXPECT_EQ(expectPayload, payload);
 }
 
+TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0xac);
+  access.setQuantity(1);
+  access.setValue(modbus::BitValue::kOn);
+
+  modbus::ByteArray expectPayload({0x00, 0xac, 0xff, 0x00});
+
+  bool ok;
+  modbus::ByteArray payload = access.marshalSingleWriteRequest(&ok);
+  EXPECT_EQ(ok, true);
   EXPECT_EQ(expectPayload, payload);
 }
 
