@@ -4,7 +4,6 @@
 #include "modbus.h"
 #include "modbus_tool.h"
 #include "smart_assert.h"
-#include <assert.h>
 #include <map>
 
 namespace modbus {
@@ -35,7 +34,7 @@ public:
     ByteArray data;
 
     auto it = valueMap_.find(startAddress_);
-    assert(it != valueMap_.end() && "has no value set");
+    smart_assert(it != valueMap_.end() && "has no value set")(startAddress_);
 
     data.push_back(startAddress_ / 256);
     data.push_back(startAddress_ % 256);
