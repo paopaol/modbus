@@ -252,6 +252,8 @@ void QSerialClient::onSerialPortReadyRead() {
    */
   if (dataWithCrc != dataRecived) {
     response.setError(Error::kStorageParityError, "modbus frame parity error");
+    response.setFunctionCode(
+        FunctionCode(response.functionCode() | Pdu::kExceptionByte));
   }
 
   /**
