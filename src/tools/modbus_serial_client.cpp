@@ -229,12 +229,12 @@ void QSerialClient::onSerialPortReadyRead() {
   const auto &dataChecker = request.dataChecker();
   size_t expectSize = 0;
 
-  DataChecker::Result result =
-      dataChecker.calculateResponseSize(expectSize, subArray(dataRecived, 2));
+  DataChecker::Result result = dataChecker.calculateResponseSize(
+      expectSize, tool::subArray(dataRecived, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
     return;
   }
-  response.setData(subArray(dataRecived, 2, expectSize));
+  response.setData(tool::subArray(dataRecived, 2, expectSize));
   /// server address(1) + function code(1) + data(expectSize) + crc(2)
   size_t totalSize = 2 + expectSize + 2;
   if (dataRecived.size() != totalSize) {
@@ -244,7 +244,8 @@ void QSerialClient::onSerialPortReadyRead() {
   d->waitResponseTimer_.stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  auto dataWithCrc = tool::appendCrc(subArray(dataRecived, 0, 2 + expectSize));
+  auto dataWithCrc =
+      tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
 
   /**
    * Received frame error
