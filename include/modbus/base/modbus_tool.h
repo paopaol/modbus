@@ -30,6 +30,15 @@ The crc check is added in the order of the first low order and the high order.
     dataWithCrc.push_back(crc / 256);
     return dataWithCrc;
   }
+
+  static inline ByteArray subArray(const ByteArray &array, size_t index,
+                                   int n = -1) {
+    if (n == -1) {
+      return ByteArray(array.begin() + index, array.end());
+    } else {
+      return ByteArray(array.begin() + index, array.begin() + index + n);
+    }
+  }
 };
 
 } // namespace modbus
