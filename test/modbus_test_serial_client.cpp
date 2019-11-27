@@ -8,6 +8,7 @@
   QCoreApplication name(argc, argv);
 
 static const modbus::ServerAddress kServerAddress = 1;
+static const modbus::ServerAddress kBadServerAddress = 0x11;
 static modbus::Request createReadCoilsRequest();
 modbus::Request createBrocastRequest();
 
@@ -410,6 +411,58 @@ TEST(TestModbusSerialClient,
         qvariant_cast<modbus::Response>(arguments.at(1));
     EXPECT_EQ(modbus::Error::kSlaveDeviceBusy, response.error());
     EXPECT_EQ(true, response.isException());
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(TestModbusSerialClient,
+     sendRequestSuccessed_responseIsFromBadServerAddress_timeout) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createReadCoilsRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWriteRead();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, clear());
+
+    modbus::ByteArray responseWithoutCrc = {
+        kBadServerAddress,
+        modbus::FunctionCode::kReadCoils | modbus::Pdu::kExceptionByte,
+        static_cast<uint8_t>(modbus::Error::kSlaveDeviceBusy)};
+
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+    QByteArray qarray((const char *)responseWithCrc.data(),
+                      responseWithCrc.size());
+
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
+      return qarray;
+    });
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(200000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::Response response =
+        qvariant_cast<modbus::Response>(arguments.at(1));
+    EXPECT_EQ(modbus::Error::kTimeout, response.error());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
