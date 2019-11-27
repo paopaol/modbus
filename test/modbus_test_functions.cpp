@@ -54,6 +54,35 @@ TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
   EXPECT_EQ(expectPayload, payload);
 }
 
+TEST(modbusSingleBitAccess, marshalMultipleWriteRequest) {
+  modbus::SingleBitAccess access;
+  modbus::Address startAddress = 0x13;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(10);
+
+  // cd 01
+  // cd
+  // 1100 1101
+  access.setValue(startAddress, modbus::BitValue::kOn);
+  access.setValue(startAddress + 1, modbus::BitValue::kOff);
+  access.setValue(startAddress + 2, modbus::BitValue::kOn);
+  access.setValue(startAddress + 3, modbus::BitValue::kOn);
+
+  access.setValue(startAddress + 4, modbus::BitValue::kOff);
+  access.setValue(startAddress + 5, modbus::BitValue::kOff);
+  access.setValue(startAddress + 6, modbus::BitValue::kOn);
+  access.setValue(startAddress + 7, modbus::BitValue::kOn);
+  // 01
+  // 0000 0001
+  access.setValue(startAddress + 8, modbus::BitValue::kOn);
+  access.setValue(startAddress + 9, modbus::BitValue::kOff);
+
+  modbus::ByteArray expectData({0x00, 0x13, 0x00, 0x0a, 0x02, 0xcd, 0x01});
+  modbus::ByteArray data = access.marshalMultipleWriteRequest();
+  EXPECT_EQ(data, expectData);
+}
+
 TEST(modbusSingleBitAccess, unmarshalResponse_dataIsValid_unmarshalSuccess) {
   modbus::SingleBitAccess access;
 
