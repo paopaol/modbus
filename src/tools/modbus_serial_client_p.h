@@ -54,9 +54,8 @@ public:
        * we append crc, then write to serialport
        */
       auto modbusSerialData = tool::appendCrc(data);
-      serialPort_->write(
-          QByteArray(reinterpret_cast<const char *>(modbusSerialData.data())),
-          modbusSerialData.size());
+      serialPort_->write((const char *)modbusSerialData.data(),
+                         modbusSerialData.size());
     });
   }
 
@@ -87,7 +86,6 @@ public:
    */
   bool forceClose_ = false;
 };
-
 
 } // namespace modbus
 
