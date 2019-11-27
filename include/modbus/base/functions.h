@@ -30,26 +30,20 @@ public:
     return array;
   }
 
-  ByteArray marshalSingleWriteRequest(bool *result = nullptr) {
+  ByteArray marshalSingleWriteRequest() {
     ByteArray data;
-    bool ok = true;
-    if (valueMap_.size() != 1) {
-      ok = false;
-    }
+
     auto it = valueMap_.find(startAddress_);
     assert(it != valueMap_.end() && "has no value set");
+
     data.push_back(startAddress_ / 256);
     data.push_back(startAddress_ % 256);
 
-    if (it->second == BitValue::kOn) {
-      data.push_back(0xff);
-    } else {
-      data.push_back(0x00);
-    }
+    data.push_back(it->second == BitValue::kOn ? 0xff : 0x00);
     data.push_back(0x00);
 
-    if (result) {
-      *result = ok;
+    return data;
+  }
     }
 
     return data;

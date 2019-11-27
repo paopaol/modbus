@@ -42,14 +42,15 @@ TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0xac);
+  /**
+   * singleWrite must set quantity to 1
+   */
   access.setQuantity(1);
   access.setValue(modbus::BitValue::kOn);
 
   modbus::ByteArray expectPayload({0x00, 0xac, 0xff, 0x00});
 
-  bool ok;
-  modbus::ByteArray payload = access.marshalSingleWriteRequest(&ok);
-  EXPECT_EQ(ok, true);
+  modbus::ByteArray payload = access.marshalSingleWriteRequest();
   EXPECT_EQ(expectPayload, payload);
 }
 
