@@ -11,7 +11,6 @@ class SingleBitAccess {
 public:
   SingleBitAccess() {}
 
-  void buildFromArray(const ByteArray &array) {}
   void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
   Address startAddress() { return startAddress_; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
