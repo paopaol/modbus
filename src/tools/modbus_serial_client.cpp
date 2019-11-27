@@ -2,6 +2,7 @@
 #include <QTimer>
 #include <algorithm>
 #include <assert.h>
+#include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 
 namespace modbus {
@@ -226,8 +227,13 @@ void QSerialClient::onSerialPortReadyRead() {
     return;
   }
 
-  const auto &dataChecker = request.dataChecker();
   size_t expectSize = 0;
+  DataChecker dataChecker;
+  if (response.isException()) {
+    dataChecker = expectionResponseDataChecker;
+  } else {
+    dataChecker = request.dataChecker();
+  }
 
   DataChecker::Result result = dataChecker.calculateResponseSize(
       expectSize, tool::subArray(dataRecived, 2));
@@ -243,6 +249,10 @@ void QSerialClient::onSerialPortReadyRead() {
   }
   d->waitResponseTimer_.stop();
   d->sessionState_.setState(SessionState::kIdle);
+
+  if (response.isException()) {
+    response.setError(Error(response.data()[0]), "error return");
+  }
 
   auto dataWithCrc =
       tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
