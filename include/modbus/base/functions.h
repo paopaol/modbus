@@ -13,9 +13,11 @@ public:
 
   void buildFromArray(const ByteArray &array) {}
   void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
+  Address startAddress() { return startAddress_; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
+  Quantity quantity() { return quantity_; }
   void setValue(BitValue value) { valueMap_[startAddress_] = value; }
-  void setNextValue(Address address, BitValue value) {}
+  void setValue(Address address, BitValue value) { valueMap_[address] = value; }
 
   ByteArray marshalReadRequest() {
     ByteArray array;

@@ -12,6 +12,32 @@ TEST(modbusSingleBitAccess, marshalReadRequest) {
   EXPECT_EQ(expectPayload, payload);
 }
 
+TEST(modbusSingleBitAccess, set_get) {
+  {
+    modbus::SingleBitAccess access;
+    access.setStartAddress(1);
+    EXPECT_EQ(1, access.startAddress());
+  }
+
+  {
+    modbus::SingleBitAccess access;
+    access.setQuantity(8);
+    EXPECT_EQ(8, access.quantity());
+  }
+
+  {
+    modbus::SingleBitAccess access;
+    access.setValue(modbus::BitValue::kOn);
+    EXPECT_EQ(modbus::BitValue::kOn, access.value(access.startAddress()));
+  }
+
+  {
+    modbus::SingleBitAccess access;
+    access.setValue(0x1234 /*no exists*/, modbus::BitValue::kOn);
+    EXPECT_EQ(modbus::BitValue::kBadValue, access.value(access.startAddress()));
+  }
+}
+
 TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
   modbus::SingleBitAccess access;
 
