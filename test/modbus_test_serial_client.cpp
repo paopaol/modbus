@@ -354,7 +354,6 @@ TEST(TestModbusSerialClient,
     modbus::Response response =
         qvariant_cast<modbus::Response>(arguments.at(1));
     EXPECT_EQ(modbus::Error::kStorageParityError, response.error());
-    EXPECT_EQ(true, response.isException());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
