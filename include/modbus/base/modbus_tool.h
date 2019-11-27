@@ -8,9 +8,9 @@ class tool {
 public:
   static inline std::string dumpHex(const ByteArray &byteArray) {
     std::string hexString;
-    char hex[3] = {0};
+    char hex[5] = {0};
     for (const auto &ch : byteArray) {
-      sprintf(hex, "%02x", static_cast<unsigned char>(ch));
+      snprintf(hex, sizeof(hex), "%02x ", static_cast<unsigned char>(ch));
       hexString += hex;
     }
     return hexString;
