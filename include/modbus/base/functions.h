@@ -13,7 +13,7 @@ public:
   void buildFromArray(const ByteArray &array) {}
   void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
-  ByteArray marshalRequest() {
+  ByteArray marshalReadRequest() {
     ByteArray array;
 
     array.push_back(startAddress_ / 256);

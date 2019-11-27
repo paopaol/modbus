@@ -1,13 +1,16 @@
 #include <gtest/gtest.h>
 #include <modbus/base/functions.h>
 
-TEST(modbusSingleBitAccess, marshalRequest) {
+TEST(modbusSingleBitAccess, marshalReadRequest) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(1);
   access.setQuantity(8);
   modbus::ByteArray expectPayload({0x00, 0x01, 0x00, 0x08});
-  modbus::ByteArray payload = access.marshalRequest();
+  modbus::ByteArray payload = access.marshalReadRequest();
+
+  EXPECT_EQ(expectPayload, payload);
+}
 
   EXPECT_EQ(expectPayload, payload);
 }
