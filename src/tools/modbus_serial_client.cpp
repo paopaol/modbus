@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
+#include <modbus/base/smart_assert.h>
 
 namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
@@ -200,8 +201,6 @@ void QSerialClient::onSerialPortResponseTimeout() {
 void QSerialClient::onSerialPortReadyRead() {
   Q_D(QSerialClient);
 
-  assert(d->sessionState_.state() == SessionState::kWaitingResponse);
-
   auto &element = d->elementQueue_.front();
   auto &dataRecived = element.dataRecived;
   auto request = element.request;
@@ -210,6 +209,7 @@ void QSerialClient::onSerialPortReadyRead() {
   appendQByteArray(dataRecived, d->serialPort_->readAll());
   /// make sure got serveraddress + function code
   if (dataRecived.size() < 2) {
+    /// FIXME:log
     return;
   }
 
@@ -222,6 +222,7 @@ void QSerialClient::onSerialPortReadyRead() {
    * discard all recived data
    */
   if (response.serverAddress() != request.serverAddress()) {
+    // FIXME:log
     d->serialPort_->clear();
     dataRecived.clear();
     return;
@@ -238,6 +239,7 @@ void QSerialClient::onSerialPortReadyRead() {
   DataChecker::Result result = dataChecker.calculateResponseSize(
       expectSize, tool::subArray(dataRecived, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
+    /// FIXME:log
     return;
   }
   response.setData(tool::subArray(dataRecived, 2, expectSize));
@@ -245,6 +247,7 @@ void QSerialClient::onSerialPortReadyRead() {
   size_t totalSize = 2 + expectSize + 2;
   if (dataRecived.size() != totalSize) {
     /// need more data
+    /// FIXME:log
     return;
   }
   d->waitResponseTimer_.stop();
