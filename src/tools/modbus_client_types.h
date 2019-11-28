@@ -5,6 +5,7 @@
 #include <queue>
 
 namespace modbus {
+
 template <typename StateType> class StateManager {
 public:
   StateManager() {}
@@ -16,7 +17,28 @@ private:
   StateType state_;
 };
 
-enum class ConnectionState { kOpening, kOpened, kClosing, kClosed, kError };
+enum class ConnectionState { kOpening, kOpened, kClosing, kClosed };
+inline std::ostream &operator<<(std::ostream &output,
+                                const ConnectionState &state) {
+  switch (state) {
+  case ConnectionState::kOpening:
+    output << "opening";
+    break;
+  case ConnectionState::kOpened:
+    output << "opened";
+    break;
+  case ConnectionState::kClosing:
+    output << "closing";
+    break;
+  case ConnectionState::kClosed:
+    output << "closed";
+    break;
+  default:
+    output.setstate(std::ios_base::failbit);
+  }
+
+  return output;
+}
 
 struct Element {
   Request request;

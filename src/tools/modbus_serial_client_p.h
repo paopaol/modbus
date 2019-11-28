@@ -8,13 +8,26 @@
 #include <queue>
 
 namespace modbus {
-enum class SessionState {
-  kIdle,
-  kSendingRequest,
-  kWaitingResponse,
-  kProcessingResponse,
-  kProcessingError
-};
+enum class SessionState { kIdle, kSendingRequest, kWaitingResponse };
+
+inline std::ostream &operator<<(std::ostream &output,
+                                const SessionState &state) {
+  switch (state) {
+  case SessionState::kIdle:
+    output << "idle";
+    break;
+  case SessionState::kSendingRequest:
+    output << "sending request";
+    break;
+  case SessionState::kWaitingResponse:
+    output << "waiting response";
+    break;
+  default:
+    output.setstate(std::ios_base::failbit);
+  }
+
+  return output;
+}
 
 class QSerialClientPrivate : public QObject {
   Q_OBJECT
