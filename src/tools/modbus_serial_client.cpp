@@ -201,10 +201,24 @@ void QSerialClient::onSerialPortResponseTimeout() {
 void QSerialClient::onSerialPortReadyRead() {
   Q_D(QSerialClient);
 
+  if (d->elementQueue_.empty()) {
+    /// FIXME:add discard log
+    /// recived unexpected data;discard them
+    d->serialPort_->clear();
+    return;
+  }
+
   auto &element = d->elementQueue_.front();
   auto &dataRecived = element.dataRecived;
   auto request = element.request;
   auto response = element.response;
+
+  auto sessionState = d->sessionState_.state();
+  smart_assert(
+      sessionState == SessionState::kWaitingResponse &&
+      "unexpected behavior. In rtu mode, only after the last byte of the "
+      "requested data is sent, it will enter the waiting response state")(
+      sessionState);
 
   appendQByteArray(dataRecived, d->serialPort_->readAll());
   /// make sure got serveraddress + function code
@@ -348,6 +362,7 @@ void QSerialClient::onSerialPortClosed() {
 
   /// do reconnect
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
+  /// FIXME:log
   QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
 }
 
