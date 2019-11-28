@@ -31,7 +31,7 @@ public:
     dataChecker_ = dataChecker;
   }
   DataChecker dataChecker() const { return dataChecker_; }
-  bool isException() { return functionCode_ & kExceptionByte; }
+  bool isException() const { return functionCode_ & kExceptionByte; }
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
 
   /**
@@ -81,7 +81,7 @@ public:
   void setData(const ByteArray &byteArray) { pdu_.setData(byteArray); }
   ByteArray data() const { return pdu_.data(); }
 
-  bool isException() { return pdu_.isException(); }
+  bool isException() const { return pdu_.isException(); }
 
   size_t marshalSize() const { return 1 + 1 + pdu_.size(); }
   /**
@@ -121,8 +121,8 @@ public:
     errorString_ = errorString;
   }
 
-  Error error() { return errorCode_; }
-  std::string errorString() { return errorString_; }
+  Error error() const { return errorCode_; }
+  std::string errorString() const { return errorString_; }
 
 private:
   Error errorCode_;
