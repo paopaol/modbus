@@ -42,6 +42,31 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     serialClientIsClosed_openSerial_retry4TimesFialed) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+    modbus::QSerialClient serialClient(serialPort);
+    serialPort->setupOpenFailed();
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+
+    EXPECT_CALL(*serialPort, open()).Times(5);
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+      serialPort->closed();
+    });
+
+    serialClient.setOpenRetryTimes(4, 2000);
+    serialClient.open();
+    spy.wait(15000);
+    EXPECT_EQ(spy.count(), 0);
+    EXPECT_EQ(serialClient.isOpened(), false);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 TEST(TestModbusSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
   declare_app(app);
   auto serialPort = new MockSerialPort();
@@ -474,6 +499,40 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient, sendBrocast_gotResponse_discardIt) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createBrocastRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupTestForWriteRead();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open());
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
+    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, clear());
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(1000);
+    EXPECT_EQ(spy.count(), 0);
+    EXPECT_EQ(serialClient.isIdle(), true);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 TEST(TestModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_readSomethingThenErrorOcurr) {
   declare_app(app);
@@ -730,11 +789,17 @@ static modbus::Request createSingleBitAccessRequest() {
 }
 
 static modbus::Request createBrocastRequest() {
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(kStartAddress);
+  access.setQuantity(kQuantity);
+
   modbus::Request request;
 
   request.setServerAddress(modbus::Adu::kBrocastAddress);
   request.setFunctionCode(modbus::FunctionCode::kReadCoils);
   request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  request.setData({1, 2, 3});
+  request.setData(access.marshalReadRequest());
+  request.setUserData(access);
   return request;
 }
