@@ -4,6 +4,7 @@
 #include "modbus/base/modbus.h"
 #include <QObject>
 #include <QScopedPointer>
+#include <QtSerialPort/QSerialPort>
 #include <queue>
 
 namespace modbus {
@@ -91,7 +92,15 @@ private:
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };
 
+QSerialClient *
+newQtSerialClient(const QString &serialName,
+                  QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,
+                  QSerialPort::DataBits dataBits = QSerialPort::Data8,
+                  QSerialPort::Parity parity = QSerialPort::NoParity,
+                  QSerialPort::StopBits stopBits = QSerialPort::OneStop,
+                  QObject *parent = nullptr);
 } // namespace modbus
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
+
 #endif // __MODBUS_SERIAL_CLIENT_H_

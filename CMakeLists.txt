@@ -23,5 +23,7 @@ add_subdirectory(src)
 enable_testing()
 add_subdirectory(test)
 
+add_subdirectory(examples)
+
 # add_executable(main main.cpp)
 # target_link_libraries(main Qt5::Core Qt5::SerialPort)
