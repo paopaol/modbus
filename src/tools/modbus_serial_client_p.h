@@ -36,14 +36,17 @@ public:
       return;
     }
 
-    /*after some delay, the request will be sent,so we change the state to
-     * sending request*/
-    sessionState_.setState(SessionState::kSendingRequest);
+    if (elementQueue_.empty()) {
+      return;
+    }
+
     QTimer::singleShot(delay, this, [&]() {
       if (elementQueue_.empty()) {
-        sessionState_.setState(SessionState::kIdle);
         return;
       }
+      /*after some delay, the request will be sent,so we change the state to
+       * sending request*/
+      sessionState_.setState(SessionState::kSendingRequest);
       /**
        * take out the first request,send it out,
        */
