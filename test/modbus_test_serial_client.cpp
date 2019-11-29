@@ -1,5 +1,6 @@
 #include "modbus_test_mocker.h"
 #include <QSignalSpy>
+#include <QTest>
 #include <QTimer>
 #include <modbus/base/functions.h>
 
@@ -775,6 +776,7 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, write(testing::_, testing::_))
         .WillRepeatedly([&](const char *data, size_t size) {
           serialPort->bytesWritten(size);
+          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
         });
     EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
       serialPort->closed();
@@ -794,21 +796,17 @@ TEST(TestModbusSerialClient,
       return qarray;
     });
 
-    const bool wasBlocked = serialClient.blockSignals(true);
-
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
     for (int i = 0; i < 5; i++) {
-      serialClient.sendRequest(request);
-      printf("ssssssssssssssss\n");
+      QTimer::singleShot(10, [&]() { serialClient.sendRequest(request); });
     }
     /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5 delay
-    spy.wait(10000);
-    serialClient.blockSignals(wasBlocked);
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(5000);
     EXPECT_EQ(spy.count(), 5);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
