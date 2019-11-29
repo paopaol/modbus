@@ -286,6 +286,7 @@ void QSerialClient::onSerialPortReadyRead() {
    */
   d->elementQueue_.pop();
   emit requestFinished(request, response);
+  d->scheduleNextRequest(d->t3_5_);
 }
 
 void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
