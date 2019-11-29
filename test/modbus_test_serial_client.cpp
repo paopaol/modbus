@@ -756,6 +756,65 @@ TEST(TestModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
   app.exec();
 }
 
+TEST(TestModbusSerialClient,
+     sendSingleBitAccess_sendMultipleRequest_responseIsSuccess) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createSingleBitAccessRequest();
+
+    auto serialPort = new MockSerialPort();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly([&]() {
+      serialPort->opened();
+    });
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+        .WillRepeatedly([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+        });
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+      serialPort->closed();
+    });
+
+    modbus::ByteArray responseWithoutCrc = {kServerAddress,
+                                            modbus::FunctionCode::kReadCoils,
+                                            0x01, 0x05 /*b 0000 0101*/};
+
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+
+    QByteArray qarray((const char *)responseWithCrc.data(),
+                      responseWithCrc.size());
+
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly([&]() {
+      return qarray;
+    });
+
+    const bool wasBlocked = serialClient.blockSignals(true);
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    for (int i = 0; i < 5; i++) {
+      serialClient.sendRequest(request);
+      printf("ssssssssssssssss\n");
+    }
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5 delay
+    spy.wait(10000);
+    serialClient.blockSignals(wasBlocked);
+    EXPECT_EQ(spy.count(), 5);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 modbus::Request createReadCoilsRequest() {
   modbus::SingleBitAccess access;
 

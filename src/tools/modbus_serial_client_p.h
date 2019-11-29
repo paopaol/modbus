@@ -4,6 +4,7 @@
 #include "modbus_client_types.h"
 #include <QTimer>
 #include <modbus/base/modbus_tool.h>
+#include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_serial_client.h>
 #include <queue>
 
@@ -53,13 +54,15 @@ public:
       return;
     }
 
+    /*after some delay, the request will be sent,so we change the state to
+     * sending request*/
+    sessionState_.setState(SessionState::kSendingRequest);
     QTimer::singleShot(delay, this, [&]() {
       if (elementQueue_.empty()) {
         return;
       }
-      /*after some delay, the request will be sent,so we change the state to
-       * sending request*/
-      sessionState_.setState(SessionState::kSendingRequest);
+      smart_assert(sessionState_.state() ==
+                   SessionState::kSendingRequest)(sessionState_.state());
       /**
        * take out the first request,send it out,
        */
