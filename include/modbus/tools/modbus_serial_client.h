@@ -35,7 +35,7 @@ class AbstractSerialPort : public QObject {
   Q_OBJECT
 public:
   AbstractSerialPort(QObject *parent = nullptr) {}
-  ~AbstractSerialPort() {}
+  virtual ~AbstractSerialPort() {}
   virtual void open() = 0;
   virtual void close() = 0;
   virtual void write(const char *data, size_t size) = 0;
