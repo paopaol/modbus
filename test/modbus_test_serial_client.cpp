@@ -2,7 +2,7 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
-#include <modbus/base/functions.h>
+#include <modbus/base/single_bit_access.h>
 
 #define declare_app(name)                                                      \
   int argc = 1;                                                                \

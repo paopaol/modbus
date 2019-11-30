@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <modbus/base/functions.h>
+#include <modbus/base/single_bit_access.h>
 
 TEST(modbusSingleBitAccess, marshalReadRequest) {
   modbus::SingleBitAccess access;
