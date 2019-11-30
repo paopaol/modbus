@@ -1,6 +1,6 @@
 #include <QCoreApplication>
 #include <QDebug>
-#include <modbus/base/functions.h>
+#include <modbus/base/single_bit_access.h>
 #include <modbus/tools/modbus_serial_client.h>
 
 static QString modbusBitValueToString(modbus::BitValue value);
@@ -107,4 +107,5 @@ static QString modbusBitValueToString(modbus::BitValue value) {
   case modbus::BitValue::kBadValue:
     return "badValue";
   }
+  return "";
 }
