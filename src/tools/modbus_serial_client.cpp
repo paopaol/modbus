@@ -159,7 +159,7 @@ void QSerialClient::initMemberValues() {
   d->connectionState_.setState(ConnectionState::kClosed);
   d->sessionState_.setState(SessionState::kIdle);
   d->waitConversionDelay_ = 200;
-  d->t3_5_ = 100;
+  d->t3_5_ = 60;
   d->waitResponseTimeout_ = 1000;
   d->retryTimes_ = 0; /// default no retry
   d->openRetryTimes_ = 0;
