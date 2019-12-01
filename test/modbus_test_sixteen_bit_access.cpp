@@ -15,6 +15,25 @@ TEST(SixteenBitAccess, setgetQuantity) {
   EXPECT_EQ(3, access.quantoty());
 }
 
+TEST(SixteenBitAccess, setgetValue) {
+  modbus::SixteenBitAccess access;
+
+  access.setStartAddress(0x00);
+  access.setValue(0x05);
+  EXPECT_EQ(0x05, access.value(0x00));
+
+  access.setValue(0x01, 1);
+  EXPECT_EQ(1, access.value(0x01));
+
+  access.setValue(0x02, 4);
+  EXPECT_EQ(4, access.value(0x02));
+
+  // test not exists values
+  bool ok;
+  access.value(0x1000, &ok);
+  EXPECT_EQ(false, ok);
+}
+
 TEST(SixteenBitAccess, marshalMultipleReadRequest_success) {
   modbus::SixteenBitAccess access;
 

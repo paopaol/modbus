@@ -20,6 +20,21 @@ public:
 
   void setValue(uint16_t value) { valueMap_[startAddress_] = value; }
   void setValue(Address address, uint16_t value) { valueMap_[address] = value; }
+  uint16_t value(Address address, bool *ok = nullptr) {
+    bool isFound = true;
+    uint16_t v = 0;
+    auto it = valueMap_.find(address);
+    if (it == valueMap_.end()) {
+      isFound = false;
+    } else {
+      isFound = true;
+      v = it->second;
+    }
+    if (ok) {
+      *ok = isFound;
+    }
+    return v;
+  }
 
   ByteArray marshalMultipleReadRequest() {
     ByteArray array;
