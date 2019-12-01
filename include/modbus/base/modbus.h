@@ -24,6 +24,19 @@ static inline DataChecker::Result bytesRequired(size_t &size,
   return DataChecker::Result::kSizeOk;
 }
 
+static inline DataChecker::Result
+bytesRequiredStoreInArrayIndex0(size_t &size, const ByteArray &data) {
+  if (data.empty()) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size_t bytes = data[0];
+  if (data.size() < bytes + 1) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size = bytes + 1;
+  return DataChecker::Result::kSizeOk;
+}
+
 class Pdu {
 public:
   Pdu() {}
