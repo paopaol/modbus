@@ -80,14 +80,9 @@ public:
   }
 
   bool unmarshalReadResponse(const ByteArray &array) {
-    if (array.empty()) {
-      return false;
-    }
-    /**
-     * bytes bumber
-     */
-    size_t bytes = array[0];
-    if (bytes + 1 != array.size()) {
+    size_t size = 0;
+    auto result = bytesRequiredStoreInArrayIndex0(size, array);
+    if (result != DataChecker::Result::kSizeOk) {
       return false;
     }
 
