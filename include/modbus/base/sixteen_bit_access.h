@@ -7,11 +7,27 @@
 #include <modbus/base/smart_assert.h>
 
 namespace modbus {
-
 class SixteenBitAccess {
 public:
   SixteenBitAccess() = default;
   virtual ~SixteenBitAccess() noexcept = default;
+
+  static inline DataChecker::Result
+  calculateSizeOfReadResponse(size_t &size, const ByteArray &data) {
+    if (data.empty()) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    size_t bytes = data[0];
+    if (bytes + 1 != data.size()) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    /// Must be a multiple of 2
+    if (bytes % 2 != 0) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    size = bytes + 1;
+    return DataChecker::Result::kSizeOk;
+  }
 
   void setStartAddress(Address address) { startAddress_ = address; }
   Address startAddress() const { return startAddress_; }
@@ -91,15 +107,9 @@ public:
   }
 
   bool unmarshalReadResponse(const ByteArray &data) {
-    if (data.empty()) {
-      return false;
-    }
-    size_t bytes = data[0];
-    if (bytes + 1 != data.size()) {
-      return false;
-    }
-    /// Must be a multiple of 2
-    if (bytes % 2 != 0) {
+    size_t size = 0;
+    auto result = calculateSizeOfReadResponse(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
       return false;
     }
 
