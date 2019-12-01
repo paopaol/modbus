@@ -86,7 +86,7 @@ public:
     /**
      * bytes bumber
      */
-    int bytes = array[0];
+    size_t bytes = array[0];
     if (bytes + 1 != array.size()) {
       return false;
     }
