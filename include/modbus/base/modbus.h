@@ -5,15 +5,31 @@
 #include <functional>
 
 namespace modbus {
+
+/**
+ *Different function codes carry different data in the data in the pdu. So we
+ *use this class to check whether the size of the data in the received request
+ *or response is valid
+ */
 struct DataChecker {
 public:
   enum class Result { kNeedMoreData, kSizeOk, kUnkown };
   using calculateRequiredSizeFunc =
       std::function<Result(size_t &size, const ByteArray &byteArray)>;
+  /**
+   * for check request from client
+   */
   calculateRequiredSizeFunc calculateRequestSize;
+  /**
+   * for check response from server
+   */
   calculateRequiredSizeFunc calculateResponseSize;
 };
 
+/**
+ * some function code, data is [byte0,byte1|...|byte-n]
+ * so, the expected size is n
+ */
 template <int nbytes>
 static inline DataChecker::Result bytesRequired(size_t &size,
                                                 const ByteArray &data) {
@@ -24,6 +40,11 @@ static inline DataChecker::Result bytesRequired(size_t &size,
   return DataChecker::Result::kSizeOk;
 }
 
+/**
+ * some function code, data is [byte-number | byte-1|byte-2|...|byte-n]
+ * the byte-number == n.
+ * so, the expected size is byte-number + 1
+ */
 static inline DataChecker::Result
 bytesRequiredStoreInArrayIndex0(size_t &size, const ByteArray &data) {
   if (data.empty()) {
@@ -37,6 +58,10 @@ bytesRequiredStoreInArrayIndex0(size_t &size, const ByteArray &data) {
   return DataChecker::Result::kSizeOk;
 }
 
+/**
+ * Protocol data unit
+ * in modbus frame, it is function Code + data
+ */
 class Pdu {
 public:
   Pdu() {}
@@ -72,6 +97,11 @@ private:
   ByteArray data_;
 };
 
+/**
+ * Application data unit
+ * in modbus frame, it is address field + pdu + error checking.
+ * but our adu not include error checking
+ */
 class Adu {
 public:
   Adu() {}
@@ -127,6 +157,9 @@ private:
   Pdu pdu_;
 };
 
+/**
+ * a modbus request
+ */
 class Request : public Adu {
 public:
   void setUserData(const any &userData) { userData_ = userData; }
@@ -136,6 +169,9 @@ private:
   any userData_;
 };
 
+/**
+ * a modbus response
+ */
 class Response : public Adu {
 public:
   Response() : errorCode_(Error::kNoError), Adu() {}
