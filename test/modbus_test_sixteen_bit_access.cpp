@@ -84,3 +84,18 @@ TEST(SixteenBitAccess, unmarshalReadResponse_success) {
   EXPECT_EQ(0x00, access.value(access.startAddress() + 1));
   EXPECT_EQ(0x64, access.value(access.startAddress() + 2));
 }
+
+TEST(SixteenBitAccess, unmarshalReadResponse_failed) {
+  modbus::SixteenBitAccess access;
+
+  access.setStartAddress(0x6b);
+  access.setQuantity(0x03);
+
+  modbus::ByteArray badResponse({0x06, 0x02, 0x2b, 0x00, 0x00, 0x00});
+  bool success = access.unmarshalReadResponse(badResponse);
+  EXPECT_EQ(false, success);
+
+  modbus::ByteArray badResponse2({0x05, 0x02, 0x2b, 0x00, 0x00, 0x00});
+  success = access.unmarshalReadResponse(badResponse2);
+  EXPECT_EQ(false, success);
+}
