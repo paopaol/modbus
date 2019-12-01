@@ -14,6 +14,16 @@ public:
   calculateRequiredSizeFunc calculateResponseSize;
 };
 
+template <int nbytes>
+static inline DataChecker::Result bytesRequired(size_t &size,
+                                                const ByteArray &data) {
+  if (data.size() < nbytes) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size = nbytes;
+  return DataChecker::Result::kSizeOk;
+}
+
 class Pdu {
 public:
   Pdu() {}
