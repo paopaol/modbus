@@ -68,32 +68,12 @@ private:
 
 class MockReadCoilsDataChecker {
 public:
-  static modbus::DataChecker::Result
-  calculateRequestSize(size_t &size, const modbus::ByteArray &byteArray) {
-    size = 4;
-    return modbus::DataChecker::Result::kSizeOk;
-  }
-  static modbus::DataChecker::Result
-  calculateResponseSize(size_t &size, const modbus::ByteArray &byteArray) {
-    if (byteArray.size() < 1) {
-      return modbus::DataChecker::Result::kNeedMoreData;
-    }
-    size_t bytes = byteArray[0];
-    size = bytes + 1;
-    return modbus::DataChecker::Result::kSizeOk;
-  }
   static modbus::DataChecker newDataChecker() {
     modbus::DataChecker dataChecker;
-    dataChecker.calculateRequestSize = [](size_t &size,
-                                          const modbus::ByteArray &byteArray) {
-      return MockReadCoilsDataChecker::calculateRequestSize(size, byteArray);
-    };
-    dataChecker.calculateResponseSize = [](size_t &size,
-                                           const modbus::ByteArray &byteArray) {
-      return MockReadCoilsDataChecker::calculateResponseSize(size, byteArray);
-    };
+    dataChecker.calculateRequestSize = modbus::bytesRequired<4>;
+    dataChecker.calculateResponseSize = modbus::bytesRequiredStoreInArrayIndex0;
     return dataChecker;
-  }
+  };
 };
 
 #endif /* MODBUS_TEST_MOCKER_H */

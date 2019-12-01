@@ -281,7 +281,7 @@ TEST(TestModbusSerialClient,
      * fourth time, read crc(2 bytes)
      */
     modbus::ByteArray responseWithoutCrc = {
-        kServerAddress, modbus::FunctionCode::kReadCoils,
+        kServerAddress, modbus::FunctionCode::kReadCoils, 0x02,
         modbus::CoilAddress(0x01), modbus::Quantity(0x02)};
 
     modbus::ByteArray responseWithCrc =
@@ -292,14 +292,15 @@ TEST(TestModbusSerialClient,
 
     QByteArray secondReadData;
     secondReadData.append(responseWithCrc[1]); /// function Code
-    secondReadData.append(responseWithCrc[2]); /// coil address
+    secondReadData.append(responseWithCrc[2]); /// bytes number
+    secondReadData.append(responseWithCrc[3]); /// coil address
 
     QByteArray thrdReadData;
-    thrdReadData.append(responseWithCrc[3]); /// quantity
+    thrdReadData.append(responseWithCrc[4]); /// quantity
 
     QByteArray fourthReadData;
-    fourthReadData.append(responseWithCrc[4])
-        .append(responseWithCrc[5]); /// crc
+    fourthReadData.append(responseWithCrc[5])
+        .append(responseWithCrc[6]); /// crc
 
     EXPECT_CALL(*serialPort, readAll())
         .Times(4)
@@ -333,8 +334,9 @@ TEST(TestModbusSerialClient,
     EXPECT_EQ(modbus::Error::kNoError, response.error());
     EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
     EXPECT_EQ(request.serverAddress(), response.serverAddress());
-    EXPECT_EQ(response.data(), modbus::ByteArray({modbus::CoilAddress(0x01),
-                                                  modbus::Quantity(0x02)}));
+    EXPECT_EQ(response.data(),
+              modbus::ByteArray(
+                  {0x02, modbus::CoilAddress(0x01), modbus::Quantity(0x02)}));
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -359,7 +361,7 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, close());
 
     modbus::ByteArray responseWithoutCrc = {
-        kServerAddress, modbus::FunctionCode::kReadCoils,
+        kServerAddress, modbus::FunctionCode::kReadCoils, 0x02,
         modbus::CoilAddress(0x01), modbus::Quantity(0x02)};
 
     modbus::ByteArray responseWithCrc = responseWithoutCrc;
@@ -784,7 +786,7 @@ TEST(TestModbusSerialClient,
 
     modbus::ByteArray responseWithoutCrc = {kServerAddress,
                                             modbus::FunctionCode::kReadCoils,
-                                            0x01, 0x05 /*b 0000 0101*/};
+                                            0x02, 0x01, 0x05 /*b 0000 0101*/};
 
     modbus::ByteArray responseWithCrc =
         modbus::tool::appendCrc(responseWithoutCrc);
