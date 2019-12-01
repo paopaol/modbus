@@ -7,6 +7,12 @@
 #include <map>
 
 namespace modbus {
+/**
+ * modbus data model
+ * single bit access.
+ * include Discrete input(r),coil(rw)
+ * before use SingleBitAccess,must set startAddress, quantity
+ */
 class SingleBitAccess {
 public:
   SingleBitAccess() {}
@@ -15,9 +21,20 @@ public:
   Address startAddress() { return startAddress_; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() { return quantity_; }
+
+  /**
+   * this will set the value to startAddress
+   */
   void setValue(BitValue value) { valueMap_[startAddress_] = value; }
+  /**
+   * set value to address
+   */
   void setValue(Address address, BitValue value) { valueMap_[address] = value; }
 
+  /**
+   * Conversion to modbus protocol format
+   * function code 0x01,0x02
+   */
   ByteArray marshalReadRequest() {
     ByteArray array;
 
@@ -29,6 +46,10 @@ public:
     return array;
   }
 
+  /**
+   * Conversion to modbus protocol format
+   * function code 0x05
+   */
   ByteArray marshalSingleWriteRequest() {
     ByteArray data;
 
@@ -44,6 +65,10 @@ public:
     return data;
   }
 
+  /**
+   * Conversion to modbus protocol format
+   * function code 0x0f
+   */
   ByteArray marshalMultipleWriteRequest() {
     ByteArray data;
 
