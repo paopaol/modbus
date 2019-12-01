@@ -3,6 +3,7 @@
 
 #include <map>
 #include <modbus/base/modbus.h>
+#include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
 
 namespace modbus {
@@ -87,6 +88,29 @@ public:
       array.push_back(value % 256);
     }
     return array;
+  }
+
+  bool unmarshalReadResponse(const ByteArray &data) {
+    if (data.empty()) {
+      return false;
+    }
+    size_t bytes = data[0];
+    if (bytes + 1 != data.size()) {
+      return false;
+    }
+    /// Must be a multiple of 2
+    if (bytes % 2 != 0) {
+      return false;
+    }
+
+    auto valueArray = tool::subArray(data, 1);
+    Address nextAddress = startAddress();
+    for (int i = 0; i < valueArray.size(); i += 2) {
+      uint16_t v = 0;
+      v = valueArray[i] * 256 + valueArray[i + 1];
+      valueMap_[nextAddress++] = v;
+    }
+    return true;
   }
 
 private:
