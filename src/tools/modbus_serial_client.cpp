@@ -273,6 +273,8 @@ void QSerialClient::onSerialPortReadyRead() {
     dataChecker = request.dataChecker();
   }
 
+  smart_assert(dataChecker.calculateResponseSize &&
+               "not set data size checker");
   DataChecker::Result result = dataChecker.calculateResponseSize(
       expectSize, tool::subArray(dataRecived, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
