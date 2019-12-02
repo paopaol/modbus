@@ -136,9 +136,15 @@ TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
     serialClient.sendRequest(request);
+    serialClient.sendRequest(request);
+    serialClient.sendRequest(request);
+    EXPECT_EQ(serialClient.pendingRequestSize(), 3);
+
     spy.wait(300);
     EXPECT_EQ(spy.count(), 1);
     EXPECT_EQ(serialClient.isClosed(), true);
+    /// after serial client closed, no pending request exists
+    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();

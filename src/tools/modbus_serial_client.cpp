@@ -106,6 +106,12 @@ void QSerialClient::setupEnvironment() {
           &QSerialClient::onSerialPortReadyRead);
   connect(&d->waitResponseTimer_, &QTimer::timeout, this,
           &QSerialClient::onSerialPortResponseTimeout);
+  connect(this, &QSerialClient::clientClosed, this, [&]() {
+    Q_D(QSerialClient);
+    while (!d->elementQueue_.empty()) {
+      d->elementQueue_.pop();
+    }
+  });
 }
 
 void QSerialClient::setTimeout(uint64_t timeout) {
@@ -152,6 +158,11 @@ int QSerialClient::openRetryTimes() {
 int QSerialClient::openRetryDelay() {
   Q_D(QSerialClient);
   return d->reopenDelay_;
+}
+
+size_t QSerialClient::pendingRequestSize() {
+  Q_D(QSerialClient);
+  return d->elementQueue_.size();
 }
 
 void QSerialClient::initMemberValues() {
@@ -331,11 +342,20 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
   switch (d->sessionState_.state()) {
   case SessionState::kWaitingResponse:
     d->waitResponseTimer_.stop();
-    // fallthough
-  case SessionState::kSendingRequest:
-    d->elementQueue_.pop();
   default:
     break;
+  }
+
+  if (!d->elementQueue_.empty()) {
+    /**
+     * if some error occured on the serial device,
+     * the request do not discard,it will be sent
+     * after,if reconnect success
+     */
+    auto &element = d->elementQueue_.front();
+    element.byteWritten = 0;
+    element.dataRecived.clear();
+    element.retryTimes = d->retryTimes_;
   }
   d->sessionState_.setState(SessionState::kIdle);
   if (d->openRetryTimes_ == 0) {

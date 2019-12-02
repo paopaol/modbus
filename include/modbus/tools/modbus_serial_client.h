@@ -75,6 +75,7 @@ public:
   void setOpenRetryTimes(int retryTimes, int delay = 1000);
   int openRetryTimes();
   int openRetryDelay();
+  size_t pendingRequestSize();
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);
