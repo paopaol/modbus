@@ -67,6 +67,7 @@ void QSerialClient::sendRequest(const Request &request) {
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
   auto element = createElement(request);
+  element.retryTimes = d->retryTimes_;
   d->enqueueElement(element);
 }
 
@@ -184,7 +185,7 @@ void QSerialClient::onSerialPortResponseTimeout() {
    */
   d->sessionState_.setState(SessionState::kIdle);
 
-  if (d->retryTimes_-- > 0) {
+  if (element.retryTimes-- > 0) {
     d->scheduleNextRequest(d->t3_5_);
   } else {
     auto request = element.request;
