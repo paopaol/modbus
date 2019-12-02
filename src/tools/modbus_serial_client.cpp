@@ -2,11 +2,13 @@
 #include <QTimer>
 #include <algorithm>
 #include <assert.h>
+#include <base/modbus_logger.h>
 #include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
 
 namespace modbus {
+
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
@@ -33,11 +35,12 @@ QSerialClient::~QSerialClient() {
 }
 
 void QSerialClient::open() {
-  if (!isClosed()) {
-    // FIXME:add log
+  Q_D(QSerialClient);
+
+  if (isOpened()) {
+    log(LogLevel::kInfo, d->serialPort_->name() + ": is already opened");
     return;
   }
-  Q_D(QSerialClient);
 
   d->connectionState_.setState(ConnectionState::kOpening);
   d->serialPort_->open();
@@ -193,8 +196,6 @@ void QSerialClient::onSerialPortResponseTimeout() {
   Q_D(QSerialClient);
   assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
-  /// FIXME:add debug log
-
   auto &element = d->elementQueue_.front();
   element.byteWritten = 0;
 
@@ -208,8 +209,16 @@ void QSerialClient::onSerialPortResponseTimeout() {
   d->sessionState_.setState(SessionState::kIdle);
 
   if (element.retryTimes-- > 0) {
+    log(LogLevel::kDebug,
+        d->serialPort_->name() +
+            ": waiting response timeout, retry it, retrytimes " +
+            std::to_string(element.retryTimes));
+
     d->scheduleNextRequest(d->t3_5_);
   } else {
+    log(LogLevel::kDebug,
+        d->serialPort_->name() + ": waiting response timeout");
+
     auto request = element.request;
     auto response = element.response;
     /**
@@ -225,8 +234,9 @@ void QSerialClient::onSerialPortReadyRead() {
   Q_D(QSerialClient);
 
   if (d->elementQueue_.empty()) {
-    /// FIXME:add discard log
-    /// recived unexpected data;discard them
+    log(LogLevel::kDebug,
+        d->serialPort_->name() + ": got unexpected data, discard them");
+
     d->serialPort_->clear();
     return;
   }
@@ -246,7 +256,7 @@ void QSerialClient::onSerialPortReadyRead() {
   appendQByteArray(dataRecived, d->serialPort_->readAll());
   /// make sure got serveraddress + function code
   if (dataRecived.size() < 2) {
-    /// FIXME:log
+    log(LogLevel::kDebug, d->serialPort_->name() + ":need more data");
     return;
   }
 
@@ -259,7 +269,10 @@ void QSerialClient::onSerialPortReadyRead() {
    * discard all recived data
    */
   if (response.serverAddress() != request.serverAddress()) {
-    // FIXME:log
+    log(LogLevel::kDebug,
+        d->serialPort_->name() +
+            ":got response, unexpected serveraddress, discard it");
+
     d->serialPort_->clear();
     dataRecived.clear();
     return;
@@ -278,15 +291,16 @@ void QSerialClient::onSerialPortReadyRead() {
   DataChecker::Result result = dataChecker.calculateResponseSize(
       expectSize, tool::subArray(dataRecived, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
-    /// FIXME:log
+    log(LogLevel::kDebug,
+        d->serialPort_->name() + ": data checker says need more data");
     return;
   }
   response.setData(tool::subArray(dataRecived, 2, expectSize));
   /// server address(1) + function code(1) + data(expectSize) + crc(2)
   size_t totalSize = 2 + expectSize + 2;
   if (dataRecived.size() != totalSize) {
-    /// need more data
-    /// FIXME:log
+    log(LogLevel::kDebug,
+        d->serialPort_->name() + ": need more data, not complete modbus frame");
     return;
   }
   d->waitResponseTimer_.stop();
@@ -294,6 +308,9 @@ void QSerialClient::onSerialPortReadyRead() {
 
   auto dataWithCrc =
       tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
+
+  log(LogLevel::kDebug,
+      d->serialPort_->name() + "recived " + tool::dumpHex(dataRecived));
 
   /**
    * Received frame error
@@ -333,6 +350,9 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
     d->elementQueue_.pop();
     d->sessionState_.setState(SessionState::kIdle);
     d->scheduleNextRequest(d->waitConversionDelay_);
+
+    log(LogLevel::kDebug,
+        d->serialPort_->name() + "brocast request, turn into idle status");
     return;
   }
 
@@ -363,7 +383,8 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
   if (d->openRetryTimes_ == 0) {
     emit errorOccur(errorString);
   }
-  // FIXME:log
+  log(LogLevel::kDebug,
+      d->serialPort_->name() + " " + errorString.toStdString());
   closeNotClearOpenRetrys();
 } // namespace modbus
 
@@ -394,7 +415,7 @@ void QSerialClient::onSerialPortClosed() {
 
   /// do reconnect
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-  /// FIXME:log
+  log(LogLevel::kDebug, d->serialPort_->name() + " closed, try reconnect");
   /**
    * if some error occured on the serial device,
    * the request do not discard,it will be sent

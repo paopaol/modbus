@@ -31,6 +31,7 @@ public:
   }
 
   void setPortName(const QString &name) { serialPort_.setPortName(name); }
+  std::string name() override { return serialPort_.portName().toStdString(); }
 
   void open() override {
     bool success = serialPort_.open(QIODevice::ReadWrite);
@@ -65,8 +66,7 @@ private:
               if (err == QSerialPort::SerialPortError::NoError) {
                 return;
               }
-              emit error(serialPort_.portName() + ": " +
-                         serialPort_.errorString());
+              emit error(serialPort_.errorString());
             });
     connect(&serialPort_, &QSerialPort::bytesWritten, this,
             &QtSerialPort::bytesWritten);
@@ -79,8 +79,8 @@ private:
 
 QSerialClient *
 newQtSerialClient(const QString &serialName, QSerialPort::BaudRate baudRate,
-                QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
-                QSerialPort::StopBits stopBits, QObject *parent) {
+                  QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
+                  QSerialPort::StopBits stopBits, QObject *parent) {
   QtSerialPort *port = new QtSerialPort(parent);
   port->setBaudRate(baudRate);
   port->setDataBits(dataBits);

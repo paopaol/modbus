@@ -1,6 +1,8 @@
 #ifndef __MODBUS_TYPES_H_
 #define __MODBUS_TYPES_H_
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <vector>
 
 namespace modbus {
@@ -28,6 +30,9 @@ enum class Error {
 };
 
 using ByteArray = std::vector<uint8_t>;
+
+enum class LogLevel { kDebug, kWarning, kInfo };
+using LogWriter = std::function<void(LogLevel level, const std::string &msg)>;
 
 } // namespace modbus
 

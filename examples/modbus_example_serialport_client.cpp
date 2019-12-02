@@ -12,17 +12,30 @@ static modbus::DataChecker newDataChecker() {
   return dataChecker;
 }
 
+static void logMessage(modbus::LogLevel level, const std::string &msg) {
+  switch (level) {
+  case modbus::LogLevel::kDebug:
+    qDebug() << msg.c_str();
+    break;
+  case modbus::LogLevel::kInfo:
+    qInfo() << msg.c_str();
+    break;
+  case modbus::LogLevel::kWarning:
+    qWarning() << msg.c_str();
+    break;
+  }
+}
+
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
+
+  modbus::registerLogMessage(logMessage);
 
   QScopedPointer<modbus::QSerialClient> client(
       modbus::newQtSerialClient("/dev/ttyS0"));
 
   client->setOpenRetryTimes(5, 5000);
 
-  QObject::connect(
-      client.data(), &modbus::QSerialClient::errorOccur,
-      [&](const QString &errorString) { qDebug() << errorString; });
   QObject::connect(client.data(), &modbus::QSerialClient::clientClosed,
                    [&]() { qDebug() << "client is closed"; });
   QObject::connect(client.data(), &modbus::QSerialClient::clientOpened, [&]() {
