@@ -246,6 +246,7 @@ TEST(TestModbusSerialClient,
     modbus::Response response =
         qvariant_cast<modbus::Response>(arguments.at(1));
     EXPECT_EQ(modbus::Error::kTimeout, response.error());
+    EXPECT_EQ(2, serialClient.retryTimes());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
