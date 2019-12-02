@@ -106,12 +106,6 @@ void QSerialClient::setupEnvironment() {
           &QSerialClient::onSerialPortReadyRead);
   connect(&d->waitResponseTimer_, &QTimer::timeout, this,
           &QSerialClient::onSerialPortResponseTimeout);
-  connect(this, &QSerialClient::clientClosed, this, [&]() {
-    Q_D(QSerialClient);
-    while (!d->elementQueue_.empty()) {
-      d->elementQueue_.pop();
-    }
-  });
 }
 
 void QSerialClient::setTimeout(uint64_t timeout) {
@@ -158,6 +152,23 @@ int QSerialClient::openRetryTimes() {
 int QSerialClient::openRetryDelay() {
   Q_D(QSerialClient);
   return d->reopenDelay_;
+}
+
+void QSerialClient::clearPendingRequest() {
+  Q_D(QSerialClient);
+  while (!d->elementQueue_.empty()) {
+    d->elementQueue_.pop();
+  }
+}
+
+void QSerialClient::resetCurrentRequest() {
+  Q_D(QSerialClient);
+  if (!d->elementQueue_.empty()) {
+    auto &element = d->elementQueue_.front();
+    element.byteWritten = 0;
+    element.dataRecived.clear();
+    element.retryTimes = d->retryTimes_;
+  }
 }
 
 size_t QSerialClient::pendingRequestSize() {
@@ -346,17 +357,6 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
     break;
   }
 
-  if (!d->elementQueue_.empty()) {
-    /**
-     * if some error occured on the serial device,
-     * the request do not discard,it will be sent
-     * after,if reconnect success
-     */
-    auto &element = d->elementQueue_.front();
-    element.byteWritten = 0;
-    element.dataRecived.clear();
-    element.retryTimes = d->retryTimes_;
-  }
   d->sessionState_.setState(SessionState::kIdle);
   if (d->openRetryTimes_ == 0) {
     emit errorOccur(errorString);
@@ -372,12 +372,20 @@ void QSerialClient::onSerialPortClosed() {
   /// force close, do not check reconnect
   if (d->forceClose_) {
     d->forceClose_ = false;
+    /**
+     * closed final,clear all pending request
+     */
+    clearPendingRequest();
     emit clientClosed();
     return;
   }
 
   // check reconnect
   if (d->openRetryTimes_ == 0) {
+    /**
+     * closed final,clear all pending request
+     */
+    clearPendingRequest();
     emit clientClosed();
     return;
   }
@@ -385,12 +393,19 @@ void QSerialClient::onSerialPortClosed() {
   /// do reconnect
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
   /// FIXME:log
+  /**
+   * if some error occured on the serial device,
+   * the request do not discard,it will be sent
+   * after,if reconnect success
+   */
+  resetCurrentRequest();
   QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
 }
 
 void QSerialClient::onSerialPortOpened() {
   Q_D(QSerialClient);
   d->connectionState_.setState(ConnectionState::kOpened);
+  d->scheduleNextRequest(d->t3_5_);
   emit clientOpened();
 }
 
