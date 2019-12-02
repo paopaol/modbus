@@ -89,6 +89,8 @@ private:
   void onSerialPortBytesWritten(qint16 bytes);
   void onSerialPortReadyRead();
   void onSerialPortResponseTimeout();
+  void clearPendingRequest();
+  void resetCurrentRequest();
 
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };

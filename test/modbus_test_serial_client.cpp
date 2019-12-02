@@ -625,6 +625,53 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
+TEST(TestModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
+  declare_app(app);
+
+  {
+    auto serialPort = new MockSerialPort();
+    modbus::QSerialClient serialClient(serialPort);
+
+    auto request = createSingleBitAccessRequest();
+
+    modbus::ByteArray responseWithoutCrc = {kServerAddress,
+                                            modbus::FunctionCode::kReadCoils,
+                                            0x01, 0x05 /*b 0000 0101*/};
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+    QByteArray qarray((const char *)responseWithCrc.data(),
+                      responseWithCrc.size());
+
+    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly([&]() {
+      serialPort->opened();
+    });
+
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+      serialPort->closed();
+    });
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+        .Times(2)
+        .WillOnce([&](const char *data, size_t size) {
+          serialPort->error("write error, just fot test");
+        })
+        .WillOnce([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+          serialPort->readyRead();
+        });
+    EXPECT_CALL(*serialPort, readAll()).WillOnce([&]() { return qarray; });
+
+    serialClient.setOpenRetryTimes(3, 2000);
+    serialClient.open();
+    serialClient.sendRequest(request);
+    spy.wait(20000);
+    EXPECT_EQ(spy.count(), 1);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 TEST(TestModbusSerialClient, connect_connectFailed_reconnectSuccess) {
   declare_app(app);
 
