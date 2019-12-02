@@ -41,6 +41,7 @@ public:
   virtual void write(const char *data, size_t size) = 0;
   virtual QByteArray readAll() = 0;
   virtual void clear() = 0;
+  virtual std::string name() = 0;
 signals:
   void opened();
   void closed();

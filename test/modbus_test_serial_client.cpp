@@ -57,6 +57,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
       serialPort->closed();
     });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     serialClient.setOpenRetryTimes(4, 2000);
     serialClient.open();
@@ -107,6 +110,9 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
     EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
       serialPort->closed();
     });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     // make sure the client is opened
     serialClient.open();
@@ -131,6 +137,9 @@ TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     // make sure the client is opened
     serialClient.open();
@@ -237,6 +246,9 @@ TEST(TestModbusSerialClient,
      */
     EXPECT_CALL(*serialPort, write(testing::_, testing::_)).Times(3);
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     // make sure the client is opened
     serialClient.open();
@@ -275,6 +287,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     /**
      *In this test case, we simulate that the data returned by the serial port
@@ -366,6 +381,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     modbus::ByteArray responseWithoutCrc = {
         kServerAddress, modbus::FunctionCode::kReadCoils, 0x02,
@@ -418,6 +436,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     modbus::ByteArray responseWithoutCrc = {
         kServerAddress,
@@ -475,6 +496,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
     EXPECT_CALL(*serialPort, clear());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     modbus::ByteArray responseWithoutCrc = {
         kBadServerAddress,
@@ -526,6 +550,9 @@ TEST(TestModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
     EXPECT_CALL(*serialPort, clear());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     // make sure the client is opened
     serialClient.open();
@@ -560,6 +587,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     QByteArray responseData;
     responseData.append(kServerAddress);
@@ -602,6 +632,9 @@ TEST(TestModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     QByteArray responseData;
     responseData.append(kServerAddress);
@@ -661,6 +694,9 @@ TEST(TestModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
           serialPort->readyRead();
         });
     EXPECT_CALL(*serialPort, readAll()).WillOnce([&]() { return qarray; });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     serialClient.setOpenRetryTimes(3, 2000);
     serialClient.open();
@@ -694,6 +730,9 @@ TEST(TestModbusSerialClient, connect_connectFailed_reconnectSuccess) {
         .WillOnce([&]() { serialPort->opened(); });
     EXPECT_CALL(*serialPort, close()).Times(2).WillRepeatedly([&]() {
       serialPort->closed();
+    });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
     });
 
     /**
@@ -733,6 +772,9 @@ TEST(TestModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
     EXPECT_CALL(*serialPort, close()).Times(2).WillRepeatedly([&]() {
       serialPort->closed();
     });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     /**
      * if open failed, retry 4 times, interval 2s
@@ -770,6 +812,9 @@ TEST(TestModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     modbus::ByteArray responseWithoutCrc = {kServerAddress,
                                             modbus::FunctionCode::kReadCoils,
@@ -836,6 +881,9 @@ TEST(TestModbusSerialClient,
         });
     EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
       serialPort->closed();
+    });
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
     });
 
     modbus::ByteArray responseWithoutCrc = {kServerAddress,

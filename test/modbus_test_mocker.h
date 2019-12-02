@@ -25,6 +25,7 @@ public:
   MOCK_METHOD(void, write, (const char *data, size_t size), (override));
   MOCK_METHOD(QByteArray, readAll, (), (override));
   MOCK_METHOD(void, clear, (), (override));
+  MOCK_METHOD(std::string, name, (), (override));
 
   void setupDelegate() {
     ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });

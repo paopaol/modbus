@@ -188,6 +188,8 @@ private:
   std::string errorString_;
 };
 
+void registerLogMessage(const LogWriter &logger);
+
 } // namespace modbus
 
 #endif // __MODBUS_H_
