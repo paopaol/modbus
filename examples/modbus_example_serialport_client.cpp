@@ -36,8 +36,9 @@ int main(int argc, char *argv[]) {
 
   client->setOpenRetryTimes(5, 5000);
 
-  QObject::connect(client.data(), &modbus::QSerialClient::clientClosed,
-                   [&]() { qDebug() << "client is closed"; });
+  QObject::connect(client.data(), &modbus::QSerialClient::clientClosed, [&]() {
+    qDebug() << "client is closed" << client->errorString();
+  });
   QObject::connect(client.data(), &modbus::QSerialClient::clientOpened, [&]() {
     qDebug() << "client is opened";
 
