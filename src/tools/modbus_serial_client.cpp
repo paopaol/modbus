@@ -227,14 +227,14 @@ void QSerialClient::onSerialPortResponseTimeout() {
   d->sessionState_.setState(SessionState::kIdle);
 
   if (element.retryTimes-- > 0) {
-    log(LogLevel::kDebug,
+    log(LogLevel::kWarning,
         d->serialPort_->name() +
             ": waiting response timeout, retry it, retrytimes " +
             std::to_string(element.retryTimes));
 
     d->scheduleNextRequest(d->t3_5_);
   } else {
-    log(LogLevel::kDebug,
+    log(LogLevel::kWarning,
         d->serialPort_->name() + ": waiting response timeout");
 
     auto request = element.request;
@@ -252,8 +252,12 @@ void QSerialClient::onSerialPortReadyRead() {
   Q_D(QSerialClient);
 
   if (d->elementQueue_.empty()) {
-    log(LogLevel::kDebug,
-        d->serialPort_->name() + ": got unexpected data, discard them");
+    auto qdata = d->serialPort_->readAll();
+    ByteArray data;
+    appendQByteArray(data, qdata);
+    log(LogLevel::kWarning, d->serialPort_->name() +
+                                ": got unexpected data, discard them." + "[" +
+                                tool::dumpHex(data) + "]");
 
     d->serialPort_->clear();
     return;
@@ -274,7 +278,8 @@ void QSerialClient::onSerialPortReadyRead() {
   appendQByteArray(dataRecived, d->serialPort_->readAll());
   /// make sure got serveraddress + function code
   if (dataRecived.size() < 2) {
-    log(LogLevel::kDebug, d->serialPort_->name() + ":need more data");
+    log(LogLevel::kWarning, d->serialPort_->name() + ":need more data." + "[" +
+                                tool::dumpHex(dataRecived) + "]");
     return;
   }
 
@@ -287,9 +292,10 @@ void QSerialClient::onSerialPortReadyRead() {
    * discard all recived data
    */
   if (response.serverAddress() != request.serverAddress()) {
-    log(LogLevel::kDebug,
+    log(LogLevel::kWarning,
         d->serialPort_->name() +
-            ":got response, unexpected serveraddress, discard it");
+            ":got response, unexpected serveraddress, discard it.[" +
+            tool::dumpHex(dataRecived) + "]");
 
     d->serialPort_->clear();
     dataRecived.clear();
@@ -309,16 +315,19 @@ void QSerialClient::onSerialPortReadyRead() {
   DataChecker::Result result = dataChecker.calculateResponseSize(
       expectSize, tool::subArray(dataRecived, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
-    log(LogLevel::kDebug,
-        d->serialPort_->name() + ": data checker says need more data");
+    log(LogLevel::kWarning, d->serialPort_->name() +
+                                ": data checker says need more data.[" +
+                                tool::dumpHex(dataRecived) + "]");
     return;
   }
   response.setData(tool::subArray(dataRecived, 2, expectSize));
   /// server address(1) + function code(1) + data(expectSize) + crc(2)
   size_t totalSize = 2 + expectSize + 2;
   if (dataRecived.size() != totalSize) {
-    log(LogLevel::kDebug,
-        d->serialPort_->name() + ": need more data, not complete modbus frame");
+    log(LogLevel::kWarning,
+        d->serialPort_->name() +
+            ": need more data, not complete modbus frame.[" +
+            tool::dumpHex(dataRecived) + "]");
     return;
   }
   d->waitResponseTimer_.stop();
@@ -328,7 +337,7 @@ void QSerialClient::onSerialPortReadyRead() {
       tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
 
   log(LogLevel::kDebug,
-      d->serialPort_->name() + "recived " + tool::dumpHex(dataRecived));
+      d->serialPort_->name() + " recived " + tool::dumpHex(dataRecived));
 
   /**
    * Received frame error
@@ -369,7 +378,7 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
     d->sessionState_.setState(SessionState::kIdle);
     d->scheduleNextRequest(d->waitConversionDelay_);
 
-    log(LogLevel::kDebug,
+    log(LogLevel::kWarning,
         d->serialPort_->name() + "brocast request, turn into idle status");
     return;
   }
@@ -409,7 +418,7 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
   if (d->openRetryTimes_ == 0) {
     emit errorOccur(errorString);
   }
-  log(LogLevel::kDebug,
+  log(LogLevel::kWarning,
       d->serialPort_->name() + " " + errorString.toStdString());
   if (isOpened()) {
     closeNotClearOpenRetrys();
@@ -445,7 +454,7 @@ void QSerialClient::onSerialPortClosed() {
 
   /// do reconnect
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-  log(LogLevel::kDebug, d->serialPort_->name() + " closed, try reconnect");
+  log(LogLevel::kWarning, d->serialPort_->name() + " closed, try reconnect");
   /**
    * if some error occured on the serial device,
    * the request do not discard,it will be sent

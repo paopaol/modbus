@@ -3,6 +3,7 @@
 
 #include "modbus_client_types.h"
 #include <QTimer>
+#include <base/modbus_logger.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_serial_client.h>
@@ -73,6 +74,8 @@ public:
        * we append crc, then write to serialport
        */
       auto modbusSerialFrame = tool::appendCrc(data);
+      log(LogLevel::kDebug, serialPort_->name() + " will send: " +
+                                tool::dumpHex(modbusSerialFrame));
       serialPort_->write((const char *)modbusSerialFrame.data(),
                          modbusSerialFrame.size());
     });

@@ -177,6 +177,9 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
+      return "test port";
+    });
 
     // make sure the client is opened
     serialClient.open();
@@ -540,6 +543,14 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
+    modbus::ByteArray responseWithoutCrc = {kServerAddress,
+                                            modbus::FunctionCode::kReadCoils,
+                                            0x01, 0x05 /*b 0000 0101*/};
+    modbus::ByteArray responseWithCrc =
+        modbus::tool::appendCrc(responseWithoutCrc);
+    QByteArray qarray((const char *)responseWithCrc.data(),
+                      responseWithCrc.size());
+
     modbus::QSerialClient serialClient(serialPort);
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
@@ -551,6 +562,7 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
       return "test port";
     });
+    EXPECT_CALL(*serialPort, readAll()).WillOnce([&]() { return qarray; });
 
     // make sure the client is opened
     serialClient.open();
@@ -725,7 +737,7 @@ TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
           return;
         })
         .WillOnce([&]() { serialPort->opened(); });
-    EXPECT_CALL(*serialPort, close()).Times(2).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly([&]() {
       serialPort->closed();
     });
     EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
@@ -766,7 +778,7 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
           return;
         })
         .WillOnce([&]() { serialPort->opened(); });
-    EXPECT_CALL(*serialPort, close()).Times(2).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly([&]() {
       serialPort->closed();
     });
     EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
