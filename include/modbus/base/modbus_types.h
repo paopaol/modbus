@@ -10,8 +10,16 @@ using ServerAddress = uint8_t;
 using CoilAddress = uint16_t;
 using RegisterAddress = uint16_t;
 using Address = uint16_t;
+struct AddressEx {
+  Address address = 0;
+  std::string description;
+};
 using Quantity = uint16_t;
 enum class BitValue { kOff, kOn, kBadValue };
+struct BitValueEx {
+  BitValue bitValue = BitValue::kBadValue;
+  std::string description;
+};
 enum FunctionCode { kInvalidCode = 0x00, kReadCoils = 0x01 };
 enum class Error {
   kNoError = 0,
