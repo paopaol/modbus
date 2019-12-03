@@ -17,19 +17,37 @@ class SingleBitAccess {
 public:
   SingleBitAccess() {}
 
-  void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
-  Address startAddress() { return startAddress_; }
+  void setStartAddress(Address startAddress,
+                       const std::string &description = "") {
+    startAddress_.address = startAddress;
+    startAddress_.description = description;
+  }
+  Address startAddress() { return startAddress_.address; }
+  AddressEx startAddressEx() { return startAddress_; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() { return quantity_; }
 
   /**
    * this will set the value to startAddress
    */
-  void setValue(BitValue value) { valueMap_[startAddress_] = value; }
+  void setValue(BitValue value, const std::string &description = "") {
+    BitValueEx valueEx;
+
+    valueEx.bitValue = value;
+    valueEx.description = description;
+    valueMap_[startAddress_.address] = valueEx;
+  }
   /**
    * set value to address
    */
-  void setValue(Address address, BitValue value) { valueMap_[address] = value; }
+  void setValue(Address address, BitValue value,
+                const std::string &description = "") {
+    BitValueEx valueEx;
+
+    valueEx.bitValue = value;
+    valueEx.description = description;
+    valueMap_[address] = valueEx;
+  }
 
   /**
    * Conversion to modbus protocol format
@@ -38,8 +56,8 @@ public:
   ByteArray marshalReadRequest() {
     ByteArray array;
 
-    array.push_back(startAddress_ / 256);
-    array.push_back(startAddress_ % 256);
+    array.push_back(startAddress_.address / 256);
+    array.push_back(startAddress_.address % 256);
 
     array.push_back(quantity_ / 256);
     array.push_back(quantity_ % 256);
@@ -53,13 +71,14 @@ public:
   ByteArray marshalSingleWriteRequest() {
     ByteArray data;
 
-    auto it = valueMap_.find(startAddress_);
-    smart_assert(it != valueMap_.end() && "has no value set")(startAddress_);
+    auto it = valueMap_.find(startAddress_.address);
+    smart_assert(it != valueMap_.end() &&
+                 "has no value set")(startAddress_.address);
 
-    data.push_back(startAddress_ / 256);
-    data.push_back(startAddress_ % 256);
+    data.push_back(startAddress_.address / 256);
+    data.push_back(startAddress_.address % 256);
 
-    data.push_back(it->second == BitValue::kOn ? 0xff : 0x00);
+    data.push_back(it->second.bitValue == BitValue::kOn ? 0xff : 0x00);
     data.push_back(0x00);
 
     return data;
@@ -72,15 +91,15 @@ public:
   ByteArray marshalMultipleWriteRequest() {
     ByteArray data;
 
-    data.push_back(startAddress_ / 256);
-    data.push_back(startAddress_ % 256);
+    data.push_back(startAddress_.address / 256);
+    data.push_back(startAddress_.address % 256);
 
     data.push_back(quantity_ / 256);
     data.push_back(quantity_ % 256);
     data.push_back(quantity_ % 8 == 0 ? quantity_ / 8 : quantity_ / 8 + 1);
 
-    Address nextAddress = startAddress_;
-    Address endAddress = startAddress_ + quantity_;
+    Address nextAddress = startAddress_.address;
+    Address endAddress = startAddress_.address + quantity_;
     uint8_t byte = 0;
     int offset = 0;
     for (; nextAddress < endAddress; nextAddress++) {
@@ -89,7 +108,7 @@ public:
                    "some value of address not set, bad operation!")(
           nextAddress);
 
-      bool value = it->second == BitValue::kOn ? true : false;
+      bool value = it->second.bitValue == BitValue::kOn ? true : false;
       byte |= value << offset++;
       if (offset == 8) {
         offset = 0;
@@ -113,13 +132,21 @@ public:
 
     ByteArray bitvalues(tool::subArray(array, 1));
     Quantity quantity = quantity_;
-    Address nextAddress = startAddress_;
+    Address nextAddress = startAddress_.address;
     for (const auto &n : bitvalues) {
       Quantity remainQuantity = quantity >= 8 ? 8 : quantity % 8;
       for (int i = 0; i < remainQuantity; i++) {
         Address address = nextAddress++;
         bool status = n & (0x01 << i);
-        valueMap_[address] = status ? BitValue::kOn : BitValue::kOff;
+
+        if (valueMap_.find(address) != valueMap_.end()) {
+          auto &valueEx = valueMap_[address];
+          valueEx.bitValue = status ? BitValue::kOn : BitValue::kOff;
+        } else {
+          BitValueEx valueEx;
+          valueEx.bitValue = status ? BitValue::kOn : BitValue::kOff;
+          valueMap_[address] = valueEx;
+        }
       }
       quantity -= remainQuantity;
     }
@@ -127,7 +154,12 @@ public:
   }
 
   BitValue value(Address address) {
-    BitValue value = BitValue::kBadValue;
+    auto value = valueEx(address);
+    return value.bitValue;
+  }
+
+  BitValueEx valueEx(Address address) {
+    BitValueEx value;
 
     auto it = valueMap_.find(address);
     if (it != valueMap_.end()) {
@@ -138,9 +170,9 @@ public:
   }
 
 private:
-  Address startAddress_ = 0;
+  AddressEx startAddress_;
   Quantity quantity_ = 0;
-  std::map<Address, BitValue> valueMap_;
+  std::map<Address, BitValueEx> valueMap_;
 };
 
 } // namespace modbus
