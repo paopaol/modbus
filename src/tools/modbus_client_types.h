@@ -43,7 +43,7 @@ inline std::ostream &operator<<(std::ostream &output,
 struct Element {
   Request request;
   Response response;
-  size_t byteWritten = 0;
+  size_t bytesWritten = 0;
   ByteArray dataRecived; // recived data from serial or socket or other
   int retryTimes = 0;
 };

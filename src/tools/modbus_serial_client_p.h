@@ -68,13 +68,13 @@ public:
        */
       auto &ele = elementQueue_.front();
       auto &request = ele.request;
-      auto data = request.marshalData();
+      auto data = request.marshalAduWithoutCrc();
       /**
        * we append crc, then write to serialport
        */
-      auto modbusSerialData = tool::appendCrc(data);
-      serialPort_->write((const char *)modbusSerialData.data(),
-                         modbusSerialData.size());
+      auto modbusSerialFrame = tool::appendCrc(data);
+      serialPort_->write((const char *)modbusSerialFrame.data(),
+                         modbusSerialFrame.size());
     });
   }
 

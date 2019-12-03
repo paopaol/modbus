@@ -138,9 +138,9 @@ public:
 
   size_t marshalSize() const { return 1 + 1 + pdu_.size(); }
   /**
-   * @brief marshalData,that is: serveraddress + fuction code + payload
+   * @brief marshalAduWithoutCrc,that is: serveraddress + fuction code + payload
    */
-  ByteArray marshalData() {
+  ByteArray marshalAduWithoutCrc() {
     ByteArray array;
 
     array.push_back(serverAddress());
