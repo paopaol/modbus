@@ -168,7 +168,7 @@ void QSerialClient::resetCurrentRequest() {
   Q_D(QSerialClient);
   if (!d->elementQueue_.empty()) {
     auto &element = d->elementQueue_.front();
-    element.byteWritten = 0;
+    element.bytesWritten = 0;
     element.dataRecived.clear();
     element.retryTimes = d->retryTimes_;
   }
@@ -197,7 +197,7 @@ void QSerialClient::onSerialPortResponseTimeout() {
   assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
   auto &element = d->elementQueue_.front();
-  element.byteWritten = 0;
+  element.bytesWritten = 0;
 
   /**
    *  An error occurs when the response times out but no response is
@@ -341,8 +341,8 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
   /*check the request is sent done*/
   auto &element = d->elementQueue_.front();
   auto &request = element.request;
-  element.byteWritten += bytes;
-  if (element.byteWritten != request.marshalSize() + 2 /*crc len*/) {
+  element.bytesWritten += bytes;
+  if (element.bytesWritten != request.marshalSize() + 2 /*crc len*/) {
     return;
   }
 

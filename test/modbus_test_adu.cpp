@@ -20,7 +20,7 @@ TEST(TestAdu, modbusAduMarshalData) {
   adu.setData({1, 2, 3});
   size_t buildSize = adu.marshalSize();
   EXPECT_EQ(buildSize, 1 + 1 + 3 /*serveraddress|function code|data*/);
-  modbus::ByteArray buildData = adu.marshalData();
+  modbus::ByteArray buildData = adu.marshalAduWithoutCrc();
   EXPECT_EQ(buildData,
             modbus::ByteArray({1, modbus::FunctionCode::kReadCoils, 1, 2, 3}));
 }
