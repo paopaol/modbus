@@ -17,13 +17,13 @@ static modbus::Request createReadCoilsRequest();
 static modbus::Request createSingleBitAccessRequest();
 static modbus::Request createBrocastRequest();
 
-TEST(TestModbusSerialClient, serialClientConstrct_defaultIsClosed) {
+TEST(ModbusSerialClient, serialClientConstrct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
   modbus::QSerialClient mockSerialClient(serialPort);
   EXPECT_EQ(mockSerialClient.isClosed(), true);
 }
 
-TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
+TEST(ModbusSerialClient, clientIsClosed_openSerial_clientIsOpened) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
@@ -43,8 +43,7 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialIsOpened) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
-     serialClientIsClosed_openSerial_retry4TimesFialed) {
+TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFialed) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
@@ -71,7 +70,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
+TEST(ModbusSerialClient, clientIsOpened_closeSerial_clientIsClosed) {
   declare_app(app);
   auto serialPort = new MockSerialPort();
   serialPort->setupDelegate();
@@ -98,7 +97,7 @@ TEST(TestModbusSerialClient, serialClientIsOpened_closeSerial_serialIsClosed) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
+TEST(ModbusSerialClient, clientIsClosed_openSerial_clientOpenFailed) {
   declare_app(app);
   auto serialPort = new MockSerialPort();
   serialPort->setupOpenFailed();
@@ -123,7 +122,7 @@ TEST(TestModbusSerialClient, serialClientIsClosed_openSerial_serialOpenFailed) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
+TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
   declare_app(app);
 
   modbus::Request request = createReadCoilsRequest();
@@ -159,8 +158,7 @@ TEST(TestModbusSerialClient, serialPortIsOpened_sendRequest_serialWriteFailed) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
-     serialPortIsOpened_sendRequest_serialWriteSuccess) {
+TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
   declare_app(app);
 
   modbus::Request request = createReadCoilsRequest();
@@ -196,7 +194,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient, setTimeout) {
+TEST(ModbusSerialClient, setTimeout) {
   declare_app(app);
 
   {
@@ -210,7 +208,7 @@ TEST(TestModbusSerialClient, setTimeout) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, setRetryTimes) {
+TEST(ModbusSerialClient, setRetryTimes) {
   declare_app(app);
 
   {
@@ -224,7 +222,7 @@ TEST(TestModbusSerialClient, setRetryTimes) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_timeoutedWhenRetryTimesIsZero) {
   declare_app(app);
 
@@ -270,7 +268,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_responseGetSuccessed) {
   declare_app(app);
 
@@ -364,7 +362,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_responseCrcError) {
   declare_app(app);
 
@@ -419,7 +417,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_responseExpection) {
   declare_app(app);
 
@@ -478,7 +476,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_responseIsFromBadServerAddress_timeout) {
   declare_app(app);
 
@@ -533,7 +531,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient, sendBrocast_gotResponse_discardIt) {
+TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
   declare_app(app);
 
   {
@@ -570,7 +568,7 @@ TEST(TestModbusSerialClient, sendBrocast_gotResponse_discardIt) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendRequestSuccessed_waitingForResponse_readSomethingThenErrorOcurr) {
   declare_app(app);
 
@@ -615,8 +613,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
-     sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
+TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
   declare_app(app);
 
   {
@@ -658,7 +655,7 @@ TEST(TestModbusSerialClient,
   app.exec();
 }
 
-TEST(TestModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
+TEST(ModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
   declare_app(app);
 
   {
@@ -708,7 +705,7 @@ TEST(TestModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, connect_connectFailed_reconnectSuccess) {
+TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
   declare_app(app);
 
   {
@@ -749,7 +746,7 @@ TEST(TestModbusSerialClient, connect_connectFailed_reconnectSuccess) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
+TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
   declare_app(app);
 
   {
@@ -796,7 +793,7 @@ TEST(TestModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
+TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
   declare_app(app);
 
   {
@@ -858,7 +855,7 @@ TEST(TestModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
   app.exec();
 }
 
-TEST(TestModbusSerialClient,
+TEST(ModbusSerialClient,
      sendSingleBitAccess_sendMultipleRequest_responseIsSuccess) {
   declare_app(app);
 
