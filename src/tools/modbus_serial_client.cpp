@@ -60,6 +60,11 @@ void QSerialClient::close() {
 void QSerialClient::closeNotClearOpenRetrys() {
   Q_D(QSerialClient);
 
+  if (isClosed()) {
+    log(LogLevel::kInfo, d->serialPort_->name() + ": is already closed");
+    return;
+  }
+
   d->connectionState_.setState(ConnectionState::kClosing);
   d->serialPort_->close();
 }
