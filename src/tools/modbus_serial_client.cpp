@@ -179,6 +179,11 @@ size_t QSerialClient::pendingRequestSize() {
   return d->elementQueue_.size();
 }
 
+QString QSerialClient::errorString() {
+  Q_D(QSerialClient);
+  return d->errorString_;
+}
+
 void QSerialClient::initMemberValues() {
   Q_D(QSerialClient);
 
@@ -371,6 +376,14 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
 
 void QSerialClient::onSerialPortError(const QString &errorString) {
   Q_D(QSerialClient);
+
+  d->errorString_ = errorString;
+  /**
+   * no error
+   */
+  if (d->errorString_.isEmpty()) {
+    return;
+  }
 
   switch (d->sessionState_.state()) {
   case SessionState::kWaitingResponse:

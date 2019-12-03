@@ -78,6 +78,8 @@ public:
   int openRetryDelay();
   size_t pendingRequestSize();
 
+  QString errorString() ;
+
 private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();

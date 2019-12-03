@@ -104,6 +104,7 @@ public:
    * if the connection broken,the device is closed, this is not force close
    */
   bool forceClose_ = false;
+  QString errorString_;
 };
 
 } // namespace modbus

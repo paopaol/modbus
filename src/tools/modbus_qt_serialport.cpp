@@ -64,6 +64,7 @@ private:
     connect(&serialPort_, &QSerialPort::errorOccurred, this,
             [&](QSerialPort::SerialPortError err) {
               if (err == QSerialPort::SerialPortError::NoError) {
+                emit error("");
                 return;
               }
               emit error(serialPort_.errorString());
