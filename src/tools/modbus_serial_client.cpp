@@ -37,8 +37,9 @@ QSerialClient::~QSerialClient() {
 void QSerialClient::open() {
   Q_D(QSerialClient);
 
-  if (isOpened()) {
-    log(LogLevel::kInfo, d->serialPort_->name() + ": is already opened");
+  if (!isClosed()) {
+    log(LogLevel::kInfo,
+        d->serialPort_->name() + ": is already opened or opening");
     return;
   }
 
@@ -60,8 +61,9 @@ void QSerialClient::close() {
 void QSerialClient::closeNotClearOpenRetrys() {
   Q_D(QSerialClient);
 
-  if (isClosed()) {
-    log(LogLevel::kInfo, d->serialPort_->name() + ": is already closed");
+  if (!isOpened()) {
+    log(LogLevel::kInfo,
+        d->serialPort_->name() + ": is already closed or closing");
     return;
   }
 
@@ -71,6 +73,12 @@ void QSerialClient::closeNotClearOpenRetrys() {
 
 void QSerialClient::sendRequest(const Request &request) {
   Q_D(QSerialClient);
+
+  if (!isOpened()) {
+    log(LogLevel::kWarning,
+        d->serialPort_->name() + " closed, discard reuqest");
+    return;
+  }
 
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
@@ -403,7 +411,11 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
   }
   log(LogLevel::kDebug,
       d->serialPort_->name() + " " + errorString.toStdString());
-  closeNotClearOpenRetrys();
+  if (isOpened()) {
+    closeNotClearOpenRetrys();
+  } else {
+    onSerialPortClosed();
+  }
 } // namespace modbus
 
 void QSerialClient::onSerialPortClosed() {
