@@ -640,6 +640,35 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
   app.exec();
 }
 
+TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
+  declare_app(app);
+
+  {
+    modbus::Request request = createBrocastRequest();
+
+    auto serialPort = new MockSerialPort();
+    serialPort->setupCallName();
+
+    modbus::QSerialClient serialClient(serialPort);
+
+    EXPECT_CALL(*serialPort, open()).WillOnce([&]() {
+      /**
+       * No open signal is emitted, so you can simulate an unopened scene
+       */
+      // serialPort->open();
+    });
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), false);
+
+    /// send the request
+    serialClient.sendRequest(request);
+    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 /**
  * After the disconnection, all pending requests will be deleted. So. if the
  * short-term reconnection, there should be no pending requests

@@ -62,6 +62,9 @@ public:
 
   void open() override;
   void close() override;
+  /**
+   * if the connection is not opened, the request will dropped
+   */
   void sendRequest(const Request &request) override;
   bool isIdle() override;
 
