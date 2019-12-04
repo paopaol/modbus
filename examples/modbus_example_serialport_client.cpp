@@ -3,8 +3,6 @@
 #include <modbus/base/single_bit_access.h>
 #include <modbus/tools/modbus_serial_client.h>
 
-static QString modbusBitValueToString(modbus::BitValue value);
-
 static modbus::DataChecker newDataChecker() {
   modbus::DataChecker dataChecker;
   dataChecker.calculateRequestSize = modbus::bytesRequired<4>;
@@ -79,24 +77,12 @@ int main(int argc, char *argv[]) {
         modbus::Address address = access.startAddress();
         for (int offset = 0; offset < access.quantity(); offset++) {
           modbus::Address currentAddress = address + offset;
-          qDebug() << "address: " << currentAddress << " value: "
-                   << modbusBitValueToString(access.value(currentAddress));
+          std::cout << "address: " << currentAddress
+                    << " value: " << access.value(currentAddress);
         }
       });
 
   client->open();
 
   return app.exec();
-}
-
-static QString modbusBitValueToString(modbus::BitValue value) {
-  switch (value) {
-  case modbus::BitValue::kOn:
-    return "true";
-  case modbus::BitValue::kOff:
-    return "false";
-  case modbus::BitValue::kBadValue:
-    return "badValue";
-  }
-  return "";
 }
