@@ -439,8 +439,10 @@ void QSerialClient::onSerialPortClosed() {
   }
 
   /// do reconnect
+  log(LogLevel::kWarning, d->serialPort_->name() +
+                              " closed, try reconnect after " +
+                              std::to_string(d->reopenDelay_) + "ms");
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-  log(LogLevel::kWarning, d->serialPort_->name() + " closed, try reconnect");
   QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
 }
 
