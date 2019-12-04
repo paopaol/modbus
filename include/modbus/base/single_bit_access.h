@@ -31,11 +31,7 @@ public:
    * this will set the value to startAddress
    */
   void setValue(BitValue value, const std::string &description = "") {
-    BitValueEx valueEx;
-
-    valueEx.bitValue = value;
-    valueEx.description = description;
-    valueMap_[startAddress_.address] = valueEx;
+    setValue(startAddress_.address, value, description);
   }
   /**
    * set value to address
