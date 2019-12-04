@@ -33,7 +33,7 @@ public:
   Address startAddress() const { return startAddress_; }
 
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
-  Quantity quantoty() const { return quantity_; }
+  Quantity quantity() const { return quantity_; }
 
   void setValue(uint16_t value) { valueMap_[startAddress_] = value; }
   void setValue(Address address, uint16_t value) { valueMap_[address] = value; }
