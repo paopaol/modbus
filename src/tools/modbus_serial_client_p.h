@@ -19,10 +19,10 @@ inline std::ostream &operator<<(std::ostream &output,
     output << "idle";
     break;
   case SessionState::kSendingRequest:
-    output << "sending request";
+    output << "sending-request";
     break;
   case SessionState::kWaitingResponse:
-    output << "waiting response";
+    output << "waiting-response";
     break;
   default:
     output.setstate(std::ios_base::failbit);
