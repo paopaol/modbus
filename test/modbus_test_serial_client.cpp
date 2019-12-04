@@ -158,8 +158,8 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
   modbus::Request request = createReadCoilsRequest();
   modbus::ByteArray dataWitoutCrc = {
       kServerAddress, modbus::FunctionCode::kReadCoils,
-      0x00,           kStartAddress,
-      0x00,           kQuantity};
+      0x00,           (unsigned char)kStartAddress,
+      0x00,           (unsigned char)kQuantity};
   modbus::ByteArray dataWithCrc = modbus::tool::appendCrc(dataWitoutCrc);
 
   {

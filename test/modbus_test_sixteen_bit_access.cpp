@@ -12,7 +12,7 @@ TEST(SixteenBitAccess, setgetQuantity) {
   modbus::SixteenBitAccess access;
 
   access.setQuantity(3);
-  EXPECT_EQ(3, access.quantoty());
+  EXPECT_EQ(3, access.quantity());
 }
 
 TEST(SixteenBitAccess, setgetValue) {
