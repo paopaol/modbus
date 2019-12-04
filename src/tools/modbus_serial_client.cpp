@@ -39,7 +39,7 @@ void QSerialClient::open() {
 
   if (!isClosed()) {
     log(LogLevel::kInfo,
-        d->serialPort_->name() + ": is already opened or opening");
+        d->serialPort_->name() + ": is already opened or opening or closing");
     return;
   }
 
@@ -63,7 +63,7 @@ void QSerialClient::closeNotClearOpenRetrys() {
 
   if (!isOpened()) {
     log(LogLevel::kInfo,
-        d->serialPort_->name() + ": is already closed or closing");
+        d->serialPort_->name() + ": is already closed or closing or opening");
     return;
   }
 
