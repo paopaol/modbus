@@ -27,6 +27,10 @@ public:
   MOCK_METHOD(void, clear, (), (override));
   MOCK_METHOD(std::string, name, (), (override));
 
+  void setupCallName() {
+    EXPECT_CALL(*this, name).WillRepeatedly([&]() { return "COM1"; });
+  }
+
   void setupDelegate() {
     ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
     ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
