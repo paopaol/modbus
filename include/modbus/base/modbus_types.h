@@ -2,6 +2,7 @@
 #define __MODBUS_TYPES_H_
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -16,10 +17,29 @@ struct AddressEx {
 };
 using Quantity = uint16_t;
 enum class BitValue { kOff, kOn, kBadValue };
+
+inline std::ostream &operator<<(std::ostream &output, const BitValue &value) {
+  switch (value) {
+  case BitValue::kOn:
+    output << "on";
+    break;
+  case BitValue::kOff:
+    output << "off";
+    break;
+  case BitValue::kBadValue:
+    output << "badValue";
+    break;
+  default:
+    output.setstate(std::ios_base::failbit);
+  }
+  return output;
+}
+
 struct BitValueEx {
   BitValue bitValue = BitValue::kBadValue;
   std::string description;
 };
+
 enum FunctionCode { kInvalidCode = 0x00, kReadCoils = 0x01 };
 enum class Error {
   kNoError = 0,
