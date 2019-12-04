@@ -76,9 +76,13 @@ public:
   void setOpenRetryTimes(int retryTimes, int delay = 1000);
   int openRetryTimes();
   int openRetryDelay();
+  /**
+   * After the disconnection, all pending requests will be deleted. So. if the
+   * short-term reconnection, there should be no pending requests
+   */
   size_t pendingRequestSize();
 
-  QString errorString() ;
+  QString errorString();
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);
@@ -93,7 +97,6 @@ private:
   void onSerialPortReadyRead();
   void onSerialPortResponseTimeout();
   void clearPendingRequest();
-  void resetCurrentRequest();
 
   QScopedPointer<QSerialClientPrivate> d_ptr;
 };
