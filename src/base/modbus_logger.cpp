@@ -1,19 +1,29 @@
 #include <assert.h>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <modbus/base/modbus.h>
+
+using namespace std::chrono;
 
 namespace modbus {
 static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
+  std::string levelString;
+  auto now = system_clock::to_time_t(system_clock::now());
+  auto date = std::put_time(std::localtime(&now), "%F %T");
+
   switch (level) {
   case LogLevel::kDebug:
-    std::cout << "[Debug] " << msg << std::endl;
+    levelString = "[Debug  ] ";
     break;
   case LogLevel::kInfo:
-    std::cout << "[Info] " << msg << std::endl;
+    levelString = "[Info   ] ";
     break;
   case LogLevel::kWarning:
-    std::cout << "[Warning] " << msg << std::endl;
+    levelString = "[Warning] ";
     break;
   }
+  std::cout << levelString << date << " - " << msg << std::endl;
 };
 void registerLogMessage(const LogWriter &logger) { g_logger = logger; }
 
