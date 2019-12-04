@@ -667,7 +667,11 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
   app.exec();
 }
 
-TEST(ModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
+/**
+ * After the disconnection, all pending requests will be deleted. So. if the
+ * short-term reconnection, there should be no pending requests
+ */
+TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
   declare_app(app);
 
   {
@@ -675,14 +679,6 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
     modbus::QSerialClient serialClient(serialPort);
 
     auto request = createSingleBitAccessRequest();
-
-    modbus::ByteArray responseWithoutCrc = {kServerAddress,
-                                            modbus::FunctionCode::kReadCoils,
-                                            0x01, 0x05 /*b 0000 0101*/};
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
-    QByteArray qarray((const char *)responseWithCrc.data(),
-                      responseWithCrc.size());
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
 
@@ -694,15 +690,10 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
       serialPort->closed();
     });
     EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .Times(2)
+        .Times(1)
         .WillOnce([&](const char *data, size_t size) {
           serialPort->error("write error, just fot test");
-        })
-        .WillOnce([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          serialPort->readyRead();
         });
-    EXPECT_CALL(*serialPort, readAll()).WillOnce([&]() { return qarray; });
     EXPECT_CALL(*serialPort, name()).WillRepeatedly([&]() {
       return "test port";
     });
@@ -711,7 +702,8 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_reconnectSendSuccess) {
     serialClient.open();
     serialClient.sendRequest(request);
     spy.wait(20000);
-    EXPECT_EQ(spy.count(), 1);
+    EXPECT_EQ(spy.count(), 0);
+    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
