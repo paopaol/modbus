@@ -241,12 +241,20 @@ void QSerialClient::onSerialPortResponseTimeout() {
 void QSerialClient::onSerialPortReadyRead() {
   Q_D(QSerialClient);
 
-  if (d->elementQueue_.empty()) {
+  /**
+   * When the last byte of the request is sent, it will enter the wait-response
+   * state. Therefore, if data is received but not in the wait-response state,
+   * then this data is not what we want,discard them
+   */
+  if (d->sessionState_.state() != SessionState::kWaitingResponse) {
     auto qdata = d->serialPort_->readAll();
     ByteArray data;
     appendQByteArray(data, qdata);
-    log(LogLevel::kWarning, d->serialPort_->name() +
-                                ": got unexpected data, discard them." + "[" +
+    std::stringstream stream;
+    stream << d->sessionState_.state();
+    log(LogLevel::kWarning, d->serialPort_->name() + " now state is in " +
+                                stream.str() +
+                                ".got unexpected data, discard them." + "[" +
                                 tool::dumpHex(data) + "]");
 
     d->serialPort_->clear();
@@ -259,11 +267,6 @@ void QSerialClient::onSerialPortReadyRead() {
   auto response = element.response;
 
   auto sessionState = d->sessionState_.state();
-  smart_assert(
-      sessionState == SessionState::kWaitingResponse &&
-      "unexpected behavior. In rtu mode, only after the last byte of the "
-      "requested data is sent, it will enter the waiting response state")(
-      sessionState);
 
   appendQByteArray(dataRecived, d->serialPort_->readAll());
   /// make sure got serveraddress + function code
