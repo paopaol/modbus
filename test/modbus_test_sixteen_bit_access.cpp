@@ -116,6 +116,8 @@ TEST(SixteenBitAccess, unmarshalReadResponse_success) {
   access.setStartAddress(0x6b);
   access.setQuantity(0x03);
 
+  access.setDescription(access.startAddress(), "value1");
+
   modbus::ByteArray response({0x06, 0x02, 0x2b, 0x00, 0x00, 0x00, 0x64});
 
   bool success = access.unmarshalReadResponse(response);
