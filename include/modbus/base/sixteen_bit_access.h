@@ -79,7 +79,7 @@ public:
     return value;
   }
 
-  ByteArray marshalMultipleReadRequest() {
+  ByteArray marshalMultipleReadRequest() const {
     ByteArray array;
 
     array.push_back(startAddress_ / 256);
