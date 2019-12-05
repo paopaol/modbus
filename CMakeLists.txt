@@ -5,8 +5,13 @@ project(modbus)
 
 
 set(modbus_root_dir ${CMAKE_SOURCE_DIR})
-set(CMAKE_CXX_FLAGS "-std=c++11")
-set(CMAKE_C_FLAGS "-std=c++11")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "/EHsc")
+    set(CMAKE_C_FLAGS " /EHsc")
+else()
+    set(CMAKE_CXX_FLAGS "-std=c++11")
+    set(CMAKE_C_FLAGS "-std=c++11")
+endif()
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
