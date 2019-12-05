@@ -372,7 +372,7 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
     d->scheduleNextRequest(d->waitConversionDelay_);
 
     log(LogLevel::kWarning,
-        d->serialPort_->name() + "brocast request, turn into idle status");
+        d->serialPort_->name() + " brocast request, turn into idle status");
     return;
   }
 
