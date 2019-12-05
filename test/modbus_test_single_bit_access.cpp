@@ -41,20 +41,16 @@ TEST(modbusSingleBitAccess, set_get) {
 TEST(modbusSingleBitAccess, setValue_getValue) {
   modbus::SingleBitAccess access;
 
-  access.setStartAddress(0x01, "thermometer");
-  modbus::AddressEx address = access.startAddressEx();
-  EXPECT_EQ(address.address, 0x01);
-  EXPECT_EQ(address.description, "thermometer");
-
-  access.setValue(modbus::BitValue::kOn, "temperature");
+  access.setDescription(access.startAddress(), "temperature");
+  access.setValue(modbus::BitValue::kOn);
   modbus::BitValueEx valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.bitValue, modbus::BitValue::kOn);
+  EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
   EXPECT_EQ(valueEx.description, "temperature");
 
-  access.setValue(modbus::ServerAddress(0x03), modbus::BitValue::kOn,
-                  "temperature");
+  access.setDescription(modbus::Address(0x03), "temperature");
+  access.setValue(modbus::Address(0x03), modbus::BitValue::kOn);
   valueEx = access.valueEx(0x03);
-  EXPECT_EQ(valueEx.bitValue, modbus::BitValue::kOn);
+  EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
   EXPECT_EQ(valueEx.description, "temperature");
 }
 
