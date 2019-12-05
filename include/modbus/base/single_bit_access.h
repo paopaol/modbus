@@ -22,6 +22,9 @@ public:
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() { return quantity_; }
 
+  void setDeviceName(const std::string &name) { deviceName_ = name; }
+  std::string deviceName() const { return deviceName_; }
+
   void setDescription(Address address, const std::string &description) {
     BitValueEx valueEx;
 
@@ -169,6 +172,7 @@ public:
 private:
   Address startAddress_;
   Quantity quantity_ = 0;
+  std::string deviceName_;
   std::map<Address, BitValueEx> valueMap_;
 };
 
