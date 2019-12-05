@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace modbus {
+using ByteArray = std::vector<uint8_t>;
 using ServerAddress = uint8_t;
 using CoilAddress = uint16_t;
 using RegisterAddress = uint16_t;
@@ -36,8 +37,55 @@ struct BitValueEx {
   std::string description;
 };
 
+struct SixteenBitValue {
+  enum class ByteOrder { kNetworkByteOrder, kHostByteOrder };
+
+  SixteenBitValue(uint8_t chFirst, uint8_t chSecond)
+      : chFirst_(chFirst), chSecond_(chSecond) {}
+  SixteenBitValue() {}
+  SixteenBitValue(uint16_t value) { setUint16(value); }
+  ~SixteenBitValue() {}
+
+  uint16_t toUint16(ByteOrder order = ByteOrder::kHostByteOrder) const {
+    uint16_t value;
+    if (order == ByteOrder::kHostByteOrder) {
+      value = chFirst_ * 256 + chSecond_;
+    } else {
+      value = chFirst_ + chSecond_ * 256;
+    }
+    return value;
+  }
+
+  void setUint16(uint16_t value) {
+    chFirst_ = value / 256;
+    chSecond_ = value % 256;
+  }
+
+  std::string toHexString() {
+    char hex[16] = {0};
+    snprintf(hex, sizeof(hex), "%02x %02x",
+             static_cast<unsigned char>(chFirst_),
+             static_cast<unsigned char>(chSecond_));
+    return hex;
+  }
+
+  SixteenBitValue &operator=(uint16_t value) {
+    setUint16(value);
+
+    return *this;
+  }
+
+  bool operator==(const SixteenBitValue &value) const {
+    return value.chFirst_ == chFirst_ && value.chSecond_ == chSecond_;
+  }
+
+private:
+  uint8_t chFirst_ = 0;
+  uint8_t chSecond_ = 0;
+};
+
 struct SixteenBitValueEx {
-  uint16_t value = 0;
+  SixteenBitValue value;
   std::string description;
 };
 
@@ -57,8 +105,6 @@ enum class Error {
   /// user defined error, not inlcuded in modbus protocol
   kTimeout = 0x1000
 };
-
-using ByteArray = std::vector<uint8_t>;
 
 enum class LogLevel { kDebug, kWarning, kInfo };
 using LogWriter = std::function<void(LogLevel level, const std::string &msg)>;
