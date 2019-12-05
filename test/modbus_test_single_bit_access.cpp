@@ -54,6 +54,14 @@ TEST(modbusSingleBitAccess, setValue_getValue) {
   EXPECT_EQ(valueEx.description, "temperature");
 }
 
+TEST(modbusSingleBitAccess, setGetDeviceName) {
+  modbus::SingleBitAccess access;
+
+  EXPECT_EQ("", access.deviceName());
+  access.setDeviceName("device1");
+  EXPECT_EQ("device1", access.deviceName());
+}
+
 TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
   modbus::SingleBitAccess access;
 
