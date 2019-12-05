@@ -1,7 +1,7 @@
 #ifndef __MODBUS_TOOL_H_
 #define __MODBUS_TOOL_H_
 
-#include "modbus.h"
+#include "modbus_types.h"
 
 namespace modbus {
 class tool {
