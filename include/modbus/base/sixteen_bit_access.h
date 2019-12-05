@@ -57,7 +57,7 @@ public:
       valueMap_[address] = valueEx;
     }
   }
-  uint16_t value(Address address, bool *ok = nullptr) {
+  SixteenBitValue value(Address address, bool *ok = nullptr) {
     auto v = valueEx(address, ok);
     return v.value;
   }
@@ -100,8 +100,8 @@ public:
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
-    array.push_back(valueMap_[startAddress_].value / 256);
-    array.push_back(valueMap_[startAddress_].value % 256);
+    array.push_back(valueMap_[startAddress_].value.toUint16() / 256);
+    array.push_back(valueMap_[startAddress_].value.toUint16() % 256);
 
     return array;
   }
@@ -126,8 +126,8 @@ public:
       smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
                    "no set value of address")(nextAddress);
       auto valueEx = valueMap_[nextAddress];
-      array.push_back(valueEx.value / 256);
-      array.push_back(valueEx.value % 256);
+      array.push_back(valueEx.value.toUint16() / 256);
+      array.push_back(valueEx.value.toUint16() % 256);
     }
     return array;
   }

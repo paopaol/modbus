@@ -20,13 +20,13 @@ TEST(SixteenBitAccess, setgetValue) {
 
   access.setStartAddress(0x00);
   access.setValue(0x05);
-  EXPECT_EQ(0x05, access.value(0x00));
+  EXPECT_EQ(0x05, access.value(0x00).toUint16());
 
   access.setValue(0x01, 1);
-  EXPECT_EQ(1, access.value(0x01));
+  EXPECT_EQ(1, access.value(0x01).toUint16());
 
   access.setValue(0x02, 4);
-  EXPECT_EQ(4, access.value(0x02));
+  EXPECT_EQ(4, access.value(0x02).toUint16());
 
   // test not exists values
   bool ok;
@@ -49,7 +49,7 @@ TEST(SixteenBitAccess, setGetValueEx) {
   access.setDescription(access.startAddress(), "value-name-1");
   access.setValue(0x03);
   auto valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.value, 0x03);
+  EXPECT_EQ(valueEx.value.toUint16(), 0x03);
   EXPECT_EQ(valueEx.description, "value-name-1");
 }
 
@@ -66,11 +66,11 @@ TEST(SixteenBitAccess, setGetValueEx2) {
   access.setValue(access.startAddress() + 1, 0x0202);
 
   auto valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.value, 0x0101);
+  EXPECT_EQ(valueEx.value.toUint16(), 0x0101);
   EXPECT_EQ(valueEx.description, "value-name-1");
 
   valueEx = access.valueEx(access.startAddress() + 1);
-  EXPECT_EQ(valueEx.value, 0x0202);
+  EXPECT_EQ(valueEx.value.toUint16(), 0x0202);
   EXPECT_EQ(valueEx.description, "value-name-2");
 }
 
@@ -120,9 +120,9 @@ TEST(SixteenBitAccess, unmarshalReadResponse_success) {
 
   bool success = access.unmarshalReadResponse(response);
   EXPECT_EQ(true, success);
-  EXPECT_EQ(0x022b, access.value(access.startAddress()));
-  EXPECT_EQ(0x00, access.value(access.startAddress() + 1));
-  EXPECT_EQ(0x64, access.value(access.startAddress() + 2));
+  EXPECT_EQ(0x022b, access.value(access.startAddress()).toUint16());
+  EXPECT_EQ(0x00, access.value(access.startAddress() + 1).toUint16());
+  EXPECT_EQ(0x64, access.value(access.startAddress() + 2).toUint16());
 }
 
 TEST(SixteenBitAccess, unmarshalReadResponse_failed) {
