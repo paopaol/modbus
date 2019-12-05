@@ -113,6 +113,7 @@ TEST(modbusSingleBitAccess,
 
   access.setStartAddress(0x13);
   access.setQuantity(0x13);
+  access.setDescription(0x13, "value1");
 
   modbus::ByteArray goodData(
       {0x03, 0xcd /*1100 1101*/, 0x6b, 0x05 /*0000 0101*/});
