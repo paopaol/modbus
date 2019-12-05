@@ -12,23 +12,6 @@ public:
   SixteenBitAccess() = default;
   virtual ~SixteenBitAccess() noexcept = default;
 
-  static inline DataChecker::Result
-  calculateSizeOfReadResponse(size_t &size, const ByteArray &data) {
-    if (data.empty()) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    size_t bytes = data[0];
-    if (bytes + 1 != data.size()) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    /// Must be a multiple of 2
-    if (bytes % 2 != 0) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    size = bytes + 1;
-    return DataChecker::Result::kSizeOk;
-  }
-
   void setDeviceName(const std::string &name) { deviceName_ = name; }
   std::string deviceName() const { return deviceName_; }
 
@@ -134,8 +117,15 @@ public:
 
   bool unmarshalReadResponse(const ByteArray &data) {
     size_t size = 0;
-    auto result = calculateSizeOfReadResponse(size, data);
+    auto result = bytesRequiredStoreInArrayIndex0(size, data);
     if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+
+    /**
+     * Sixteen bit value, one value use 2 bytes.so, index0 + numberOfValues * 2
+     */
+    if (size % 2 != 1) {
       return false;
     }
 
