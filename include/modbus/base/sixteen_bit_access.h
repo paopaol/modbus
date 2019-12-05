@@ -29,28 +29,54 @@ public:
     return DataChecker::Result::kSizeOk;
   }
 
+  void setDeviceName(const std::string &name) { deviceName_ = name; }
+  std::string deviceName() const { return deviceName_; }
+
   void setStartAddress(Address address) { startAddress_ = address; }
   Address startAddress() const { return startAddress_; }
 
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() const { return quantity_; }
 
-  void setValue(uint16_t value) { valueMap_[startAddress_] = value; }
-  void setValue(Address address, uint16_t value) { valueMap_[address] = value; }
+  void setDescription(Address address, const std::string &description) {
+    SixteenBitValueEx valueEx;
+
+    valueEx.description = description;
+    valueMap_[address] = valueEx;
+  }
+
+  void setValue(uint16_t value) { setValue(startAddress_, value); }
+  void setValue(Address address, uint16_t value) {
+    if (valueMap_.find(address) != valueMap_.end()) {
+      auto &valueEx = valueMap_[address];
+      valueEx.value = value;
+    } else {
+      SixteenBitValueEx valueEx;
+
+      valueEx.value = value;
+      valueMap_[address] = valueEx;
+    }
+  }
   uint16_t value(Address address, bool *ok = nullptr) {
+    auto v = valueEx(address, ok);
+    return v.value;
+  }
+
+  SixteenBitValueEx valueEx(Address address, bool *ok = nullptr) {
+    SixteenBitValueEx value;
+
     bool isFound = true;
-    uint16_t v = 0;
     auto it = valueMap_.find(address);
     if (it == valueMap_.end()) {
       isFound = false;
     } else {
       isFound = true;
-      v = it->second;
+      value = it->second;
     }
     if (ok) {
       *ok = isFound;
     }
-    return v;
+    return value;
   }
 
   ByteArray marshalMultipleReadRequest() {
@@ -74,8 +100,8 @@ public:
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
-    array.push_back(valueMap_[startAddress_] / 256);
-    array.push_back(valueMap_[startAddress_] % 256);
+    array.push_back(valueMap_[startAddress_].value / 256);
+    array.push_back(valueMap_[startAddress_].value % 256);
 
     return array;
   }
@@ -99,9 +125,9 @@ public:
          nextAddress < startAddress_ + quantity_; nextAddress++) {
       smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
                    "no set value of address")(nextAddress);
-      auto value = valueMap_[nextAddress];
-      array.push_back(value / 256);
-      array.push_back(value % 256);
+      auto valueEx = valueMap_[nextAddress];
+      array.push_back(valueEx.value / 256);
+      array.push_back(valueEx.value % 256);
     }
     return array;
   }
@@ -118,15 +144,23 @@ public:
     for (int i = 0; i < valueArray.size(); i += 2) {
       uint16_t v = 0;
       v = valueArray[i] * 256 + valueArray[i + 1];
-      valueMap_[nextAddress++] = v;
+
+      if (valueMap_.find(nextAddress) != valueMap_.end()) {
+        auto &vEx = valueMap_[nextAddress];
+        vEx.value = v;
+      } else {
+        valueMap_[nextAddress].value = v;
+      }
+      nextAddress++;
     }
     return true;
   }
 
 private:
-  Address startAddress_ = 0;
+  Address startAddress_;
   Quantity quantity_ = 0;
-  std::map<Address, uint16_t> valueMap_;
+  std::string deviceName_;
+  std::map<Address, SixteenBitValueEx> valueMap_;
 };
 } // namespace modbus
 

@@ -36,6 +36,8 @@ struct BitValueEx {
   std::string description;
 };
 
+struct SixteenBitValueEx {
+  uint16_t value = 0;
   std::string description;
 };
 
