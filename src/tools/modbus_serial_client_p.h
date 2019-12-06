@@ -108,6 +108,9 @@ public:
    */
   bool forceClose_ = false;
   QString errorString_;
+
+  /// the default transfer mode must be rtu mode
+  TransferMode transferMode_;
 };
 
 } // namespace modbus

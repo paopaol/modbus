@@ -136,6 +136,18 @@ uint64_t QSerialClient::timeout() {
   return d->waitResponseTimeout_;
 }
 
+void QSerialClient::setTransferMode(modbus::TransferMode transferMode) {
+  Q_D(QSerialClient);
+
+  d->transferMode_ = transferMode;
+}
+
+TransferMode QSerialClient::transferMode() const {
+  const Q_D(QSerialClient);
+
+  return d->transferMode_;
+}
+
 void QSerialClient::setRetryTimes(int times) {
   Q_D(QSerialClient);
 
@@ -198,6 +210,7 @@ void QSerialClient::initMemberValues() {
   d->retryTimes_ = 0; /// default no retry
   d->openRetryTimes_ = 0;
   d->reopenDelay_ = 1000;
+  d->transferMode_ = TransferMode::kRtu;
 }
 
 void QSerialClient::onSerialPortResponseTimeout() {
