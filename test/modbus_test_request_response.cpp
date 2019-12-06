@@ -46,7 +46,6 @@ TEST(TestModbusResponse, Constructor_defaultError_isNoError) {
 
 TEST(TestModbusResponse, setError) {
   modbus::Response response;
-  response.setError(modbus::Error::kTimeout, "timeout");
+  response.setError(modbus::Error::kTimeout);
   EXPECT_EQ(response.error(), modbus::Error::kTimeout);
-  EXPECT_EQ(response.errorString(), "timeout");
 }

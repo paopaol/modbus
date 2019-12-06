@@ -233,7 +233,7 @@ void QSerialClient::onSerialPortResponseTimeout() {
      * if have no retry times, remove this request
      */
     d->elementQueue_.pop();
-    response.setError(modbus::Error::kTimeout, "timeout");
+    response.setError(modbus::Error::kTimeout);
     emit requestFinished(request, response);
   }
 }
@@ -336,11 +336,11 @@ void QSerialClient::onSerialPortReadyRead() {
    * Received frame error
    */
   if (dataWithCrc != dataRecived) {
-    response.setError(Error::kStorageParityError, "modbus frame parity error");
+    response.setError(Error::kStorageParityError);
   }
 
   if (response.isException()) {
-    response.setError(Error(response.data()[0]), "error return");
+    response.setError(Error(response.data()[0]));
   }
 
   /**

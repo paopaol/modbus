@@ -175,17 +175,13 @@ private:
 class Response : public Adu {
 public:
   Response() : errorCode_(Error::kNoError), Adu() {}
-  void setError(Error errorCode, const std::string &errorString) {
-    errorCode_ = errorCode;
-    errorString_ = errorString;
-  }
+  void setError(Error errorCode) { errorCode_ = errorCode; }
 
   Error error() const { return errorCode_; }
-  std::string errorString() const { return errorString_; }
+  std::string errorString() const { return std::to_string(errorCode_); }
 
 private:
   Error errorCode_;
-  std::string errorString_;
 };
 
 void registerLogMessage(const LogWriter &logger);

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -105,10 +106,60 @@ enum class Error {
   /// user defined error, not inlcuded in modbus protocol
   kTimeout = 0x1000
 };
+inline std::ostream &operator<<(std::ostream &output, const Error &error) {
+  switch (error) {
+  case Error::kNoError:
+    output << "NoError";
+    break;
+  case Error::kIllegalFunctionCode:
+    output << "Illegal function";
+    break;
+  case Error::kIllegalDataAddress:
+    output << "Illegal data address";
+    break;
+  case Error::kIllegalDataValue:
+    output << "Illegal data value";
+    break;
+  case Error::kSlaveDeviceFailure:
+    output << "Slave device failure";
+    break;
+  case Error::kConfirm:
+    output << "confirm";
+    break;
+  case Error::kSlaveDeviceBusy:
+    output << "Slave device is busy";
+    break;
+  case Error::kStorageParityError:
+    output << "Storage parity error";
+    break;
+  case Error::kUnavailableGatewayPath:
+    output << "Unavailable gateway path";
+    break;
+  case Error::kGatewayTargetDeviceResponseLoss:
+    output << "Gateway target device failed to respond";
+    break;
+  case Error::kTimeout:
+    output << "Timeout";
+    break;
+  default:
+    output.setstate(std::ios_base::failbit);
+  }
+
+  return output;
+}
 
 enum class LogLevel { kDebug, kWarning, kInfo };
 using LogWriter = std::function<void(LogLevel level, const std::string &msg)>;
 
 } // namespace modbus
+
+namespace std {
+template <typename T> std::string to_string(const T &t) {
+  std::stringstream s;
+
+  s << t;
+  return s.str();
+}
+} // namespace std
 
 #endif // __MODBUS_TYPES_H_
