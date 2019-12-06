@@ -3,7 +3,6 @@
 #include <QTimer>
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus/tools/modbus_serial_client.h>
-#include <sstream>
 
 static QString modbusBitValueToString(modbus::BitValue value);
 static modbus::Request
@@ -13,15 +12,6 @@ static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
 static bool unmarshalMultipleReadRegister(const modbus::Request &req,
                                           const modbus::Response &resp,
                                           modbus::SixteenBitAccess *access);
-
-namespace std {
-template <typename T> std::string to_string(const T &t) {
-  std::stringstream s;
-
-  s << t;
-  return s.str();
-}
-} // namespace std
 
 static modbus::DataChecker newDataChecker() {
   modbus::DataChecker dataChecker;
