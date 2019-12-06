@@ -1,5 +1,6 @@
 set(src-files
   "./base/modbus_crc32.cpp"
+  "./base/modbus_lrc.cpp"
   "./base/modbus_logger.cpp"
   "./base/modbus_logger.h"
   "./tools/modbus_serial_client.cpp"
