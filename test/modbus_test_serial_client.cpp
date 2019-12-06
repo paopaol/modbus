@@ -17,17 +17,27 @@ static modbus::Request createReadCoilsRequest();
 static modbus::Request createSingleBitAccessRequest();
 static modbus::Request createBrocastRequest();
 
-TEST(ModbusSerialClient, serialClientConstrct_defaultIsClosed) {
+static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
   auto serialPort = new MockSerialPort();
   modbus::QSerialClient mockSerialClient(serialPort);
+  EXPECT_EQ(mockSerialClient.transferMode(), modbus::TransferMode::kRtu);
+  mockSerialClient.setTransferMode(transferMode);
+  EXPECT_EQ(mockSerialClient.transferMode(), transferMode);
   EXPECT_EQ(mockSerialClient.isClosed(), true);
 }
 
-TEST(ModbusSerialClient, clientIsClosed_openSerial_clientIsOpened) {
+TEST(ModbusClient, ClientConstruct_defaultIsClosed) {
+  clientConstruct_defaultIsClosed(modbus::TransferMode::kRtu);
+  clientConstruct_defaultIsClosed(modbus::TransferMode::kAscii);
+}
+
+static void
+clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode transferMode) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
     modbus::QSerialClient serialClient(serialPort);
+    serialClient.setTransferMode(transferMode);
     serialPort->setupDelegate();
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
@@ -41,6 +51,11 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_clientIsOpened) {
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
+}
+
+TEST(ModbusSerialClient, clientIsClosed_openDevice_clientIsOpened) {
+  clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode::kRtu);
+  clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode::kAscii);
 }
 
 TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
