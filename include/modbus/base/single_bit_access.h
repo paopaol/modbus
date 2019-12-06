@@ -123,6 +123,43 @@ public:
     return data;
   }
 
+  ByteArray marshalReadResponse() {
+    auto take = [&](int address, int n) {
+      std::vector<int> bitValueList;
+
+      for (int i = address; i < address + n; i++) {
+        int temp = 0;
+        auto v = valueMap_.find(i);
+        if (v == valueMap_.end()) {
+          temp = false;
+        } else {
+          temp = v->second.value == BitValue::kOn ? true : false;
+        }
+        bitValueList.push_back(temp);
+      }
+      return bitValueList;
+    };
+
+    ByteArray data;
+
+    uint8_t bytesNumber =
+        quantity_ % 8 == 0 ? quantity_ / 8 : quantity_ / 8 + 1;
+    data.push_back(bytesNumber);
+
+    Address address = startAddress_;
+    for (int remainingNumber = quantity_; remainingNumber > 0;) {
+      int numbers = std::min(8, remainingNumber);
+      auto bitValueList = take(address, numbers);
+      uint8_t byte = 0;
+      for (int offset = 0; offset < numbers; offset++) {
+        byte |= bitValueList[offset] << offset;
+      }
+      data.push_back(byte);
+      remainingNumber -= numbers;
+    }
+    return data;
+  }
+
   bool unmarshalReadResponse(const ByteArray &array) {
     size_t size = 0;
     auto result = bytesRequiredStoreInArrayIndex0(size, array);
