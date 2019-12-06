@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <modbus/base/single_bit_access.h>
 
-TEST(modbusSingleBitAccess, marshalReadRequest) {
+TEST(SingleBitAccess, marshalReadRequest) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(1);
@@ -12,7 +12,7 @@ TEST(modbusSingleBitAccess, marshalReadRequest) {
   EXPECT_EQ(expectPayload, payload);
 }
 
-TEST(modbusSingleBitAccess, set_get) {
+TEST(SingleBitAccess, set_get) {
   {
     modbus::SingleBitAccess access;
     access.setStartAddress(1);
@@ -38,7 +38,7 @@ TEST(modbusSingleBitAccess, set_get) {
   }
 }
 
-TEST(modbusSingleBitAccess, setValue_getValue) {
+TEST(SingleBitAccess, setValue_getValue) {
   modbus::SingleBitAccess access;
 
   access.setDescription(access.startAddress(), "temperature");
@@ -54,7 +54,7 @@ TEST(modbusSingleBitAccess, setValue_getValue) {
   EXPECT_EQ(valueEx.description, "temperature");
 }
 
-TEST(modbusSingleBitAccess, setGetDeviceName) {
+TEST(SingleBitAccess, setGetDeviceName) {
   modbus::SingleBitAccess access;
 
   EXPECT_EQ("", access.deviceName());
@@ -62,7 +62,7 @@ TEST(modbusSingleBitAccess, setGetDeviceName) {
   EXPECT_EQ("device1", access.deviceName());
 }
 
-TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
+TEST(SingleBitAccess, marshalSingleWriteRequest) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0xac);
@@ -78,7 +78,7 @@ TEST(modbusSingleBitAccess, marshalSingleWriteRequest) {
   EXPECT_EQ(expectPayload, payload);
 }
 
-TEST(modbusSingleBitAccess, marshalMultipleWriteRequest) {
+TEST(SingleBitAccess, marshalMultipleWriteRequest) {
   modbus::SingleBitAccess access;
   modbus::Address startAddress = 0x13;
 
@@ -107,8 +107,7 @@ TEST(modbusSingleBitAccess, marshalMultipleWriteRequest) {
   EXPECT_EQ(data, expectData);
 }
 
-TEST(modbusSingleBitAccess,
-     unmarshalReadResponse_dataIsValid_unmarshalSuccess) {
+TEST(SingleBitAccess, unmarshalReadResponse_dataIsValid_unmarshalSuccess) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0x13);
@@ -133,8 +132,7 @@ TEST(modbusSingleBitAccess,
   EXPECT_EQ(access.value(37), modbus::BitValue::kOn);
 }
 
-TEST(modbusSingleBitAccess,
-     unmarshalReadResponse_dataIsInValid_unmarshalFailed) {
+TEST(SingleBitAccess, unmarshalReadResponse_dataIsInValid_unmarshalFailed) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0x13);
