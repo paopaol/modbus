@@ -5,6 +5,7 @@ find_package(Qt5 REQUIRED Test)
 include_directories("../thrd/googletest/googletest/include")
 include_directories("../thrd/googletest/googlemock/include")
 include_directories("../src/tools")
+include_directories("../src/base")
 set(gtest_force_shared_crt ON)
 add_subdirectory(../thrd/googletest googletest)
 
