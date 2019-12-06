@@ -3,6 +3,14 @@
 #include <QTest>
 #include <QTimer>
 #include <modbus/base/single_bit_access.h>
+#include <modbus_frame.h>
+
+struct Session {
+  modbus::Request request;
+  modbus::ByteArray requestRaw;
+  modbus::Response response;
+  modbus::ByteArray responseRaw;
+};
 
 #define declare_app(name)                                                      \
   int argc = 1;                                                                \
@@ -13,9 +21,12 @@ static const modbus::Address kStartAddress = 10;
 static const modbus::Quantity kQuantity = 3;
 static const modbus::ServerAddress kServerAddress = 1;
 static const modbus::ServerAddress kBadServerAddress = 0x11;
-static modbus::Request createReadCoilsRequest();
 static modbus::Request createSingleBitAccessRequest();
 static modbus::Request createBrocastRequest();
+template <modbus::TransferMode mode>
+static void createReadCoils(modbus::ServerAddress serverAddress,
+                            modbus::Address startAddress,
+                            modbus::Quantity quantity, Session &session);
 
 static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
   auto serialPort = new MockSerialPort();
@@ -73,9 +84,9 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
       serialPort->closed();
     });
 
-    serialClient.setOpenRetryTimes(4, 2000);
+    serialClient.setOpenRetryTimes(4, 1000);
     serialClient.open();
-    spy.wait(15000);
+    spy.wait(8000);
     EXPECT_EQ(spy.count(), 0);
     EXPECT_EQ(serialClient.isOpened(), false);
   }
@@ -136,7 +147,9 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_clientOpenFailed) {
 TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
   declare_app(app);
 
-  modbus::Request request = createReadCoilsRequest();
+  Session session;
+  createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                              kQuantity, session);
 
   {
     auto serialPort = new MockSerialPort();
@@ -152,9 +165,9 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
-    serialClient.sendRequest(request);
-    serialClient.sendRequest(request);
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
+    serialClient.sendRequest(session.request);
+    serialClient.sendRequest(session.request);
     EXPECT_EQ(serialClient.pendingRequestSize(), 3);
 
     spy.wait(300);
@@ -170,12 +183,9 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
 TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
   declare_app(app);
 
-  modbus::Request request = createReadCoilsRequest();
-  modbus::ByteArray dataWitoutCrc = {
-      kServerAddress, modbus::FunctionCode::kReadCoils,
-      0x00,           (unsigned char)kStartAddress,
-      0x00,           (unsigned char)kQuantity};
-  modbus::ByteArray dataWithCrc = modbus::tool::appendCrc(dataWitoutCrc);
+  Session session;
+  createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                              kQuantity, session);
 
   {
     auto serialPort = new MockSerialPort();
@@ -193,12 +203,12 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(300);
     auto sendoutData = serialPort->sendoutData();
-    EXPECT_EQ(sendoutData, dataWithCrc);
+    EXPECT_EQ(sendoutData, session.requestRaw);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -237,7 +247,9 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWrite();
@@ -261,7 +273,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(100000);
@@ -281,7 +293,9 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -306,12 +320,7 @@ TEST(ModbusSerialClient,
      * thrd time, read data(1 byte)
      * fourth time, read crc(2 bytes)
      */
-    modbus::ByteArray responseWithoutCrc = {
-        kServerAddress, modbus::FunctionCode::kReadCoils, 0x02,
-        modbus::CoilAddress(0x01), modbus::Quantity(0x02)};
-
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
+    modbus::ByteArray responseWithCrc = session.responseRaw;
 
     QByteArray firstReadData;
     firstReadData.append(responseWithCrc[0]); /// server address
@@ -319,14 +328,13 @@ TEST(ModbusSerialClient,
     QByteArray secondReadData;
     secondReadData.append(responseWithCrc[1]); /// function Code
     secondReadData.append(responseWithCrc[2]); /// bytes number
-    secondReadData.append(responseWithCrc[3]); /// coil address
+    secondReadData.append(responseWithCrc[3]); /// value
 
     QByteArray thrdReadData;
-    thrdReadData.append(responseWithCrc[4]); /// quantity
+    thrdReadData.append(responseWithCrc[4]); /// crc1
 
     QByteArray fourthReadData;
-    fourthReadData.append(responseWithCrc[5])
-        .append(responseWithCrc[6]); /// crc
+    fourthReadData.append(responseWithCrc[5]); /// crc2
 
     EXPECT_CALL(*serialPort, readAll())
         .Times(4)
@@ -349,7 +357,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(200000);
@@ -359,10 +367,8 @@ TEST(ModbusSerialClient,
         qvariant_cast<modbus::Response>(arguments.at(1));
     EXPECT_EQ(modbus::Error::kNoError, response.error());
     EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
-    EXPECT_EQ(request.serverAddress(), response.serverAddress());
-    EXPECT_EQ(response.data(),
-              modbus::ByteArray(
-                  {0x02, modbus::CoilAddress(0x01), modbus::Quantity(0x02)}));
+    EXPECT_EQ(session.request.serverAddress(), response.serverAddress());
+    EXPECT_EQ(response.data(), session.response.data());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -373,8 +379,9 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
-
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
     serialPort->setupCallName();
@@ -387,16 +394,9 @@ TEST(ModbusSerialClient,
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
 
-    modbus::ByteArray responseWithoutCrc = {
-        kServerAddress, modbus::FunctionCode::kReadCoils, 0x02,
-        modbus::CoilAddress(0x01), modbus::Quantity(0x02)};
-
-    modbus::ByteArray responseWithCrc = responseWithoutCrc;
-    /// bad crc
-    responseWithCrc.push_back(0x00);
-    responseWithCrc.push_back(0x00);
-    QByteArray qarray((const char *)responseWithCrc.data(),
-                      responseWithCrc.size());
+    session.responseRaw[session.responseRaw.size() - 1] = 0x00;
+    QByteArray qarray((const char *)session.responseRaw.data(),
+                      session.responseRaw.size());
 
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
       return qarray;
@@ -407,7 +407,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(200000);
@@ -426,7 +426,15 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
+    modbus::FunctionCode functionCode = modbus::FunctionCode(
+        session.response.functionCode() | modbus::Pdu::kExceptionByte);
+    session.response.setFunctionCode(functionCode);
+    session.response.setError(modbus::Error::kSlaveDeviceBusy);
+    session.responseRaw =
+        modbus::rtuMarshalFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -463,7 +471,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(200000);
@@ -483,7 +491,16 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
+    modbus::FunctionCode functionCode = modbus::FunctionCode(
+        session.response.functionCode() | modbus::Pdu::kExceptionByte);
+    session.response.setServerAddress(0x00);
+    session.response.setFunctionCode(functionCode);
+    session.response.setError(modbus::Error::kTimeout);
+    session.responseRaw =
+        modbus::rtuMarshalFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -498,16 +515,8 @@ TEST(ModbusSerialClient,
     EXPECT_CALL(*serialPort, close());
     EXPECT_CALL(*serialPort, clear());
 
-    modbus::ByteArray responseWithoutCrc = {
-        kBadServerAddress,
-        modbus::FunctionCode::kReadCoils | modbus::Pdu::kExceptionByte,
-        static_cast<uint8_t>(modbus::Error::kSlaveDeviceBusy)};
-
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
-    QByteArray qarray((const char *)responseWithCrc.data(),
-                      responseWithCrc.size());
-
+    QByteArray qarray((const char *)session.responseRaw.data(),
+                      session.responseRaw.size());
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
       return qarray;
     });
@@ -517,7 +526,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(200000);
@@ -580,7 +589,9 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createReadCoilsRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -607,7 +618,7 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(2000);
@@ -696,7 +707,9 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
     modbus::QSerialClient serialClient(serialPort);
     serialPort->setupCallName();
 
-    auto request = createSingleBitAccessRequest();
+    Session session;
+    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                                kQuantity, session);
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
 
@@ -715,7 +728,7 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
 
     serialClient.setOpenRetryTimes(3, 2000);
     serialClient.open();
-    serialClient.sendRequest(request);
+    serialClient.sendRequest(session.request);
     spy.wait(20000);
     EXPECT_EQ(spy.count(), 0);
     EXPECT_EQ(serialClient.pendingRequestSize(), 0);
@@ -925,20 +938,43 @@ TEST(ModbusSerialClient,
   app.exec();
 }
 
-modbus::Request createReadCoilsRequest() {
+template <modbus::TransferMode mode>
+static void createReadCoils(modbus::ServerAddress serverAddress,
+                            modbus::Address startAddress,
+                            modbus::Quantity quantity, Session &session) {
   modbus::SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
-  modbus::Request request;
+  for (int i = 0; i < access.quantity(); i++) {
+    access.setValue(access.startAddress() + i, i % 2 == 0
+                                                   ? modbus::BitValue::kOn
+                                                   : modbus::BitValue::kOff);
+  }
 
-  request.setServerAddress(kServerAddress);
-  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
-  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  request.setData(access.marshalReadRequest());
-  request.setUserData(access);
-  return request;
+  session.request.setServerAddress(kServerAddress);
+  session.request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  session.request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  session.request.setData(access.marshalReadRequest());
+  session.request.setUserData(access);
+
+  session.response.setServerAddress(kServerAddress);
+  session.response.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  session.response.setData(access.marshalReadResponse());
+  session.response.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+
+  modbus::ByteArray aduWithoutCrcRequest =
+      session.request.marshalAduWithoutCrc();
+  modbus::ByteArray aduWithoutCrcResponse =
+      session.response.marshalAduWithoutCrc();
+  if (mode == modbus::TransferMode::kRtu) {
+    session.requestRaw = modbus::rtuMarshalFrame(aduWithoutCrcRequest);
+    session.responseRaw = modbus::rtuMarshalFrame(aduWithoutCrcResponse);
+  } else if (mode == modbus::TransferMode::kAscii) {
+    session.requestRaw = modbus::asciiMarshalFrame(aduWithoutCrcRequest);
+    session.responseRaw = modbus::asciiMarshalFrame(aduWithoutCrcResponse);
+  }
 }
 
 static modbus::Request createSingleBitAccessRequest() {
