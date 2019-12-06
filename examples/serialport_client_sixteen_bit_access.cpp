@@ -16,7 +16,7 @@ static bool unmarshalMultipleReadRegister(const modbus::Request &req,
 
 namespace std {
 template <typename T> std::string to_string(const T &t) {
-  std::stringsream s;
+  std::stringstream s;
 
   s << t;
   return s.str();
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
         }
         std::cout << std::endl;
 
-        printf("pending Request size:%d\n", client->pendingRequestSize());
+        printf("pending Request size:%ld\n", client->pendingRequestSize());
         if (client->pendingRequestSize() == 0) {
           sendAfter();
         }
