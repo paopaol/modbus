@@ -74,6 +74,9 @@ public:
   void setTimeout(uint64_t timeout);
   uint64_t timeout();
 
+  void setTransferMode(TransferMode transferMode);
+  TransferMode transferMode() const;
+
   void setRetryTimes(int times);
   int retryTimes();
   void setOpenRetryTimes(int retryTimes, int delay = 1000);
