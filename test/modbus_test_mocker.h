@@ -18,7 +18,9 @@
 class MockSerialPort : public modbus::AbstractSerialPort {
 public:
   MockSerialPort(QObject *parent = nullptr)
-      : modbus::AbstractSerialPort(parent) {}
+      : modbus::AbstractSerialPort(parent) {
+    setupCallName();
+  }
   ~MockSerialPort() {}
   MOCK_METHOD(void, open, (), (override));
   MOCK_METHOD(void, close, (), (override));

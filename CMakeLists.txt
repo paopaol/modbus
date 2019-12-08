@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 project(modbus)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
 
 
 set(modbus_root_dir ${CMAKE_SOURCE_DIR})
