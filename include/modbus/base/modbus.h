@@ -158,6 +158,27 @@ private:
 };
 
 /**
+ * Frame is a complete modbus frame.
+ * in rtu mode:
+ *      frame is adu + crc
+ * in ascii mode:
+ *      frame is ":" + ascii(adu) + lrc + "\r\n"
+ * in mbap(tcp) mode:
+ *     frame is mbap + adu
+ */
+class Frame {
+public:
+  virtual ~Frame() {}
+  virtual ByteArray marshal() = 0;
+
+  void setAdu(const Adu &adu) { adu_ = adu; }
+  Adu adu() const { return adu_; }
+
+protected:
+  Adu adu_;
+};
+
+/**
  * a modbus request
  */
 class Request : public Adu {
