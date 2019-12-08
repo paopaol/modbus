@@ -169,7 +169,14 @@ private:
 class Frame {
 public:
   virtual ~Frame() {}
+  /**
+   * marshal the adu to a complete modbus frame.
+   */
   virtual ByteArray marshal() = 0;
+  /**
+   * unmarshal a bytearray to modbus::Adu
+   */
+  virtual DataChecker::Result unmarshal(const ByteArray &data) = 0;
 
   void setAdu(const Adu &adu) { adu_ = adu; }
   Adu adu() const { return adu_; }

@@ -30,6 +30,7 @@ public:
   ByteArray marshal() override {
     return rtuMarshalFrame(adu_.marshalAduWithoutCrc());
   }
+  DataChecker::Result unmarshal(const ByteArray) override {}
 };
 } // namespace modbus
 
