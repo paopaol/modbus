@@ -507,7 +507,6 @@ TEST(ModbusSerialClient,
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
-    EXPECT_CALL(*serialPort, clear());
 
     QByteArray qarray((const char *)session.responseRaw.data(),
                       session.responseRaw.size());

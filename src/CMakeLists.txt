@@ -9,5 +9,6 @@ set(src-files
 
 add_library(modbus ${src-files})
 target_include_directories(modbus PRIVATE ".")
+target_include_directories(modbus PRIVATE "./base")
 target_link_libraries(modbus PUBLIC Qt5::Core)
 target_link_libraries(modbus PUBLIC Qt5::SerialPort)

@@ -173,10 +173,13 @@ public:
    * marshal the adu to a complete modbus frame.
    */
   virtual ByteArray marshal() = 0;
+  virtual size_t marshalSize() = 0;
   /**
    * unmarshal a bytearray to modbus::Adu
+   * the Frame error stored in error
    */
-  virtual DataChecker::Result unmarshal(const ByteArray &data) = 0;
+  virtual DataChecker::Result unmarshal(const ByteArray &data,
+                                        Error *error) = 0;
 
   void setAdu(const Adu &adu) { adu_ = adu; }
   Adu adu() const { return adu_; }
@@ -203,6 +206,7 @@ private:
 class Response : public Adu {
 public:
   Response() : errorCode_(Error::kNoError), Adu() {}
+  Response(const Adu &adu) : errorCode_(Error::kNoError), Adu(adu) {}
   void setError(Error errorCode) { errorCode_ = errorCode; }
 
   Error error() const { return errorCode_; }

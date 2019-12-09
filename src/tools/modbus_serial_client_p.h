@@ -68,16 +68,11 @@ public:
        * take out the first request,send it out,
        */
       auto &ele = elementQueue_.front();
-      auto &request = ele.request;
-      auto data = request.marshalAduWithoutCrc();
-      /**
-       * we append crc, then write to serialport
-       */
-      auto modbusSerialFrame = tool::appendCrc(data);
-      log(LogLevel::kDebug, serialPort_->name() + " will send: " +
-                                tool::dumpHex(modbusSerialFrame));
-      serialPort_->write((const char *)modbusSerialFrame.data(),
-                         modbusSerialFrame.size());
+      auto data = ele.requestFrame->marshal();
+
+      log(LogLevel::kDebug,
+          serialPort_->name() + " will send: " + tool::dumpHex(data));
+      serialPort_->write((const char *)data.data(), data.size());
     });
   }
 
