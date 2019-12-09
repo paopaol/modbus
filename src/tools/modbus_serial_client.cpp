@@ -3,13 +3,14 @@
 #include <algorithm>
 #include <assert.h>
 #include <base/modbus_logger.h>
-#include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
+#include <modbus_frame.h>
 
 namespace modbus {
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
+std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
     : d_ptr(new QSerialClientPrivate(serialPort, this)), Client(parent) {
@@ -83,6 +84,13 @@ void QSerialClient::sendRequest(const Request &request) {
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
   auto element = createElement(request);
+
+  element.requestFrame = createModebusFrame(d->transferMode_);
+  element.requestFrame->setAdu(element.request);
+
+  element.responseFrame = createModebusFrame(d->transferMode_);
+  element.responseFrame->setAdu(element.response);
+
   element.retryTimes = d->retryTimes_;
   d->enqueueElement(element);
 }
@@ -259,8 +267,8 @@ void QSerialClient::onSerialPortReadyRead() {
    * state. Therefore, if data is received but not in the wait-response state,
    * then this data is not what we want,discard them
    */
+  auto qdata = d->serialPort_->readAll();
   if (d->sessionState_.state() != SessionState::kWaitingResponse) {
-    auto qdata = d->serialPort_->readAll();
     ByteArray data;
     appendQByteArray(data, qdata);
     std::stringstream stream;
@@ -281,21 +289,23 @@ void QSerialClient::onSerialPortReadyRead() {
 
   auto sessionState = d->sessionState_.state();
 
-  appendQByteArray(dataRecived, d->serialPort_->readAll());
-  /// make sure got serveraddress + function code
-  if (dataRecived.size() < 2) {
+  appendQByteArray(dataRecived, qdata);
+
+  Error error = Error::kNoError;
+  auto result = element.responseFrame->unmarshal(dataRecived, &error);
+  if (result != DataChecker::Result::kSizeOk) {
     log(LogLevel::kWarning, d->serialPort_->name() + ":need more data." + "[" +
                                 tool::dumpHex(dataRecived) + "]");
     return;
   }
 
-  response.setServerAddress(dataRecived[0]);
-  response.setFunctionCode(static_cast<FunctionCode>(dataRecived[1]));
+  response = Response(element.responseFrame->adu());
+  response.setError(error);
 
   /**
    * When receiving a response from an undesired child node,
    * Should continue to time out
-   * discard all recived data
+   * discard all recived dat
    */
   if (response.serverAddress() != request.serverAddress()) {
     log(LogLevel::kWarning,
@@ -303,58 +313,15 @@ void QSerialClient::onSerialPortReadyRead() {
             ":got response, unexpected serveraddress, discard it.[" +
             tool::dumpHex(dataRecived) + "]");
 
-    d->serialPort_->clear();
     dataRecived.clear();
     return;
   }
 
-  size_t expectSize = 0;
-  DataChecker dataChecker;
-  if (response.isException()) {
-    dataChecker = expectionResponseDataChecker;
-  } else {
-    dataChecker = request.dataChecker();
-  }
-
-  smart_assert(dataChecker.calculateResponseSize &&
-               "not set data size checker");
-  DataChecker::Result result = dataChecker.calculateResponseSize(
-      expectSize, tool::subArray(dataRecived, 2));
-  if (result == DataChecker::Result::kNeedMoreData) {
-    log(LogLevel::kWarning, d->serialPort_->name() +
-                                ": data checker says need more data.[" +
-                                tool::dumpHex(dataRecived) + "]");
-    return;
-  }
-  response.setData(tool::subArray(dataRecived, 2, expectSize));
-  /// server address(1) + function code(1) + data(expectSize) + crc(2)
-  size_t totalSize = 2 + expectSize + 2;
-  if (dataRecived.size() != totalSize) {
-    log(LogLevel::kWarning,
-        d->serialPort_->name() +
-            ": need more data, not complete modbus frame.[" +
-            tool::dumpHex(dataRecived) + "]");
-    return;
-  }
   d->waitResponseTimer_.stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  auto dataWithCrc =
-      tool::appendCrc(tool::subArray(dataRecived, 0, 2 + expectSize));
-
   log(LogLevel::kDebug,
       d->serialPort_->name() + " recived " + tool::dumpHex(dataRecived));
-
-  /**
-   * Received frame error
-   */
-  if (dataWithCrc != dataRecived) {
-    response.setError(Error::kStorageParityError);
-  }
-
-  if (response.isException()) {
-    response.setError(Error(response.data()[0]));
-  }
 
   /**
    * Pop at the end
@@ -375,7 +342,7 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
   auto &element = d->elementQueue_.front();
   auto &request = element.request;
   element.bytesWritten += bytes;
-  if (element.bytesWritten != request.marshalSize() + 2 /*crc len*/) {
+  if (element.bytesWritten != element.requestFrame->marshalSize()) {
     return;
   }
 
@@ -472,6 +439,15 @@ static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
   uint8_t *data = (uint8_t *)qarray.constData();
   size_t size = qarray.size();
   array.insert(array.end(), data, data + size);
+}
+
+std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
+  switch (mode) {
+  case TransferMode::kRtu:
+    return std::make_shared<RtuFrame>();
+  default:
+    return nullptr;
+  }
 }
 
 } // namespace modbus
