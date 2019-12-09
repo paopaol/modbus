@@ -5,6 +5,7 @@
 #include "modbus_tool.h"
 #include "smart_assert.h"
 #include <map>
+#include <algorithm>
 
 namespace modbus {
 /**
