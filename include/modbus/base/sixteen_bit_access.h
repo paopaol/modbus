@@ -10,7 +10,7 @@ namespace modbus {
 class SixteenBitAccess {
 public:
   SixteenBitAccess() = default;
-  virtual ~SixteenBitAccess() noexcept = default;
+  virtual ~SixteenBitAccess() = default;
 
   void setDeviceName(const std::string &name) { deviceName_ = name; }
   std::string deviceName() const { return deviceName_; }

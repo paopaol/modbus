@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QTimer>
+#include <memory>
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus/tools/modbus_serial_client.h>
 
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]) {
   client->setOpenRetryTimes(5, 5000);
   client->setRetryTimes(3);
 
-  auto sendAfter = [&](int delay = 3000) {
+  auto sendAfter = [&](int delay) {
     QTimer::singleShot(delay, [&]() {
       {
         modbus::SixteenBitAccess access;
@@ -69,6 +70,13 @@ int main(int argc, char *argv[]) {
   QObject::connect(
       client.data(), &modbus::QSerialClient::requestFinished,
       [&](const modbus::Request &req, const modbus::Response &resp) {
+        std::shared_ptr<void> _(nullptr, std::bind([&]() {
+                                  printf("pending Request size:%ld\n",
+                                         client->pendingRequestSize());
+                                  if (client->pendingRequestSize() == 0) {
+                                    sendAfter(3000);
+                                  }
+                                }));
         modbus::SixteenBitAccess access;
 
         bool success = unmarshalMultipleReadRegister(req, resp, &access);
@@ -90,11 +98,6 @@ int main(int argc, char *argv[]) {
                  valueEx.description.c_str());
         }
         std::cout << std::endl;
-
-        printf("pending Request size:%ld\n", client->pendingRequestSize());
-        if (client->pendingRequestSize() == 0) {
-          sendAfter();
-        }
       });
 
   client->open();

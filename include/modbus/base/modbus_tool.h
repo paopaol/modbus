@@ -9,10 +9,9 @@ public:
   static inline std::string dumpHex(const ByteArray &byteArray,
                                     const std::string &delimiter = " ") {
     std::string hexString;
-    char hex[4096] = {0};
+    char hex[8192] = {0};
     for (const auto &ch : byteArray) {
-      snprintf(hex, sizeof(hex), "%02x%s", static_cast<unsigned char>(ch),
-               delimiter.c_str());
+      sprintf(hex, "%02x%s", static_cast<unsigned char>(ch), delimiter.c_str());
       hexString += hex;
     }
     return hexString;
