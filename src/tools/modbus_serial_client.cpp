@@ -256,6 +256,7 @@ void QSerialClient::onSerialPortResponseTimeout() {
     d->elementQueue_.pop();
     response.setError(modbus::Error::kTimeout);
     emit requestFinished(request, response);
+    d->scheduleNextRequest(d->t3_5_);
   }
 }
 
