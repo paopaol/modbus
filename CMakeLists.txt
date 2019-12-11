@@ -2,45 +2,20 @@ cmake_minimum_required(VERSION 3.0)
 
 project(modbus)
 
-
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-
-# set(CMAKE_SYSTEM_NAME Linux)
-# set(CMAKE_SYSTEM_PROCESSOR arm)
-set(tools /opt/gcc-linaro-arm-linux-gnueabihf-4.9-2014.09_linux)
-set(CMAKE_C_COMPILER /opt/gcc-linaro-arm-linux-gnueabihf-4.9-2014.09_linux/bin/arm-linux-gnueabihf-gcc)
-set(CMAKE_CXX_COMPILER /opt/gcc-linaro-arm-linux-gnueabihf-4.9-2014.09_linux/bin/arm-linux-gnueabihf-g++)
-
-#set(CMAKE_SYSROOT /home/devel/rasp-pi-rootfs)
-#set(CMAKE_STAGING_PREFIX /home/devel/stage)
-
-message(${CMAKE_C_COMPILER})
-
-# set(CMAKE_FIND_ROOT_PATH ${tools})
-# set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-# set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-# set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-# set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
-
-
 set(modbus_root_dir ${CMAKE_SOURCE_DIR})
 if(MSVC)
-    # set(CMAKE_CXX_FLAGS "/EHsc")
-    # set(CMAKE_C_FLAGS " /EHsc")
     add_compile_options("/WX-")
     add_compile_options("/EHsc")
     add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
 else()
-    set(CMAKE_CXX_FLAGS "-std=c++11")
-    set(CMAKE_C_FLAGS "-std=c++11")
+    add_compile_options("-std=c++11")
 endif()
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
-# find_package(Qt5 REQUIRED Core SerialPort)
+find_package(Qt5 REQUIRED Core SerialPort)
 
 
 
@@ -49,8 +24,7 @@ include_directories(include)
 
 add_subdirectory(src)
 
-# enable_testing()
-# add_subdirectory(test)
+enable_testing()
+add_subdirectory(test)
 
-# add_subdirectory(examples)
-
+add_subdirectory(examples)

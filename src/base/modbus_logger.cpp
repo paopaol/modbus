@@ -2,15 +2,16 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <iostream>
 #include <modbus/base/modbus.h>
 
 using namespace std::chrono;
 
 namespace modbus {
+static std::string timeOfNow();
 static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
   std::string levelString;
-  auto now = system_clock::to_time_t(system_clock::now());
-  auto date = std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
+  std::string date = timeOfNow();
 
   switch (level) {
   case LogLevel::kDebug:
@@ -28,5 +29,14 @@ static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
 void registerLogMessage(const LogWriter &logger) { g_logger = logger; }
 
 void log(LogLevel level, const std::string &msg) { g_logger(level, msg); }
+
+static std::string timeOfNow() {
+  char tmp[128] = {0};
+  time_t timep;
+
+  time(&timep);
+  strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&timep));
+  return tmp;
+}
 
 } // namespace modbus
