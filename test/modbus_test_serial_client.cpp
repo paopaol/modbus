@@ -79,9 +79,9 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
 
     EXPECT_CALL(*serialPort, open()).Times(5);
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->closed();
-    });
+    }));
 
     serialClient.setOpenRetryTimes(4, 1000);
     serialClient.open();
@@ -130,9 +130,9 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_clientOpenFailed) {
     QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::errorOccur);
 
     EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->closed();
-    });
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -335,19 +335,19 @@ TEST(ModbusSerialClient,
 
     EXPECT_CALL(*serialPort, readAll())
         .Times(4)
-        .WillOnce([&]() {
+        .WillOnce(testing::Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
           return firstReadData;
-        })
-        .WillOnce([&]() {
+        }))
+        .WillOnce(testing::Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
           return secondReadData;
-        })
-        .WillOnce([&]() {
+        }))
+        .WillOnce(testing::Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
           return thrdReadData;
-        })
-        .WillOnce([&]() { return fourthReadData; });
+        }))
+        .WillOnce(testing::Invoke([&]() { return fourthReadData; }));
 
     // make sure the client is opened
     serialClient.open();
@@ -394,9 +394,9 @@ TEST(ModbusSerialClient,
     QByteArray qarray((const char *)session.responseRaw.data(),
                       session.responseRaw.size());
 
-    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
-      return qarray;
-    });
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(1)
+        .WillOnce(testing::Invoke([&]() { return qarray; }));
 
     // make sure the client is opened
     serialClient.open();
@@ -457,9 +457,9 @@ TEST(ModbusSerialClient,
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
-      return qarray;
-    });
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(1)
+        .WillOnce(testing::Invoke([&]() { return qarray; }));
 
     // make sure the client is opened
     serialClient.open();
@@ -510,9 +510,9 @@ TEST(ModbusSerialClient,
 
     QByteArray qarray((const char *)session.responseRaw.data(),
                       session.responseRaw.size());
-    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
-      return qarray;
-    });
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(1)
+        .WillOnce(testing::Invoke([&]() { return qarray; }));
 
     // make sure the client is opened
     serialClient.open();
@@ -558,7 +558,9 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
     EXPECT_CALL(*serialPort, close());
     EXPECT_CALL(*serialPort, clear());
-    EXPECT_CALL(*serialPort, readAll()).WillOnce([&]() { return qarray; });
+    EXPECT_CALL(*serialPort, readAll()).WillOnce(testing::Invoke([&]() {
+      return qarray;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -599,10 +601,12 @@ TEST(ModbusSerialClient,
     QByteArray responseData;
     responseData.append(kServerAddress);
 
-    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
-      QTimer::singleShot(10, [&]() { serialPort->error("read error"); });
-      return responseData;
-    });
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(1)
+        .WillOnce(testing::Invoke([&]() {
+          QTimer::singleShot(10, [&]() { serialPort->error("read error"); });
+          return responseData;
+        }));
 
     // make sure the client is opened
     serialClient.open();
@@ -666,12 +670,12 @@ TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
 
     modbus::QSerialClient serialClient(serialPort);
 
-    EXPECT_CALL(*serialPort, open()).WillOnce([&]() {
+    EXPECT_CALL(*serialPort, open()).WillOnce(testing::Invoke([&]() {
       /**
        * No open signal is emitted, so you can simulate an unopened scene
        */
       // serialPort->open();
-    });
+    }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), false);
@@ -701,19 +705,18 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->opened();
-    });
+    }));
 
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->closed();
-    });
+    }));
     EXPECT_CALL(*serialPort, write(testing::_, testing::_))
         .Times(1)
-        .WillOnce([&](const char *data, size_t size) {
+        .WillOnce(testing::Invoke([&](const char *data, size_t size) {
           serialPort->error("write error, just fot test");
-        });
-
+        }));
     serialClient.setOpenRetryTimes(3, 2000);
     serialClient.open();
     serialClient.sendRequest(session.request);
@@ -740,14 +743,14 @@ TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
      */
     EXPECT_CALL(*serialPort, open())
         .Times(2)
-        .WillOnce([&]() {
+        .WillOnce(testing::Invoke([&]() {
           serialPort->error("connect failed");
           return;
-        })
-        .WillOnce([&]() { serialPort->opened(); });
-    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly([&]() {
-      serialPort->closed();
-    });
+        }))
+        .WillOnce(testing::Invoke([&]() { serialPort->opened(); }));
+    EXPECT_CALL(*serialPort, close())
+        .Times(1)
+        .WillRepeatedly(testing::Invoke([&]() { serialPort->closed(); }));
 
     /**
      * if open failed, retry 4 times, interval 2s
@@ -778,14 +781,14 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
      */
     EXPECT_CALL(*serialPort, open())
         .Times(2)
-        .WillOnce([&]() {
+        .WillOnce(testing::Invoke([&]() {
           serialPort->error("connect failed");
           return;
-        })
-        .WillOnce([&]() { serialPort->opened(); });
-    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly([&]() {
-      serialPort->closed();
-    });
+        }))
+        .WillOnce(testing::Invoke([&]() { serialPort->opened(); }));
+    EXPECT_CALL(*serialPort, close())
+        .Times(1)
+        .WillRepeatedly(testing::Invoke([&]() { serialPort->closed(); }));
 
     /**
      * if open failed, retry 4 times, interval 2s
@@ -834,9 +837,9 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce([&]() {
-      return qarray;
-    });
+    EXPECT_CALL(*serialPort, readAll())
+        .Times(1)
+        .WillOnce(testing::Invoke([&]() { return qarray; }));
 
     // make sure the client is opened
     serialClient.open();
@@ -879,17 +882,18 @@ TEST(ModbusSerialClient,
 
     QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->opened();
-    });
+    }));
     EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        });
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly([&]() {
+        .WillRepeatedly(
+            testing::Invoke(testing::Invoke([&](const char *data, size_t size) {
+              serialPort->bytesWritten(size);
+              QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
+            })));
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->closed();
-    });
+    }));
 
     modbus::ByteArray responseWithoutCrc = {kServerAddress,
                                             modbus::FunctionCode::kReadCoils,
@@ -901,9 +905,9 @@ TEST(ModbusSerialClient,
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly([&]() {
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
       return qarray;
-    });
+    }));
 
     // make sure the client is opened
     serialClient.open();

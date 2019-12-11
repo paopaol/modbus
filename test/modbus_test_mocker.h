@@ -22,50 +22,57 @@ public:
     setupCallName();
   }
   ~MockSerialPort() {}
-  MOCK_METHOD(void, open, (), (override));
+ /* MOCK_METHOD0(void, open, (), (override));
   MOCK_METHOD(void, close, (), (override));
   MOCK_METHOD(void, write, (const char *data, size_t size), (override));
   MOCK_METHOD(QByteArray, readAll, (), (override));
   MOCK_METHOD(void, clear, (), (override));
-  MOCK_METHOD(std::string, name, (), (override));
+  MOCK_METHOD(std::string, name, (), (override));*/
+  MOCK_METHOD0(open, void());
+  MOCK_METHOD0(close, void());
+  MOCK_METHOD2(write, void(const char *data, size_t size));
+  MOCK_METHOD0(readAll, QByteArray());
+  MOCK_METHOD0(clear, void());
+  MOCK_METHOD0(name, std::string());
+
 
   void setupCallName() {
-    EXPECT_CALL(*this, name).WillRepeatedly([&]() { return "COM1"; });
+      EXPECT_CALL(*this, name).WillRepeatedly(testing::Invoke([&]() { return "COM1"; }));
   }
 
   void setupDelegate() {
-    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
-    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
+      ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() { emit opened(); }));
+      ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() { emit closed(); }));
   }
   void setupOpenSuccessWriteFailedDelegate() {
-    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
-    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
-    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() { emit opened(); }));
+      ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() { emit closed(); }));
+      ON_CALL(*this, write).WillByDefault(testing::Invoke([&](const char *data, size_t size) {
       emit error("write serial failed");
-    });
+    }));
   }
   void setupOpenFailed() {
-    ON_CALL(*this, open).WillByDefault([&]() {
+    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
       emit error("open serial failed");
-    });
+    }));
   }
 
   void setupTestForWrite() {
-    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
-    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
-    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() { emit opened(); }));
+      ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() { emit closed(); }));
+      ON_CALL(*this, write).WillByDefault(testing::Invoke([&](const char *data, size_t size) {
       sendoutData_.insert(sendoutData_.end(), data, data + size);
       emit bytesWritten(size);
-    });
+    }));
   }
 
   void setupTestForWriteRead() {
-    ON_CALL(*this, open).WillByDefault([&]() { emit opened(); });
-    ON_CALL(*this, close).WillByDefault([&]() { emit closed(); });
-    ON_CALL(*this, write).WillByDefault([&](const char *data, size_t size) {
+      ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() { emit opened(); }));
+      ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() { emit closed(); }));
+      ON_CALL(*this, write).WillByDefault(testing::Invoke([&](const char *data, size_t size) {
       emit bytesWritten(size);
       QTimer::singleShot(10, [&]() { emit readyRead(); });
-    });
+    }));
   }
   modbus::ByteArray sendoutData() { return sendoutData_; }
 

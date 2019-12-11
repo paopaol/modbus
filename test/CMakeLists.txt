@@ -6,6 +6,8 @@ include_directories("../thrd/googletest/googletest/include")
 include_directories("../thrd/googletest/googlemock/include")
 include_directories("../src/tools")
 include_directories("../src/base")
+
+cmake_policy(SET CMP0077 OLD)
 set(gtest_force_shared_crt ON)
 add_subdirectory(../thrd/googletest googletest)
 
