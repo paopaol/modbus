@@ -13,7 +13,7 @@ namespace modbus {
  */
 struct DataChecker {
 public:
-  enum class Result { kNeedMoreData, kSizeOk, kUnkown };
+  enum class Result { kNeedMoreData, kSizeOk, kUnkown, kFailed };
   using calculateRequiredSizeFunc =
       std::function<Result(size_t &size, const ByteArray &byteArray)>;
   /**

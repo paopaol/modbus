@@ -63,10 +63,9 @@ struct SixteenBitValue {
   }
 
   std::string toHexString() {
-    char hex[16] = {0};
-    snprintf(hex, sizeof(hex), "%02x %02x",
-             static_cast<unsigned char>(chFirst_),
-             static_cast<unsigned char>(chSecond_));
+    char hex[32] = {0};
+    sprintf(hex, "%02x %02x", static_cast<unsigned char>(chFirst_),
+            static_cast<unsigned char>(chSecond_));
     return hex;
   }
 

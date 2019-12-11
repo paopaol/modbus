@@ -10,7 +10,7 @@ namespace modbus {
 static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
   std::string levelString;
   auto now = system_clock::to_time_t(system_clock::now());
-  auto date = std::put_time(std::localtime(&now), "%F %T");
+  auto date = std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
 
   switch (level) {
   case LogLevel::kDebug:
