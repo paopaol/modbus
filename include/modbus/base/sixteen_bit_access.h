@@ -131,7 +131,7 @@ public:
 
     auto valueArray = tool::subArray(data, 1);
     Address nextAddress = startAddress();
-    for (int i = 0; i < valueArray.size(); i += 2) {
+    for (size_t i = 0; i < valueArray.size(); i += 2) {
       uint16_t v = 0;
       v = valueArray[i] * 256 + valueArray[i + 1];
 
