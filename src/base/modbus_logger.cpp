@@ -35,7 +35,13 @@ static std::string timeOfNow() {
   time_t timep;
 
   time(&timep);
-  strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&timep));
+  struct tm now_time;
+#ifdef WIN32
+  localtime_s(&now_time, &timep);
+#else
+  localtime_r(&timep, &now_time);
+#endif
+  strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", &now_time);
   return tmp;
 }
 
