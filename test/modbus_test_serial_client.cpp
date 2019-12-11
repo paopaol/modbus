@@ -886,11 +886,10 @@ TEST(ModbusSerialClient,
       serialPort->opened();
     }));
     EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(
-            testing::Invoke(testing::Invoke([&](const char *data, size_t size) {
-              serialPort->bytesWritten(size);
-              QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-            })));
+        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
+        }));
     EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->closed();
     }));
