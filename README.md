@@ -3,27 +3,49 @@ a modbus library for c++11,using qt
 
 ## required
    QT version >= 5.6
-   
-   gcc version >= 4.8
-   
-   vs version >= vs 2013
+
+   gcc version >= 4.9
+
+   vs version >= vs 2015
+
 ## features
    [x] modbus master serial client
-   
+
    [x] rtu mode
-   
+
    [x] disconnection and reconnection
-   
+
    [x] request failed and retry
-   
+
    [x] single bit access
-   
+
    [x] sixteen bit access
-   
+
    [x] custom functions
-   
+
    [x] requests are not lost, all requests will be sent at least once
-   
+
+## build from source
+
+  * windows
+
+  ```cmd
+  git clone --recursive https://github.com/paopaol/modbus.git
+  cd modbus
+  cmake -Bbuild -H. -G"Visual Studio 14 2015" -DCMAKE_PREFIX_PATH=%QTDIR%
+  cmake --build build --config rlease
+  ```
+
+  * linux
+
+  ```cmd
+  git clone --recursive https://github.com/paopaol/modbus.git
+  cd modbus
+  cmake -Bbuild -H. -DCMAKE_PREFIX_PATH=$QTDIR
+  cmake --build build --config rlease
+  ```
+
+
 ## examples
 
 * single bit access
