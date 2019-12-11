@@ -13,6 +13,7 @@ static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
 static bool unmarshalMultipleReadRegister(const modbus::Request &req,
                                           const modbus::Response &resp,
                                           modbus::SixteenBitAccess *access);
+static void usage();
 
 static modbus::DataChecker newDataChecker() {
   modbus::DataChecker dataChecker;
@@ -24,8 +25,14 @@ static modbus::DataChecker newDataChecker() {
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
+  if (argc != 2) {
+    qDebug() << "No serial port specified!";
+    usage();
+    return 1;
+  }
+  QString serialportName = argv[1];
   QScopedPointer<modbus::QSerialClient> client(
-      modbus::newQtSerialClient("COM4"));
+      modbus::newQtSerialClient(serialportName));
 
   client->setOpenRetryTimes(5, 5000);
   client->setRetryTimes(3);
@@ -150,4 +157,9 @@ static bool unmarshalMultipleReadRegister(const modbus::Request &req,
     return false;
   }
   return true;
+}
+
+static void usage() {
+  printf("usage: serialport_client_sixteen_bit_access  serialport\n");
+  printf("example: serialport_client_sixteen_bit_access COM4\n");
 }
