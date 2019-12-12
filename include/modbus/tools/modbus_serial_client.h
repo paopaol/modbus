@@ -82,6 +82,8 @@ public:
   void setOpenRetryTimes(int retryTimes, int delay = 1000);
   int openRetryTimes();
   int openRetryDelay();
+
+  void setFrameInterval(int frameInterval);
   /**
    * After the disconnection, all pending requests will be deleted. So. if the
    * short-term reconnection, there should be no pending requests

@@ -190,6 +190,14 @@ int QSerialClient::openRetryDelay() {
   return d->reopenDelay_;
 }
 
+void QSerialClient::setFrameInterval(int frameInterval) {
+  Q_D(QSerialClient);
+  if (frameInterval < 0) {
+    frameInterval = 0;
+  }
+  d->t3_5_ = frameInterval;
+}
+
 void QSerialClient::clearPendingRequest() {
   Q_D(QSerialClient);
   while (!d->elementQueue_.empty()) {
