@@ -10,7 +10,7 @@ Request createReadSingleBitRequest(ServerAddress serverAddress,
   static const DataChecker dataChecker = {bytesRequired<4>,
                                           bytesRequiredStoreInArrayIndex0};
 
-  if (functionCode != FunctionCode::kReadCoils ||
+  if (functionCode != FunctionCode::kReadCoils &&
       functionCode != FunctionCode::kReadInputDiscrete) {
     log(LogLevel::kWarning, "single bit access:[read] invalid function code(" +
                                 std::to_string(functionCode) + ")");
