@@ -14,7 +14,7 @@ Request createReadRegistersRequest(ServerAddress serverAddress,
   Request request;
 
   request.setServerAddress(serverAddress);
-  if (functionCode != FunctionCode::kReadHoldingRegisters ||
+  if (functionCode != FunctionCode::kReadHoldingRegisters &&
       functionCode != FunctionCode::kReadInputRegister) {
     log(LogLevel::kWarning, "invalid function code for read registers" +
                                 std::to_string(functionCode));
