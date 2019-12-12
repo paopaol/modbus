@@ -33,8 +33,9 @@ int main(int argc, char *argv[]) {
         access.setDescription(modbus::Address(0x01), "temperature");
         access.setDescription(modbus::Address(0x05), "CO2 concentration");
 
-        auto request = modbus::createReadMultipleRegistersRequest(
-            modbus::ServerAddress(0x01), access);
+        auto request = modbus::createReadRegistersRequest(
+            modbus::ServerAddress(0x01), access,
+            modbus::FunctionCode::kReadHoldingRegisters);
         client->sendRequest(request);
       }
       {
@@ -44,8 +45,9 @@ int main(int argc, char *argv[]) {
         access.setDeviceName("Smoke detector");
         access.setDescription(modbus::Address(0x03), "Alarm status");
 
-        auto request = modbus::createReadMultipleRegistersRequest(
-            modbus::ServerAddress(0x02), access);
+        auto request = modbus::createReadRegistersRequest(
+            modbus::ServerAddress(0x02), access,
+            modbus::FunctionCode::kReadHoldingRegisters);
         client->sendRequest(request);
       }
     });
@@ -53,6 +55,7 @@ int main(int argc, char *argv[]) {
 
   QObject::connect(client.data(), &modbus::QSerialClient::clientClosed, [&]() {
     qDebug() << "client is closed" << client->errorString();
+    app.quit();
   });
   QObject::connect(client.data(), &modbus::QSerialClient::clientOpened, [&]() {
     qDebug() << "client is opened";
@@ -71,7 +74,7 @@ int main(int argc, char *argv[]) {
                                 }));
         modbus::SixteenBitAccess access;
 
-        bool success = modbus::processReadMultipleRegisters(req, resp, &access);
+        bool success = modbus::processReadRegisters(req, resp, &access);
         if (!success) {
           return;
         }

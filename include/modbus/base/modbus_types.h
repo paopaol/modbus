@@ -96,7 +96,7 @@ enum FunctionCode {
   kInvalidCode = 0x00,
   kReadCoils = 0x01,
   kReadInputDiscrete = 0x02,
-  kReadMultipleRegisters = 0x03,
+  kReadHoldingRegisters = 0x03,
   kReadInputRegister = 0x04,
   kWriteSingleCoil = 0x05,
   kWriteSingleRegister = 0x06,
@@ -120,8 +120,8 @@ inline std::ostream &operator<<(std::ostream &output,
   case FunctionCode::kReadInputDiscrete:
     output << "read input discrete";
     break;
-  case FunctionCode::kReadMultipleRegisters:
-    output << "read multiple registers";
+  case FunctionCode::kReadHoldingRegisters:
+    output << "read holding registers";
     break;
   case FunctionCode::kReadInputRegister:
     output << "read input registers";

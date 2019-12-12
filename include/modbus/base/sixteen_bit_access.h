@@ -4,6 +4,7 @@
 #include <map>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
+#include <modbus/base/modbus_types.h>
 #include <modbus/base/smart_assert.h>
 
 namespace modbus {
@@ -153,11 +154,11 @@ private:
   std::map<Address, SixteenBitValueEx> valueMap_;
 };
 
-Request createReadMultipleRegistersRequest(ServerAddress serverAddress,
-                                           const SixteenBitAccess &access);
-bool processReadMultipleRegisters(const Request &request,
-                                  const Response &response,
-                                  SixteenBitAccess *access);
+Request createReadRegistersRequest(ServerAddress serverAddress,
+                                   const SixteenBitAccess &access,
+                                   FunctionCode functionCode);
+bool processReadRegisters(const Request &request, const Response &response,
+                          SixteenBitAccess *access);
 } // namespace modbus
 
 #endif /* SIXTEEN_BIT_ACCESS_H */
