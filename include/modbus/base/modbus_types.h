@@ -89,7 +89,75 @@ struct SixteenBitValueEx {
   std::string description;
 };
 
-enum FunctionCode { kInvalidCode = 0x00, kReadCoils = 0x01 };
+enum FunctionCode {
+  kInvalidCode = 0x00,
+  kReadCoils = 0x01,
+  kReadInputDiscrete = 0x02,
+  kReadMultipleRegisters = 0x03,
+  kReadInputRegister = 0x04,
+  kWriteSingleCoil = 0x05,
+  kWriteSingleRegister = 0x06,
+  kWriteMultipleRegisters = 0x10,
+  kWriteMultipleCoils = 0x0f,
+  kReadFileRecords = 0x14,
+  kWriteFileRecords = 0x15,
+  kMaskWriteRegister = 0x16,
+  kReadwriteMultipleRegisters = 0x17,
+  kReadDeviceIdentificationCode = 0x2b
+};
+inline std::ostream &operator<<(std::ostream &output,
+                                const FunctionCode &code) {
+  switch (code) {
+  case FunctionCode::kInvalidCode:
+    output << "invalid function code";
+    break;
+  case FunctionCode::kReadCoils:
+    output << "read coils";
+    break;
+  case FunctionCode::kReadInputDiscrete:
+    output << "read input discrete";
+    break;
+  case FunctionCode::kReadMultipleRegisters:
+    output << "read multiple registers";
+    break;
+  case FunctionCode::kReadInputRegister:
+    output << "read input registers";
+    break;
+  case FunctionCode::kWriteSingleCoil:
+    output << "write single coil";
+    break;
+  case FunctionCode::kWriteSingleRegister:
+    output << "write single register";
+    break;
+  case FunctionCode::kWriteMultipleRegisters:
+    output << "write multiple registers";
+    break;
+  case FunctionCode::kWriteMultipleCoils:
+    output << "write multiple coils";
+    break;
+  case FunctionCode::kReadFileRecords:
+    output << "read file records";
+    break;
+  case FunctionCode::kWriteFileRecords:
+    output << "write file records";
+    break;
+  case FunctionCode::kMaskWriteRegister:
+    output << "mask write register";
+    break;
+  case FunctionCode::kReadwriteMultipleRegisters:
+    output << "read/write multiple registers";
+    break;
+  case FunctionCode::kReadDeviceIdentificationCode:
+    output << "read device identification code";
+    break;
+  default:
+    output << "function code(" << std::to_string(static_cast<int>(code)) << ")";
+    break;
+  }
+
+  return output;
+}
+
 enum class Error {
   kNoError = 0,
   kIllegalFunctionCode = 0x01,
