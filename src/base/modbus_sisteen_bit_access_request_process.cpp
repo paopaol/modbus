@@ -5,15 +5,21 @@
 namespace modbus {
 static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
 
-Request createReadMultipleRegistersRequest(ServerAddress serverAddress,
-                                           const SixteenBitAccess &access) {
+Request createReadRegistersRequest(ServerAddress serverAddress,
+                                   const SixteenBitAccess &access,
+                                   FunctionCode functionCode) {
   static const DataChecker readMultipleRegisters_ = {
       modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
 
   Request request;
 
   request.setServerAddress(serverAddress);
-  request.setFunctionCode(FunctionCode::kReadwriteMultipleRegisters);
+  if (functionCode != FunctionCode::kReadHoldingRegisters ||
+      functionCode != FunctionCode::kReadInputRegister) {
+    log(LogLevel::kWarning, "invalid function code for read registers" +
+                                std::to_string(functionCode));
+  }
+  request.setFunctionCode(functionCode);
   request.setUserData(access);
   request.setData(access.marshalMultipleReadRequest());
   request.setDataChecker(readMultipleRegisters_);
@@ -21,9 +27,8 @@ Request createReadMultipleRegistersRequest(ServerAddress serverAddress,
   return request;
 }
 
-bool processReadMultipleRegisters(const Request &request,
-                                  const Response &response,
-                                  SixteenBitAccess *access) {
+bool processReadRegisters(const Request &request, const Response &response,
+                          SixteenBitAccess *access) {
   if (!access) {
     log(LogLevel::kWarning, "SixteenBitAccess access is nullptr");
     return false;
@@ -36,7 +41,7 @@ bool processReadMultipleRegisters(const Request &request,
   *access = modbus::any::any_cast<modbus::SixteenBitAccess>(request.userData());
   success = access->unmarshalReadResponse(response.data());
   if (!success) {
-    log(LogLevel::kWarning, "unmarshalMultipleReadRegister: data is invalid");
+    log(LogLevel::kWarning, "unmarshalReadRegister: data is invalid");
     return false;
   }
   return true;

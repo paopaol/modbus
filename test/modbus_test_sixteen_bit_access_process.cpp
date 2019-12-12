@@ -10,18 +10,18 @@ TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   access.setDescription(modbus::Address(0x01), "temperature");
   access.setDescription(modbus::Address(0x02), "CO2 concentration");
 
-  modbus::Request request =
-      modbus::createReadMultipleRegistersRequest(0x01, access);
+  modbus::Request request = modbus::createReadRegistersRequest(
+      0x01, access, modbus::FunctionCode::kReadHoldingRegisters);
   modbus::Response response;
 
   response.setError(modbus::Error::kNoError);
-  response.setFunctionCode(modbus::FunctionCode::kReadMultipleRegisters);
+  response.setFunctionCode(modbus::FunctionCode::kReadHoldingRegisters);
   response.setServerAddress(0x01);
   response.setDataChecker(request.dataChecker());
   response.setData(
       modbus::ByteArray({0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03}));
 
-  bool ok = modbus::processReadMultipleRegisters(request, response, &access);
+  bool ok = modbus::processReadRegisters(request, response, &access);
   EXPECT_EQ(ok, true);
   EXPECT_EQ(access.value(0x00).toUint16(), 1);
   EXPECT_EQ(access.value(0x01).toUint16(), 2);
