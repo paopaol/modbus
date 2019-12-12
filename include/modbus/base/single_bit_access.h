@@ -4,8 +4,8 @@
 #include "modbus.h"
 #include "modbus_tool.h"
 #include "smart_assert.h"
-#include <map>
 #include <algorithm>
+#include <map>
 
 namespace modbus {
 /**
@@ -55,7 +55,7 @@ public:
    * Conversion to modbus protocol format
    * function code 0x01,0x02
    */
-  ByteArray marshalReadRequest() {
+  ByteArray marshalReadRequest() const {
     ByteArray array;
 
     array.push_back(startAddress_ / 256);
@@ -213,6 +213,13 @@ private:
   std::string deviceName_;
   std::map<Address, BitValueEx> valueMap_;
 };
+
+Request createReadSingleBitRequest(ServerAddress serverAddress,
+                                   const SingleBitAccess &access,
+                                   FunctionCode functionCode);
+
+bool processReadSingleBit(const Request &request, const Response &response,
+                          SingleBitAccess *access);
 
 } // namespace modbus
 
