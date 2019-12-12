@@ -147,11 +147,17 @@ public:
   }
 
 private:
-  Address startAddress_;
+  Address startAddress_ = 0;
   Quantity quantity_ = 0;
   std::string deviceName_;
   std::map<Address, SixteenBitValueEx> valueMap_;
 };
+
+Request createReadMultipleRegistersRequest(ServerAddress serverAddress,
+                                           const SixteenBitAccess &access);
+bool processReadMultipleRegisters(const Request &request,
+                                  const Response &response,
+                                  SixteenBitAccess *access);
 } // namespace modbus
 
 #endif /* SIXTEEN_BIT_ACCESS_H */
