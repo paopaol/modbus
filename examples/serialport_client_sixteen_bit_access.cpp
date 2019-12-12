@@ -5,22 +5,7 @@
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus/tools/modbus_serial_client.h>
 
-static QString modbusBitValueToString(modbus::BitValue value);
-static modbus::Request
-marshalMultipleReadRegisterRequest(modbus::ServerAddress serverAddress,
-                                   const modbus::SixteenBitAccess &access);
-static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
-static bool unmarshalMultipleReadRegister(const modbus::Request &req,
-                                          const modbus::Response &resp,
-                                          modbus::SixteenBitAccess *access);
 static void usage();
-
-static modbus::DataChecker newDataChecker() {
-  modbus::DataChecker dataChecker;
-  dataChecker.calculateRequestSize = modbus::bytesRequired<4>;
-  dataChecker.calculateResponseSize = modbus::bytesRequiredStoreInArrayIndex0;
-  return dataChecker;
-}
 
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
@@ -48,7 +33,7 @@ int main(int argc, char *argv[]) {
         access.setDescription(modbus::Address(0x01), "temperature");
         access.setDescription(modbus::Address(0x05), "CO2 concentration");
 
-        auto request = marshalMultipleReadRegisterRequest(
+        auto request = modbus::createReadMultipleRegistersRequest(
             modbus::ServerAddress(0x01), access);
         client->sendRequest(request);
       }
@@ -59,7 +44,7 @@ int main(int argc, char *argv[]) {
         access.setDeviceName("Smoke detector");
         access.setDescription(modbus::Address(0x03), "Alarm status");
 
-        auto request = marshalMultipleReadRegisterRequest(
+        auto request = modbus::createReadMultipleRegistersRequest(
             modbus::ServerAddress(0x02), access);
         client->sendRequest(request);
       }
@@ -86,7 +71,7 @@ int main(int argc, char *argv[]) {
                                 }));
         modbus::SixteenBitAccess access;
 
-        bool success = unmarshalMultipleReadRegister(req, resp, &access);
+        bool success = modbus::processReadMultipleRegisters(req, resp, &access);
         if (!success) {
           return;
         }
@@ -110,53 +95,6 @@ int main(int argc, char *argv[]) {
   client->open();
 
   return app.exec();
-}
-
-static modbus::Request
-marshalMultipleReadRegisterRequest(modbus::ServerAddress serverAddress,
-                                   const modbus::SixteenBitAccess &access) {
-  modbus::Request request;
-
-  request.setServerAddress(serverAddress);
-  request.setFunctionCode(modbus::FunctionCode(3));
-  request.setUserData(access);
-  request.setData(access.marshalMultipleReadRequest());
-  request.setDataChecker(newDataChecker());
-
-  return request;
-}
-
-static bool validateSixteenBitAccessResponse(const modbus::Response &resp) {
-  if (resp.error() != modbus::Error::kNoError) {
-    qDebug() << resp.errorString().c_str();
-    return false;
-  }
-
-  if (resp.isException()) {
-    qDebug() << resp.errorString().c_str();
-    return false;
-  }
-  return true;
-}
-
-static bool unmarshalMultipleReadRegister(const modbus::Request &req,
-                                          const modbus::Response &resp,
-                                          modbus::SixteenBitAccess *access) {
-  if (!access) {
-    return false;
-  }
-
-  bool success = validateSixteenBitAccessResponse(resp);
-  if (!success) {
-    return false;
-  }
-  *access = modbus::any::any_cast<modbus::SixteenBitAccess>(req.userData());
-  success = access->unmarshalReadResponse(resp.data());
-  if (!success) {
-    qDebug() << "data is invalid";
-    return false;
-  }
-  return true;
 }
 
 static void usage() {
