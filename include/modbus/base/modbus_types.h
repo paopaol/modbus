@@ -47,8 +47,12 @@ struct SixteenBitValue {
   explicit SixteenBitValue(uint16_t value) { setUint16(value); }
   ~SixteenBitValue() {}
 
+  void setFirstByte(uint8_t byte) { chFirst_ = byte; }
+  void setSecondByte(uint8_t byte) { chSecond_ = byte; }
+
   uint8_t firstByte() const { return chFirst_; }
   uint8_t secondByte() const { return chSecond_; }
+  ByteArray twoBytes() const { return ByteArray({chFirst_, chSecond_}); }
 
   uint16_t toUint16(ByteOrder order = ByteOrder::kHostByteOrder) const {
     uint16_t value;
