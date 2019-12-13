@@ -13,13 +13,13 @@ static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
 QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
-    : d_ptr(new QSerialClientPrivate(serialPort, this)), Client(parent) {
+    : d_ptr(new QSerialClientPrivate(serialPort, this)), QObject(parent) {
   initMemberValues();
   setupEnvironment();
 }
 
 QSerialClient::QSerialClient(QObject *parent)
-    : d_ptr(new QSerialClientPrivate(nullptr, parent)), Client(parent) {
+    : d_ptr(new QSerialClientPrivate(nullptr, parent)), QObject(parent) {
   initMemberValues();
   setupEnvironment();
 }
@@ -170,7 +170,7 @@ int QSerialClient::retryTimes() {
 void QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
   Q_D(QSerialClient);
   if (retryTimes < 0) {
-    retryTimes = Client::kBrokenLineReconnection;
+    retryTimes = kBrokenLineReconnection;
   }
   d->openRetryTimes_ = retryTimes;
 

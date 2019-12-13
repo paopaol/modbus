@@ -9,28 +9,6 @@
 
 namespace modbus {
 
-class Client : public QObject {
-  Q_OBJECT
-public:
-  /// always reconnect if broken line
-  static const int kBrokenLineReconnection = -1;
-  Client(QObject *parent = nullptr) : QObject(parent) {}
-  virtual ~Client() {}
-
-  virtual void open() = 0;
-  virtual void close() = 0;
-  virtual void sendRequest(const Request &request) = 0;
-
-  virtual bool isClosed() = 0;
-  virtual bool isOpened() = 0;
-  virtual bool isIdle() = 0;
-signals:
-  void clientOpened();
-  void clientClosed();
-  void errorOccur(const QString &errorString);
-  void requestFinished(const Request &request, const Response &response);
-};
-
 class AbstractSerialPort : public QObject {
   Q_OBJECT
 public:
@@ -51,25 +29,26 @@ signals:
 };
 
 class QSerialClientPrivate;
-class QSerialClient : public Client {
+class QSerialClient:public QObject {
   Q_OBJECT
   Q_DECLARE_PRIVATE(QSerialClient);
 
 public:
+  static const int kBrokenLineReconnection = -1;
   QSerialClient(AbstractSerialPort *serialPort, QObject *parent = nullptr);
   QSerialClient(QObject *parent = nullptr);
   ~QSerialClient();
 
-  void open() override;
-  void close() override;
+  void open();
+  void close();
   /**
    * if the connection is not opened, the request will dropped
    */
-  void sendRequest(const Request &request) override;
-  bool isIdle() override;
+  void sendRequest(const Request &request);
+  bool isIdle();
 
-  bool isClosed() override;
-  bool isOpened() override;
+  bool isClosed();
+  bool isOpened();
 
   void setTimeout(uint64_t timeout);
   uint64_t timeout();
@@ -91,6 +70,11 @@ public:
   size_t pendingRequestSize();
 
   QString errorString();
+signals:
+  void clientOpened();
+  void clientClosed();
+  void errorOccur(const QString &errorString);
+  void requestFinished(const Request &request, const Response &response);
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);
