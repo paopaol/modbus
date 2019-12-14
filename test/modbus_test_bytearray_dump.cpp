@@ -25,7 +25,7 @@ TEST(modbusFrame, rtuMarshalFrame) {
   request.setFunctionCode(modbus::FunctionCode::kReadCoils);
   request.setData(access.marshalReadRequest());
 
-  auto rtuFrame = modbus::rtuMarshalFrame(request.marshalAduWithoutCrc());
+  auto rtuFrame = modbus::marshalRtuFrame(request.marshalAduWithoutCrc());
   EXPECT_EQ(rtuFrame, modbus::ByteArray({0x00, modbus::FunctionCode::kReadCoils,
                                          0x00, 0x01, 0x00, 0x11, 0xac, 0x17}));
 }
@@ -43,7 +43,7 @@ TEST(modbusFrame, asciiMarshalFrame) {
   request.setFunctionCode(modbus::FunctionCode::kReadCoils);
   request.setData(access.marshalReadRequest());
 
-  auto rtuFrame = modbus::asciiMarshalFrame(request.marshalAduWithoutCrc());
+  auto rtuFrame = modbus::marshalAsciiFrame(request.marshalAduWithoutCrc());
   EXPECT_EQ(rtuFrame, modbus::ByteArray({':', 0x30, 0x30, 0x30, 0x31, 0x30,
                                          0x30, 0x30, 0x31, 0x30, 0x30, 0x31,
                                          0x31, 0x65, 0x64, '\r', '\n'}));
