@@ -282,10 +282,9 @@ void QModbusClient::onSerialPortReadyRead() {
     appendQByteArray(data, qdata);
     std::stringstream stream;
     stream << d->sessionState_.state();
-    log(LogLevel::kWarning, d->serialPort_->name() + " now state is in " +
-                                stream.str() +
-                                ".got unexpected data, discard them." + "[" +
-                                tool::dumpHex(data) + "]");
+    log(LogLevel::kWarning,
+        d->serialPort_->name() + " now state is in " + stream.str() +
+            ".got unexpected data, discard them." + "[" + d->dump(data) + "]");
 
     d->serialPort_->clear();
     return;
@@ -304,7 +303,7 @@ void QModbusClient::onSerialPortReadyRead() {
   auto result = element.responseFrame->unmarshal(dataRecived, &error);
   if (result != DataChecker::Result::kSizeOk) {
     log(LogLevel::kWarning, d->serialPort_->name() + ":need more data." + "[" +
-                                tool::dumpHex(dataRecived) + "]");
+                                d->dump(dataRecived) + "]");
     return;
   }
 
@@ -320,7 +319,7 @@ void QModbusClient::onSerialPortReadyRead() {
     log(LogLevel::kWarning,
         d->serialPort_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
-            tool::dumpHex(dataRecived) + "]");
+            d->dump(dataRecived) + "]");
 
     dataRecived.clear();
     return;
@@ -330,7 +329,7 @@ void QModbusClient::onSerialPortReadyRead() {
   d->sessionState_.setState(SessionState::kIdle);
 
   log(LogLevel::kDebug,
-      d->serialPort_->name() + " recived " + tool::dumpHex(dataRecived));
+      d->serialPort_->name() + " recived " + d->dump(dataRecived));
 
   /**
    * Pop at the end
@@ -454,7 +453,10 @@ std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
   switch (mode) {
   case TransferMode::kRtu:
     return std::make_shared<RtuFrame>();
+  case TransferMode::kAscii:
+    return std::make_shared<AsciiFrame>();
   default:
+    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
     return nullptr;
   }
 }

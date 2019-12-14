@@ -2,6 +2,7 @@
 #define __MODBUS_TOOL_H_
 
 #include "modbus_types.h"
+#include <map>
 
 namespace modbus {
 class tool {
@@ -9,12 +10,41 @@ public:
   static inline std::string dumpHex(const ByteArray &byteArray,
                                     const std::string &delimiter = " ") {
     std::string hexString;
-    char hex[8192] = {0};
     for (const auto &ch : byteArray) {
+      char hex[8192] = {0};
       sprintf(hex, "%02x%s", static_cast<unsigned char>(ch), delimiter.c_str());
       hexString += hex;
     }
     return hexString;
+  }
+
+  static inline std::string dumpRaw(const ByteArray &byteArray) {
+    std::string output;
+    for (const auto &ch : byteArray) {
+      output += ch;
+    }
+    return output;
+  }
+
+  static inline ByteArray fromHexString(const ByteArray &hexString) {
+    static std::map<char, int> table = {
+        {'0', 0},  {'1', 1},  {'2', 2},  {'3', 3},  {'4', 4},  {'5', 5},
+        {'6', 6},  {'7', 7},  {'8', 8},  {'9', 9},  {'a', 10}, {'b', 11},
+        {'c', 12}, {'d', 13}, {'e', 14}, {'f', 15}, {'A', 10}, {'B', 11},
+        {'C', 12}, {'D', 13}, {'E', 14}, {'F', 15}};
+
+    ByteArray array;
+    for (size_t i = 0; i < hexString.size() && hexString.size() >= 2; i += 2) {
+      auto first = table.find(hexString[i]);
+      auto second = table.find(hexString[i + 1]);
+      if (first == table.end() || second == table.end()) {
+        break;
+      }
+      char ch = 0;
+      ch = first->second << 4 | second->second;
+      array.push_back(ch);
+    }
+    return array;
   }
 
   static uint16_t crc16_modbus(const uint8_t *data, size_t size);

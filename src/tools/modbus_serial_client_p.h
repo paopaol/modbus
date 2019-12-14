@@ -70,10 +70,14 @@ public:
       auto &ele = elementQueue_.front();
       auto data = ele.requestFrame->marshal();
 
-      log(LogLevel::kDebug,
-          serialPort_->name() + " will send: " + tool::dumpHex(data));
+      log(LogLevel::kDebug, serialPort_->name() + " will send: " + dump(data));
       serialPort_->write((const char *)data.data(), data.size());
     });
+  }
+
+  std::string dump(const ByteArray &byteArray) {
+    return transferMode_ == TransferMode::kAscii ? tool::dumpRaw(byteArray)
+                                                 : tool::dumpHex(byteArray);
   }
 
   /**
