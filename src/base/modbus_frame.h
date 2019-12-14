@@ -19,8 +19,15 @@ inline ByteArray marshalAsciiFrame(const ByteArray &data) {
   ByteArray ascii;
   ByteArray binary = tool::appendLrc(data);
 
+  auto toUpperHexString = [](const ByteArray &data) {
+    auto hexString = tool::dumpHex(data, "");
+    std::transform(hexString.begin(), hexString.end(), hexString.begin(),
+                   ::toupper);
+    return hexString;
+  };
+
   appendStdString(ascii, ":");
-  appendStdString(ascii, tool::dumpHex(binary, ""));
+  appendStdString(ascii, toUpperHexString(binary));
   appendStdString(ascii, "\r\n");
   return ascii;
 }
