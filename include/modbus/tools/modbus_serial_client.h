@@ -28,16 +28,16 @@ signals:
   void readyRead();
 };
 
-class QSerialClientPrivate;
-class QSerialClient:public QObject {
+class QModbusClientPrivate;
+class QModbusClient:public QObject {
   Q_OBJECT
-  Q_DECLARE_PRIVATE(QSerialClient);
+  Q_DECLARE_PRIVATE(QModbusClient);
 
 public:
   static const int kBrokenLineReconnection = -1;
-  QSerialClient(AbstractSerialPort *serialPort, QObject *parent = nullptr);
-  QSerialClient(QObject *parent = nullptr);
-  ~QSerialClient();
+  QModbusClient(AbstractSerialPort *serialPort, QObject *parent = nullptr);
+  QModbusClient(QObject *parent = nullptr);
+  ~QModbusClient();
 
   void open();
   void close();
@@ -90,10 +90,10 @@ private:
   void onSerialPortResponseTimeout();
   void clearPendingRequest();
 
-  QScopedPointer<QSerialClientPrivate> d_ptr;
+  QScopedPointer<QModbusClientPrivate> d_ptr;
 };
 
-QSerialClient *
+QModbusClient *
 newQtSerialClient(const QString &serialName,
                   QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,
                   QSerialPort::DataBits dataBits = QSerialPort::Data8,

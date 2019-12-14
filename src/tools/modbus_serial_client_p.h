@@ -31,10 +31,10 @@ inline std::ostream &operator<<(std::ostream &output,
   return output;
 }
 
-class QSerialClientPrivate : public QObject {
+class QModbusClientPrivate : public QObject {
   Q_OBJECT
 public:
-  QSerialClientPrivate(AbstractSerialPort *serialPort,
+  QModbusClientPrivate(AbstractSerialPort *serialPort,
                        QObject *parent = nullptr)
       : serialPort_(serialPort), QObject(parent) {}
 
@@ -98,7 +98,7 @@ public:
   int openRetryTimes_;
   int reopenDelay_;
   /**
-   * if user call QSerialClient::close(), this is force close
+   * if user call QModbusClient::close(), this is force close
    * if the connection broken,the device is closed, this is not force close
    */
   bool forceClose_ = false;

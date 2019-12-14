@@ -30,7 +30,7 @@ static void createReadCoils(modbus::ServerAddress serverAddress,
 
 static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
   auto serialPort = new MockSerialPort();
-  modbus::QSerialClient mockSerialClient(serialPort);
+  modbus::QModbusClient mockSerialClient(serialPort);
   EXPECT_EQ(mockSerialClient.transferMode(), modbus::TransferMode::kRtu);
   mockSerialClient.setTransferMode(transferMode);
   EXPECT_EQ(mockSerialClient.transferMode(), transferMode);
@@ -47,11 +47,11 @@ clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode transferMode) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
     serialClient.setTransferMode(transferMode);
     serialPort->setupDelegate();
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, close());
@@ -73,10 +73,10 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
     serialPort->setupOpenFailed();
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
 
     EXPECT_CALL(*serialPort, open()).Times(5);
     EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
@@ -98,9 +98,9 @@ TEST(ModbusSerialClient, clientIsOpened_closeSerial_clientIsClosed) {
   auto serialPort = new MockSerialPort();
   serialPort->setupDelegate();
   {
-    modbus::QSerialClient serialClient(serialPort);
-    QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::clientOpened);
-    QSignalSpy spyClose(&serialClient, &modbus::QSerialClient::clientClosed);
+    modbus::QModbusClient serialClient(serialPort);
+    QSignalSpy spyOpen(&serialClient, &modbus::QModbusClient::clientOpened);
+    QSignalSpy spyClose(&serialClient, &modbus::QModbusClient::clientClosed);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, close());
@@ -126,8 +126,8 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_clientOpenFailed) {
   serialPort->setupOpenFailed();
 
   {
-    modbus::QSerialClient serialClient(serialPort);
-    QSignalSpy spyOpen(&serialClient, &modbus::QSerialClient::errorOccur);
+    modbus::QModbusClient serialClient(serialPort);
+    QSignalSpy spyOpen(&serialClient, &modbus::QModbusClient::errorOccur);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
@@ -152,10 +152,10 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
     serialPort->setupOpenSuccessWriteFailedDelegate();
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::errorOccur);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::errorOccur);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -188,10 +188,10 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
     serialPort->setupTestForWrite();
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -218,7 +218,7 @@ TEST(ModbusSerialClient, setTimeout) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
     serialClient.setTimeout(2000);
     EXPECT_EQ(2000, serialClient.timeout());
@@ -232,7 +232,7 @@ TEST(ModbusSerialClient, setRetryTimes) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
     serialClient.setRetryTimes(5);
     EXPECT_EQ(5, serialClient.retryTimes());
@@ -253,11 +253,11 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWrite();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
     serialClient.setRetryTimes(2);
     serialClient.setTimeout(500);
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     /**
@@ -298,9 +298,9 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -382,9 +382,9 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -435,9 +435,9 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -500,9 +500,9 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -550,9 +550,9 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -590,9 +590,9 @@ TEST(ModbusSerialClient,
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -633,9 +633,9 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWrite();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -668,7 +668,7 @@ TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
 
     auto serialPort = new MockSerialPort();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
     EXPECT_CALL(*serialPort, open()).WillOnce(testing::Invoke([&]() {
       /**
@@ -697,13 +697,13 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
     Session session;
     createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
                                                 kQuantity, session);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->opened();
@@ -733,9 +733,9 @@ TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
 
     /**
      * The first time we open, our simulation failed. The second time, we
@@ -771,9 +771,9 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::clientOpened);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
 
     /**
      * The first time we open, our simulation failed. The second time, we
@@ -800,7 +800,7 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
     EXPECT_EQ(serialClient.isOpened(), true);
     EXPECT_EQ(serialClient.isIdle(), true);
 
-    QSignalSpy spyClose(&serialClient, &modbus::QSerialClient::clientClosed);
+    QSignalSpy spyClose(&serialClient, &modbus::QModbusClient::clientClosed);
     serialClient.close();
     spyClose.wait(1000);
     EXPECT_EQ(spyClose.count(), 1);
@@ -819,9 +819,9 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open());
     EXPECT_CALL(*serialPort, write(testing::_, testing::_));
@@ -878,9 +878,9 @@ TEST(ModbusSerialClient,
 
     auto serialPort = new MockSerialPort();
 
-    modbus::QSerialClient serialClient(serialPort);
+    modbus::QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QSerialClient::requestFinished);
+    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
       serialPort->opened();
