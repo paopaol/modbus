@@ -29,15 +29,15 @@ int main(int argc, char *argv[]) {
 
   modbus::registerLogMessage(logMessage);
 
-  QScopedPointer<modbus::QSerialClient> client(
+  QScopedPointer<modbus::QModbusClient> client(
       modbus::newQtSerialClient("/dev/ttyS0"));
 
   client->setOpenRetryTimes(5, 5000);
 
-  QObject::connect(client.data(), &modbus::QSerialClient::clientClosed, [&]() {
+  QObject::connect(client.data(), &modbus::QModbusClient::clientClosed, [&]() {
     qDebug() << "client is closed" << client->errorString();
   });
-  QObject::connect(client.data(), &modbus::QSerialClient::clientOpened, [&]() {
+  QObject::connect(client.data(), &modbus::QModbusClient::clientOpened, [&]() {
     qDebug() << "client is opened";
 
     modbus::Request request;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   });
 
   QObject::connect(
-      client.data(), &modbus::QSerialClient::requestFinished,
+      client.data(), &modbus::QModbusClient::requestFinished,
       [&](const modbus::Request &req, const modbus::Response &resp) {
         if (resp.error() != modbus::Error::kNoError) {
           qDebug() << resp.errorString().c_str();

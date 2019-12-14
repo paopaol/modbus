@@ -13,7 +13,7 @@
 
 /**
  * a mock of serial port
- * we use this class for testing of modbus::QSerialClient
+ * we use this class for testing of modbus::QModbusClient
  */
 class MockSerialPort : public modbus::AbstractSerialPort {
 public:

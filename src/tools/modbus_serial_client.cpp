@@ -12,20 +12,20 @@ namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
-QSerialClient::QSerialClient(AbstractSerialPort *serialPort, QObject *parent)
-    : d_ptr(new QSerialClientPrivate(serialPort, this)), QObject(parent) {
+QModbusClient::QModbusClient(AbstractSerialPort *serialPort, QObject *parent)
+    : d_ptr(new QModbusClientPrivate(serialPort, this)), QObject(parent) {
   initMemberValues();
   setupEnvironment();
 }
 
-QSerialClient::QSerialClient(QObject *parent)
-    : d_ptr(new QSerialClientPrivate(nullptr, parent)), QObject(parent) {
+QModbusClient::QModbusClient(QObject *parent)
+    : d_ptr(new QModbusClientPrivate(nullptr, parent)), QObject(parent) {
   initMemberValues();
   setupEnvironment();
 }
 
-QSerialClient::~QSerialClient() {
-  Q_D(QSerialClient);
+QModbusClient::~QModbusClient() {
+  Q_D(QModbusClient);
 
   if (isOpened()) {
     close();
@@ -35,8 +35,8 @@ QSerialClient::~QSerialClient() {
   }
 }
 
-void QSerialClient::open() {
-  Q_D(QSerialClient);
+void QModbusClient::open() {
+  Q_D(QModbusClient);
 
   if (!isClosed()) {
     log(LogLevel::kInfo,
@@ -53,14 +53,14 @@ void QSerialClient::open() {
  * Allows shutdown and transmits clientClosed signal regardless of whether the
  * device is already turned on
  */
-void QSerialClient::close() {
-  Q_D(QSerialClient);
+void QModbusClient::close() {
+  Q_D(QModbusClient);
   d->forceClose_ = true;
   closeNotClearOpenRetrys();
 }
 
-void QSerialClient::closeNotClearOpenRetrys() {
-  Q_D(QSerialClient);
+void QModbusClient::closeNotClearOpenRetrys() {
+  Q_D(QModbusClient);
 
   if (!isOpened()) {
     log(LogLevel::kInfo,
@@ -72,8 +72,8 @@ void QSerialClient::closeNotClearOpenRetrys() {
   d->serialPort_->close();
 }
 
-void QSerialClient::sendRequest(const Request &request) {
-  Q_D(QSerialClient);
+void QModbusClient::sendRequest(const Request &request) {
+  Q_D(QModbusClient);
 
   if (!isOpened()) {
     log(LogLevel::kWarning,
@@ -95,80 +95,80 @@ void QSerialClient::sendRequest(const Request &request) {
   d->enqueueElement(element);
 }
 
-bool QSerialClient::isClosed() {
-  Q_D(QSerialClient);
+bool QModbusClient::isClosed() {
+  Q_D(QModbusClient);
 
   return d->connectionState_.state() == ConnectionState::kClosed;
 }
 
-bool QSerialClient::isOpened() {
-  Q_D(QSerialClient);
+bool QModbusClient::isOpened() {
+  Q_D(QModbusClient);
 
   return d->connectionState_.state() == ConnectionState::kOpened;
 }
 
-bool QSerialClient::isIdle() {
-  Q_D(QSerialClient);
+bool QModbusClient::isIdle() {
+  Q_D(QModbusClient);
   return d->sessionState_.state() == SessionState::kIdle;
 }
 
-void QSerialClient::setupEnvironment() {
+void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
-  Q_D(QSerialClient);
+  Q_D(QModbusClient);
 
   assert(d->serialPort_ && "the serialport backend is invalid");
   connect(d->serialPort_, &AbstractSerialPort::opened, this,
-          &QSerialClient::onSerialPortOpened);
+          &QModbusClient::onSerialPortOpened);
   connect(d->serialPort_, &AbstractSerialPort::closed, this,
-          &QSerialClient::onSerialPortClosed);
+          &QModbusClient::onSerialPortClosed);
   connect(d->serialPort_, &AbstractSerialPort::error, this,
-          &QSerialClient::onSerialPortError);
+          &QModbusClient::onSerialPortError);
   connect(d->serialPort_, &AbstractSerialPort::bytesWritten, this,
-          &QSerialClient::onSerialPortBytesWritten);
+          &QModbusClient::onSerialPortBytesWritten);
   connect(d->serialPort_, &AbstractSerialPort::readyRead, this,
-          &QSerialClient::onSerialPortReadyRead);
+          &QModbusClient::onSerialPortReadyRead);
   connect(&d->waitResponseTimer_, &QTimer::timeout, this,
-          &QSerialClient::onSerialPortResponseTimeout);
+          &QModbusClient::onSerialPortResponseTimeout);
 }
 
-void QSerialClient::setTimeout(uint64_t timeout) {
-  Q_D(QSerialClient);
+void QModbusClient::setTimeout(uint64_t timeout) {
+  Q_D(QModbusClient);
 
   d->waitResponseTimeout_ = timeout;
 }
 
-uint64_t QSerialClient::timeout() {
-  Q_D(QSerialClient);
+uint64_t QModbusClient::timeout() {
+  Q_D(QModbusClient);
 
   return d->waitResponseTimeout_;
 }
 
-void QSerialClient::setTransferMode(modbus::TransferMode transferMode) {
-  Q_D(QSerialClient);
+void QModbusClient::setTransferMode(modbus::TransferMode transferMode) {
+  Q_D(QModbusClient);
 
   d->transferMode_ = transferMode;
 }
 
-TransferMode QSerialClient::transferMode() const {
-  const Q_D(QSerialClient);
+TransferMode QModbusClient::transferMode() const {
+  const Q_D(QModbusClient);
 
   return d->transferMode_;
 }
 
-void QSerialClient::setRetryTimes(int times) {
-  Q_D(QSerialClient);
+void QModbusClient::setRetryTimes(int times) {
+  Q_D(QModbusClient);
 
   d->retryTimes_ = std::max(0, times);
 }
 
-int QSerialClient::retryTimes() {
-  Q_D(QSerialClient);
+int QModbusClient::retryTimes() {
+  Q_D(QModbusClient);
   return d->retryTimes_;
 }
 
-void QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
-  Q_D(QSerialClient);
+void QModbusClient::setOpenRetryTimes(int retryTimes, int delay) {
+  Q_D(QModbusClient);
   if (retryTimes < 0) {
     retryTimes = kBrokenLineReconnection;
   }
@@ -180,43 +180,43 @@ void QSerialClient::setOpenRetryTimes(int retryTimes, int delay) {
   d->reopenDelay_ = delay;
 }
 
-int QSerialClient::openRetryTimes() {
-  Q_D(QSerialClient);
+int QModbusClient::openRetryTimes() {
+  Q_D(QModbusClient);
   return d->openRetryTimes_;
 }
 
-int QSerialClient::openRetryDelay() {
-  Q_D(QSerialClient);
+int QModbusClient::openRetryDelay() {
+  Q_D(QModbusClient);
   return d->reopenDelay_;
 }
 
-void QSerialClient::setFrameInterval(int frameInterval) {
-  Q_D(QSerialClient);
+void QModbusClient::setFrameInterval(int frameInterval) {
+  Q_D(QModbusClient);
   if (frameInterval < 0) {
     frameInterval = 0;
   }
   d->t3_5_ = frameInterval;
 }
 
-void QSerialClient::clearPendingRequest() {
-  Q_D(QSerialClient);
+void QModbusClient::clearPendingRequest() {
+  Q_D(QModbusClient);
   while (!d->elementQueue_.empty()) {
     d->elementQueue_.pop();
   }
 }
 
-size_t QSerialClient::pendingRequestSize() {
-  Q_D(QSerialClient);
+size_t QModbusClient::pendingRequestSize() {
+  Q_D(QModbusClient);
   return d->elementQueue_.size();
 }
 
-QString QSerialClient::errorString() {
-  Q_D(QSerialClient);
+QString QModbusClient::errorString() {
+  Q_D(QModbusClient);
   return d->errorString_;
 }
 
-void QSerialClient::initMemberValues() {
-  Q_D(QSerialClient);
+void QModbusClient::initMemberValues() {
+  Q_D(QModbusClient);
 
   d->connectionState_.setState(ConnectionState::kClosed);
   d->sessionState_.setState(SessionState::kIdle);
@@ -229,8 +229,8 @@ void QSerialClient::initMemberValues() {
   d->transferMode_ = TransferMode::kRtu;
 }
 
-void QSerialClient::onSerialPortResponseTimeout() {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortResponseTimeout() {
+  Q_D(QModbusClient);
   assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
   auto &element = d->elementQueue_.front();
@@ -268,8 +268,8 @@ void QSerialClient::onSerialPortResponseTimeout() {
   }
 }
 
-void QSerialClient::onSerialPortReadyRead() {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortReadyRead() {
+  Q_D(QModbusClient);
 
   /**
    * When the last byte of the request is sent, it will enter the wait-response
@@ -340,8 +340,8 @@ void QSerialClient::onSerialPortReadyRead() {
   d->scheduleNextRequest(d->t3_5_);
 }
 
-void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortBytesWritten(qint16 bytes) {
+  Q_D(QModbusClient);
 
   assert(d->sessionState_.state() == SessionState::kSendingRequest &&
          "when write operation is not done, the session state must be in "
@@ -378,8 +378,8 @@ void QSerialClient::onSerialPortBytesWritten(qint16 bytes) {
   d->waitResponseTimer_.start();
 }
 
-void QSerialClient::onSerialPortError(const QString &errorString) {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortError(const QString &errorString) {
+  Q_D(QModbusClient);
 
   d->errorString_ = errorString;
   /**
@@ -409,8 +409,8 @@ void QSerialClient::onSerialPortError(const QString &errorString) {
   }
 } // namespace modbus
 
-void QSerialClient::onSerialPortClosed() {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortClosed() {
+  Q_D(QModbusClient);
   d->connectionState_.setState(ConnectionState::kClosed);
   /**
    * closed final,clear all pending request
@@ -435,11 +435,11 @@ void QSerialClient::onSerialPortClosed() {
                               " closed, try reconnect after " +
                               std::to_string(d->reopenDelay_) + "ms");
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-  QTimer::singleShot(d->reopenDelay_, this, &QSerialClient::open);
+  QTimer::singleShot(d->reopenDelay_, this, &QModbusClient::open);
 }
 
-void QSerialClient::onSerialPortOpened() {
-  Q_D(QSerialClient);
+void QModbusClient::onSerialPortOpened() {
+  Q_D(QModbusClient);
   d->connectionState_.setState(ConnectionState::kOpened);
   emit clientOpened();
 }

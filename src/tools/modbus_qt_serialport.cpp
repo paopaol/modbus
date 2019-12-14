@@ -85,7 +85,7 @@ private:
   QSerialPort serialPort_;
 };
 
-QSerialClient *
+QModbusClient *
 newQtSerialClient(const QString &serialName, QSerialPort::BaudRate baudRate,
                   QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
                   QSerialPort::StopBits stopBits, QObject *parent) {
@@ -96,7 +96,7 @@ newQtSerialClient(const QString &serialName, QSerialPort::BaudRate baudRate,
   port->setStopBits(stopBits);
   port->setPortName(serialName);
 
-  QSerialClient *client = new QSerialClient(port, parent);
+  QModbusClient *client = new QModbusClient(port, parent);
   return client;
 }
 #include "modbus_qt_serialport.moc"

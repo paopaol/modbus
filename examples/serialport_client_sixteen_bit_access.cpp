@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   QString serialportName = argv[1];
-  QScopedPointer<modbus::QSerialClient> client(
+  QScopedPointer<modbus::QModbusClient> client(
       modbus::newQtSerialClient(serialportName));
 
   client->setOpenRetryTimes(5, 5000);
@@ -53,17 +53,17 @@ int main(int argc, char *argv[]) {
     });
   };
 
-  QObject::connect(client.data(), &modbus::QSerialClient::clientClosed, [&]() {
+  QObject::connect(client.data(), &modbus::QModbusClient::clientClosed, [&]() {
     qDebug() << "client is closed" << client->errorString();
     app.quit();
   });
-  QObject::connect(client.data(), &modbus::QSerialClient::clientOpened, [&]() {
+  QObject::connect(client.data(), &modbus::QModbusClient::clientOpened, [&]() {
     qDebug() << "client is opened";
     sendAfter(0);
   });
 
   QObject::connect(
-      client.data(), &modbus::QSerialClient::requestFinished,
+      client.data(), &modbus::QModbusClient::requestFinished,
       [&](const modbus::Request &req, const modbus::Response &resp) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
                                   printf("pending Request size:%ld\n",
