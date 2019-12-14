@@ -30,7 +30,7 @@ Request createReadSingleBitRequest(ServerAddress serverAddress,
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access) {
   if (!access) {
-    log(LogLevel::kWarning, "SingleBitAccess access is nullptr");
+    log(LogLevel::kError, "SingleBitAccess access is nullptr");
     return false;
   }
 
@@ -49,12 +49,12 @@ bool processReadSingleBit(const Request &request, const Response &response,
 
 static bool validateSingleBitAccessResponse(const modbus::Response &resp) {
   if (resp.error() != modbus::Error::kNoError) {
-    log(LogLevel::kWarning, resp.errorString().c_str());
+    log(LogLevel::kError, resp.errorString().c_str());
     return false;
   }
 
   if (resp.isException()) {
-    log(LogLevel::kWarning, resp.errorString().c_str());
+    log(LogLevel::kError, resp.errorString().c_str());
     return false;
   }
   return true;
