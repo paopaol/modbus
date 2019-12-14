@@ -1,3 +1,4 @@
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include <modbus/base/modbus.h>
@@ -30,22 +31,25 @@ TEST(ModbusFrame, marshalRtuFrame_success) {
   EXPECT_EQ(data, requestArray);
 }
 
-///      header + adu + tail
-/// mbap  mbap + adu + tail
-/// rtu  -- + adu + crc
-/// ascii : + ascii(adu + lrc
-// TEST(ModbusFrame, constructor2) {
-//   modbus::Frame *frame;
-//   modbus::Adu adu;
-//   modbus::ByteArray data;
-//   modbus::DataChecker::Result result = frame->unmarshal(data);
-//   if (result == modbus::DataChecker::Result::kNeedMoreData) {
-//     return;
-//   }
-//   frame->adu();
-//   frame->serverAddress();
+//      header + adu + tail
+// mbap   ---  mbap + adu + tail
+// rtu    --- adu + crc
+// ascii  --- : + ascii(adu)+ lrc + \r\n
+TEST(ModbusFrame, marshalAsciiFrame_success) {
+  modbus::SingleBitAccess access;
+  std::unique_ptr<modbus::Frame> asciiFrame(new modbus::AsciiFrame);
 
-// }
+  access.setStartAddress(0x10);
+  access.setQuantity(0x0a);
+  asciiFrame->setAdu(
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+  //:0x01 0x01 0x00 0x10 0x00 0x0a lrc \r\n
+  modbus::ByteArray frameArray = asciiFrame->marshal();
+  EXPECT_THAT(frameArray,
+              testing::ElementsAre(':', '0', '1', '0', '1', '0', '0', '1', '0',
+                                   '0', '0', '0', 'a', 'e', '4', '\r', '\n'));
+}
+
 static modbus::Adu
 createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
                          modbus::FunctionCode functionCode,

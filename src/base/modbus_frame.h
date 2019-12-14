@@ -94,65 +94,65 @@ public:
   }
 };
 
-// class AsciiFrame final : public Frame {
-// public:
-//   AsciiFrame() {}
-//   ~AsciiFrame() {}
+class AsciiFrame final : public Frame {
+public:
+  AsciiFrame() {}
+  ~AsciiFrame() {}
 
-//   ByteArray marshal() override {
-//     return asciiMarshalFrame(adu_.marshalAduWithoutCrc());
-//   }
+  ByteArray marshal() override {
+    return marshalAsciiFrame(adu_.marshalAduWithoutCrc());
+  }
 
-//   size_t marshalSize() override {
-//     //":" + hex(adu) + hex(lrc) + "\r\n"
-//     return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize;
-//   }
+  size_t marshalSize() override {
+    //":" + hex(adu) + hex(lrc) + "\r\n"
+    return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize;
+  }
 
-//   /**
-//    * : + hex(adu) + hex(lrc) + \r\n
-//    */
-//   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
-//     if (data.size() < kColonSize) {
-//       return;
-//     }
-//     if (data[0] != ':') {
-//       *error = Error::kSlaveDeviceFailure;
-//       return DataChecker::Result::kFailed;
-//     }
+  /**
+   * : + hex(adu) + hex(lrc) + \r\n
+   */
+  DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
+    if (data.size() < kColonSize) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    if (data[0] != ':') {
+      *error = Error::kSlaveDeviceFailure;
+      return DataChecker::Result::kFailed;
+    }
 
-//     auto subdata = tool::subArray(data, 1); /// skip ':'
-//     subdata = tool::fromHexString(subdata);
-//     auto result = unmarshalAdu(subdata, &adu_, error);
-//     if (result != DataChecker::Result::kSizeOk) {
-//       return result;
-//     }
-//     if (data.size() !=
-//         kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize) {
-//       return DataChecker::Result::kNeedMoreData;
-//     }
-//     ByteArray last2Bytes =
-//         tool::subArray(data, kColonSize + 2 * adu_.marshalSize() + kLrcHexSize);
-//     smart_assert(last2Bytes.size() == 2 &&
-//                  "the modbus ascii data is invalid")(last2Bytes);
-//     if (last2Bytes[0] != '\r' || last2Bytes[1] != '\n') {
-//       return DataChecker::Result::kFailed;
-//     }
-//     auto dataWithCrc = tool::appendCrc(adu_.marshalAduWithoutCrc());
-//     if (dataWithCrc != tool::subArray(subdata, 0, adu_.marshalSize())) {
-//       *error = Error::kStorageParityError;
-//     }
-//     if (adu_.isException()) {
-//       *error = Error(adu_.data()[0]);
-//     }
+    auto subdata = tool::subArray(data, 1); /// skip ':'
+    // subdata = //tool::fromHexString(subdata);
+    auto result = unmarshalAdu(subdata, &adu_, error);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+    if (data.size() !=
+        kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    ByteArray last2Bytes =
+        tool::subArray(data, kColonSize + 2 * adu_.marshalSize() + kLrcHexSize);
+    smart_assert(last2Bytes.size() == 2 &&
+                 "the modbus ascii data is invalid")(tool::dumpHex(last2Bytes));
+    if (last2Bytes[0] != '\r' || last2Bytes[1] != '\n') {
+      return DataChecker::Result::kFailed;
+    }
+    auto dataWithCrc = tool::appendCrc(adu_.marshalAduWithoutCrc());
+    if (dataWithCrc != tool::subArray(subdata, 0, adu_.marshalSize())) {
+      *error = Error::kStorageParityError;
+    }
+    if (adu_.isException()) {
+      *error = Error(adu_.data()[0]);
+    }
 
-//     return DataChecker::Result::kSizeOk;
-//   }
+    return DataChecker::Result::kSizeOk;
+  }
 
-// private:
-//   static const int kColonSize = 1; //':'
-//   static const int kLrcHexSize = 2;
-//   static const int kCrLrSize = 2;
-// };
+private:
+  static const int kColonSize = 1; //':'
+  static const int kLrcHexSize = 2;
+  static const int kCrLrSize = 2;
+};
 
 } // namespace modbus
 
