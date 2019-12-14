@@ -6,23 +6,22 @@
 #include <modbus/base/single_bit_access.h>
 #include <modbus_frame.h>
 
+static modbus::Adu
+createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
+                         modbus::FunctionCode functionCode,
+                         const modbus::SingleBitAccess &access);
+
 static modbus::DataChecker readCoilDataChecker = {
     modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
 
 TEST(ModbusFrame, marshalRtuFrame_success) {
   modbus::SingleBitAccess access;
-  access.setStartAddress(0x10);
-  access.setQuantity(0x0a);
-
-  modbus::Adu adu;
-  adu.setServerAddress(0x01);
-  adu.setFunctionCode(modbus::kReadCoils);
-  adu.setData(access.marshalReadRequest());
-  adu.setDataChecker(readCoilDataChecker);
-
   std::unique_ptr<modbus::Frame> rtuFrame(new modbus::RtuFrame);
 
-  rtuFrame->setAdu(adu);
+  access.setStartAddress(0x10);
+  access.setQuantity(0x0a);
+  rtuFrame->setAdu(
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
 
   modbus::ByteArray data = rtuFrame->marshal();
   modbus::ByteArray requestArray(
@@ -47,3 +46,14 @@ TEST(ModbusFrame, marshalRtuFrame_success) {
 //   frame->serverAddress();
 
 // }
+static modbus::Adu
+createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
+                         modbus::FunctionCode functionCode,
+                         const modbus::SingleBitAccess &access) {
+  modbus::Adu adu;
+  adu.setServerAddress(0x01);
+  adu.setFunctionCode(modbus::kReadCoils);
+  adu.setData(access.marshalReadRequest());
+  adu.setDataChecker(readCoilDataChecker);
+  return adu;
+}
