@@ -105,7 +105,7 @@ public:
 
   size_t marshalSize() override {
     //":" + hex(adu) + hex(lrc) + "\r\n"
-    return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize;
+    return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize;
   }
 
   /**
@@ -121,13 +121,13 @@ public:
     }
 
     auto subdata = tool::subArray(data, 1); /// skip ':'
-    // subdata = //tool::fromHexString(subdata);
+    subdata = tool::fromHexString(subdata);
     auto result = unmarshalAdu(subdata, &adu_, error);
     if (result != DataChecker::Result::kSizeOk) {
       return result;
     }
     if (data.size() !=
-        kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCrLrSize) {
+        kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize) {
       return DataChecker::Result::kNeedMoreData;
     }
     ByteArray last2Bytes =
@@ -151,7 +151,7 @@ public:
 private:
   static const int kColonSize = 1; //':'
   static const int kLrcHexSize = 2;
-  static const int kCrLrSize = 2;
+  static const int kCRLRSize = 2;
 };
 
 } // namespace modbus
