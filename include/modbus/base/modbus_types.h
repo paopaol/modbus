@@ -223,7 +223,7 @@ inline std::ostream &operator<<(std::ostream &output, const Error &error) {
 }
 enum class TransferMode { kRtu, kAscii };
 
-enum class LogLevel { kDebug, kWarning, kInfo };
+enum class LogLevel { kDebug, kWarning, kInfo, kError };
 using LogWriter = std::function<void(LogLevel level, const std::string &msg)>;
 
 } // namespace modbus

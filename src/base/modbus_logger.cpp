@@ -23,6 +23,9 @@ static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
   case LogLevel::kWarning:
     levelString = "[Warning] ";
     break;
+  case LogLevel::kError:
+    levelString = "[Error  ] ";
+    break;
   }
   std::cout << levelString << date << " - " << msg << std::endl;
 };
