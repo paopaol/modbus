@@ -430,7 +430,7 @@ TEST(ModbusSerialClient,
     session.response.setFunctionCode(functionCode);
     session.response.setError(modbus::Error::kSlaveDeviceBusy);
     session.responseRaw =
-        modbus::rtuMarshalFrame(session.response.marshalAduWithoutCrc());
+        modbus::marshalRtuFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -495,7 +495,7 @@ TEST(ModbusSerialClient,
     session.response.setFunctionCode(functionCode);
     session.response.setError(modbus::Error::kTimeout);
     session.responseRaw =
-        modbus::rtuMarshalFrame(session.response.marshalAduWithoutCrc());
+        modbus::marshalRtuFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
     serialPort->setupTestForWriteRead();
@@ -956,11 +956,11 @@ static void createReadCoils(modbus::ServerAddress serverAddress,
   modbus::ByteArray aduWithoutCrcResponse =
       session.response.marshalAduWithoutCrc();
   if (mode == modbus::TransferMode::kRtu) {
-    session.requestRaw = modbus::rtuMarshalFrame(aduWithoutCrcRequest);
-    session.responseRaw = modbus::rtuMarshalFrame(aduWithoutCrcResponse);
+    session.requestRaw = modbus::marshalRtuFrame(aduWithoutCrcRequest);
+    session.responseRaw = modbus::marshalRtuFrame(aduWithoutCrcResponse);
   } else if (mode == modbus::TransferMode::kAscii) {
-    session.requestRaw = modbus::asciiMarshalFrame(aduWithoutCrcRequest);
-    session.responseRaw = modbus::asciiMarshalFrame(aduWithoutCrcResponse);
+    session.requestRaw = modbus::marshalAsciiFrame(aduWithoutCrcRequest);
+    session.responseRaw = modbus::marshalAsciiFrame(aduWithoutCrcResponse);
   }
 }
 

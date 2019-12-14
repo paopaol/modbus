@@ -11,11 +11,11 @@ static void appendStdString(ByteArray &array, const std::string &subString) {
   array.insert(array.end(), subString.begin(), subString.end());
 }
 
-inline ByteArray rtuMarshalFrame(const ByteArray &data) {
+inline ByteArray marshalRtuFrame(const ByteArray &data) {
   return tool::appendCrc(data);
 }
 
-inline ByteArray asciiMarshalFrame(const ByteArray &data) {
+inline ByteArray marshalAsciiFrame(const ByteArray &data) {
   ByteArray ascii;
   ByteArray binary = tool::appendLrc(data);
 
@@ -61,7 +61,7 @@ public:
   RtuFrame(){};
   ~RtuFrame(){};
   ByteArray marshal() override {
-    return rtuMarshalFrame(adu_.marshalAduWithoutCrc());
+    return marshalRtuFrame(adu_.marshalAduWithoutCrc());
   }
   size_t marshalSize() override { return adu_.marshalSize() + 2 /*crc*/; }
 
