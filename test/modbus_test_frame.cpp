@@ -15,6 +15,43 @@ createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
 static modbus::DataChecker readCoilDataChecker = {
     modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
 
+TEST(modbusFrame, rtuMarshalFrame) {
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x11);
+
+  modbus::Request request;
+
+  request.setServerAddress(0x00);
+  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setData(access.marshalReadRequest());
+
+  auto rtuFrame = modbus::marshalRtuFrame(request.marshalAduWithoutCrc());
+  EXPECT_EQ(rtuFrame, modbus::ByteArray({0x00, modbus::FunctionCode::kReadCoils,
+                                         0x00, 0x01, 0x00, 0x11, 0xAC, 0x17}));
+}
+
+TEST(modbusFrame, asciiMarshalFrame) {
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x11);
+
+  modbus::Request request;
+
+  request.setServerAddress(0x00);
+  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setData(access.marshalReadRequest());
+
+  auto rtuFrame = modbus::marshalAsciiFrame(request.marshalAduWithoutCrc());
+  EXPECT_EQ(rtuFrame, modbus::ByteArray({':', 0x30, 0x30, 0x30, 0x31, 0x30,
+                                         0x30, 0x30, 0x31, 0x30, 0x30, 0x31,
+                                         0x31, 0x45, 0x44, '\r', '\n'}));
+}
+
 TEST(ModbusFrame, marshalRtuFrame_success) {
   modbus::SingleBitAccess access;
   std::unique_ptr<modbus::Frame> rtuFrame(new modbus::RtuFrame);
@@ -47,7 +84,31 @@ TEST(ModbusFrame, marshalAsciiFrame_success) {
   modbus::ByteArray frameArray = asciiFrame->marshal();
   EXPECT_THAT(frameArray,
               testing::ElementsAre(':', '0', '1', '0', '1', '0', '0', '1', '0',
-                                   '0', '0', '0', 'a', 'e', '4', '\r', '\n'));
+                                   '0', '0', '0', 'A', 'E', '4', '\r', '\n'));
+}
+
+TEST(ModbusFrame, unmarshalAsciiFrame_success) {
+
+  // rtu   - 0x01 0x01 0x02 0x33 0x33
+  // ascii - ":010102333396\r\n"
+  modbus::ByteArray data({':', '0', '1', '0', '1', '0', '2', '3', '3', '3', '3',
+                          '9', '6', '\r', '\n'});
+  modbus::Adu responseAdu;
+  responseAdu.setDataChecker(readCoilDataChecker);
+
+  modbus::AsciiFrame asciiFrame;
+  asciiFrame.setAdu(responseAdu);
+  modbus::Error error = modbus::Error::kNoError;
+  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 2), &error),
+            modbus::DataChecker::Result::kNeedMoreData);
+  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 5), &error),
+            modbus::DataChecker::Result::kNeedMoreData);
+  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 9), &error),
+            modbus::DataChecker::Result::kNeedMoreData);
+  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 11), &error),
+            modbus::DataChecker::Result::kNeedMoreData);
+  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 15), &error),
+            modbus::DataChecker::Result::kSizeOk);
 }
 
 static modbus::Adu
