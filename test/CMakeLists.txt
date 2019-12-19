@@ -28,7 +28,7 @@ set(src-list "./modbus_test_bytearray_dump.cpp"
   "./modbus_test_frame.cpp"
   "./modbus_test_request_response.cpp"
   "./modbus_test_serial_client.cpp"
-  "${modbus_root_dir}/include/modbus/tools/modbus_serial_client.h")
+  "${modbus_root_dir}/include/modbus/tools/modbus_client.h")
 
 add_executable(modbus_test ${src-list})
 target_link_libraries(modbus_test modbus)

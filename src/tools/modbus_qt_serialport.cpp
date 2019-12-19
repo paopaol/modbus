@@ -1,13 +1,13 @@
 
 #include <QtSerialPort/QSerialPort>
 
-#include <modbus/tools/modbus_serial_client.h>
+#include <modbus/tools/modbus_client.h>
 
 namespace modbus {
-class QtSerialPort : public AbstractSerialPort {
+class QtSerialPort : public AbstractIoDevice {
   Q_OBJECT
 public:
-  explicit QtSerialPort(QObject *parent = nullptr) : AbstractSerialPort(this) {
+  explicit QtSerialPort(QObject *parent = nullptr) : AbstractIoDevice(this) {
     setupEnvironment();
   }
   ~QtSerialPort() {}

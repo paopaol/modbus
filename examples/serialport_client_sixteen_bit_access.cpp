@@ -3,7 +3,7 @@
 #include <QTimer>
 #include <memory>
 #include <modbus/base/sixteen_bit_access.h>
-#include <modbus/tools/modbus_serial_client.h>
+#include <modbus/tools/modbus_client.h>
 
 static void usage();
 

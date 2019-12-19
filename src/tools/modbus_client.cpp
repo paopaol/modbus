@@ -1,4 +1,4 @@
-#include "modbus_serial_client_p.h"
+#include "modbus_client_p.h"
 #include <QTimer>
 #include <algorithm>
 #include <assert.h>
@@ -12,8 +12,8 @@ namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
-QModbusClient::QModbusClient(AbstractSerialPort *serialPort, QObject *parent)
-    : d_ptr(new QModbusClientPrivate(serialPort, this)), QObject(parent) {
+QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
+    : d_ptr(new QModbusClientPrivate(iodevice, this)), QObject(parent) {
   initMemberValues();
   setupEnvironment();
 }
@@ -24,28 +24,12 @@ QModbusClient::QModbusClient(QObject *parent)
   setupEnvironment();
 }
 
-QModbusClient::~QModbusClient() {
-  Q_D(QModbusClient);
-
-  if (isOpened()) {
-    close();
-  }
-  if (d->serialPort_) {
-    d->serialPort_->deleteLater();
-  }
-}
+QModbusClient::~QModbusClient() {}
 
 void QModbusClient::open() {
   Q_D(QModbusClient);
 
-  if (!isClosed()) {
-    log(LogLevel::kInfo,
-        d->serialPort_->name() + ": is already opened or opening or closing");
-    return;
-  }
-
-  d->connectionState_.setState(ConnectionState::kOpening);
-  d->serialPort_->open();
+  d->device_.open();
   return;
 }
 
@@ -55,29 +39,14 @@ void QModbusClient::open() {
  */
 void QModbusClient::close() {
   Q_D(QModbusClient);
-  d->forceClose_ = true;
-  closeNotClearOpenRetrys();
-}
-
-void QModbusClient::closeNotClearOpenRetrys() {
-  Q_D(QModbusClient);
-
-  if (!isOpened()) {
-    log(LogLevel::kInfo,
-        d->serialPort_->name() + ": is already closed or closing or opening");
-    return;
-  }
-
-  d->connectionState_.setState(ConnectionState::kClosing);
-  d->serialPort_->close();
+  d->device_.close();
 }
 
 void QModbusClient::sendRequest(const Request &request) {
   Q_D(QModbusClient);
 
   if (!isOpened()) {
-    log(LogLevel::kWarning,
-        d->serialPort_->name() + " closed, discard reuqest");
+    log(LogLevel::kWarning, d->device_.name() + " closed, discard reuqest");
     return;
   }
 
@@ -95,21 +64,19 @@ void QModbusClient::sendRequest(const Request &request) {
   d->enqueueElement(element);
 }
 
+bool QModbusClient::isIdle() {
+  Q_D(QModbusClient);
+  return d->sessionState_.state() == SessionState::kIdle;
+}
+
 bool QModbusClient::isClosed() {
   Q_D(QModbusClient);
-
-  return d->connectionState_.state() == ConnectionState::kClosed;
+  return d->device_.isClosed();
 }
 
 bool QModbusClient::isOpened() {
   Q_D(QModbusClient);
-
-  return d->connectionState_.state() == ConnectionState::kOpened;
-}
-
-bool QModbusClient::isIdle() {
-  Q_D(QModbusClient);
-  return d->sessionState_.state() == SessionState::kIdle;
+  return d->device_.isOpened();
 }
 
 void QModbusClient::setupEnvironment() {
@@ -117,19 +84,22 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Response>("Response");
   Q_D(QModbusClient);
 
-  assert(d->serialPort_ && "the serialport backend is invalid");
-  connect(d->serialPort_, &AbstractSerialPort::opened, this,
-          &QModbusClient::onSerialPortOpened);
-  connect(d->serialPort_, &AbstractSerialPort::closed, this,
-          &QModbusClient::onSerialPortClosed);
-  connect(d->serialPort_, &AbstractSerialPort::error, this,
-          &QModbusClient::onSerialPortError);
-  connect(d->serialPort_, &AbstractSerialPort::bytesWritten, this,
-          &QModbusClient::onSerialPortBytesWritten);
-  connect(d->serialPort_, &AbstractSerialPort::readyRead, this,
-          &QModbusClient::onSerialPortReadyRead);
+  connect(&d->device_, &ReconnectableIoDevice::opened, this,
+          &QModbusClient::clientOpened);
+  connect(&d->device_, &ReconnectableIoDevice::closed, this,
+          &QModbusClient::clientClosed);
+  connect(&d->device_, &ReconnectableIoDevice::error, this,
+          &QModbusClient::clearPendingRequest);
+  connect(&d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+          this, &QModbusClient::clearPendingRequest);
+  connect(&d->device_, &ReconnectableIoDevice::error, this,
+          &QModbusClient::onIoDeviceError);
+  connect(&d->device_, &ReconnectableIoDevice::bytesWritten, this,
+          &QModbusClient::onIoDeviceBytesWritten);
+  connect(&d->device_, &ReconnectableIoDevice::readyRead, this,
+          &QModbusClient::onIoDeviceReadyRead);
   connect(&d->waitResponseTimer_, &QTimer::timeout, this,
-          &QModbusClient::onSerialPortResponseTimeout);
+          &QModbusClient::onIoDeviceResponseTimeout);
 }
 
 void QModbusClient::setTimeout(uint64_t timeout) {
@@ -169,25 +139,17 @@ int QModbusClient::retryTimes() {
 
 void QModbusClient::setOpenRetryTimes(int retryTimes, int delay) {
   Q_D(QModbusClient);
-  if (retryTimes < 0) {
-    retryTimes = kBrokenLineReconnection;
-  }
-  d->openRetryTimes_ = retryTimes;
-
-  if (delay < 0) {
-    delay = 0;
-  }
-  d->reopenDelay_ = delay;
+  d->device_.setOpenRetryTimes(retryTimes, delay);
 }
 
 int QModbusClient::openRetryTimes() {
   Q_D(QModbusClient);
-  return d->openRetryTimes_;
+  return d->device_.openRetryTimes();
 }
 
 int QModbusClient::openRetryDelay() {
   Q_D(QModbusClient);
-  return d->reopenDelay_;
+  return d->device_.openRetryDelay();
 }
 
 void QModbusClient::setFrameInterval(int frameInterval) {
@@ -218,18 +180,15 @@ QString QModbusClient::errorString() {
 void QModbusClient::initMemberValues() {
   Q_D(QModbusClient);
 
-  d->connectionState_.setState(ConnectionState::kClosed);
   d->sessionState_.setState(SessionState::kIdle);
   d->waitConversionDelay_ = 200;
   d->t3_5_ = 60;
   d->waitResponseTimeout_ = 1000;
   d->retryTimes_ = 0; /// default no retry
-  d->openRetryTimes_ = 0;
-  d->reopenDelay_ = 1000;
   d->transferMode_ = TransferMode::kRtu;
 }
 
-void QModbusClient::onSerialPortResponseTimeout() {
+void QModbusClient::onIoDeviceResponseTimeout() {
   Q_D(QModbusClient);
   assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
@@ -247,14 +206,13 @@ void QModbusClient::onSerialPortResponseTimeout() {
 
   if (element.retryTimes-- > 0) {
     log(LogLevel::kWarning,
-        d->serialPort_->name() +
+        d->device_.name() +
             ": waiting response timeout, retry it, retrytimes " +
             std::to_string(element.retryTimes));
 
     d->scheduleNextRequest(d->t3_5_);
   } else {
-    log(LogLevel::kWarning,
-        d->serialPort_->name() + ": waiting response timeout");
+    log(LogLevel::kWarning, d->device_.name() + ": waiting response timeout");
 
     auto request = element.request;
     auto response = element.response;
@@ -268,7 +226,7 @@ void QModbusClient::onSerialPortResponseTimeout() {
   }
 }
 
-void QModbusClient::onSerialPortReadyRead() {
+void QModbusClient::onIoDeviceReadyRead() {
   Q_D(QModbusClient);
 
   /**
@@ -276,17 +234,17 @@ void QModbusClient::onSerialPortReadyRead() {
    * state. Therefore, if data is received but not in the wait-response state,
    * then this data is not what we want,discard them
    */
-  auto qdata = d->serialPort_->readAll();
+  auto qdata = d->device_.readAll();
   if (d->sessionState_.state() != SessionState::kWaitingResponse) {
     ByteArray data;
     appendQByteArray(data, qdata);
     std::stringstream stream;
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
-        d->serialPort_->name() + " now state is in " + stream.str() +
+        d->device_.name() + " now state is in " + stream.str() +
             ".got unexpected data, discard them." + "[" + d->dump(data) + "]");
 
-    d->serialPort_->clear();
+    d->device_.clear();
     return;
   }
 
@@ -302,7 +260,7 @@ void QModbusClient::onSerialPortReadyRead() {
   Error error = Error::kNoError;
   auto result = element.responseFrame->unmarshal(dataRecived, &error);
   if (result != DataChecker::Result::kSizeOk) {
-    log(LogLevel::kWarning, d->serialPort_->name() + ":need more data." + "[" +
+    log(LogLevel::kWarning, d->device_.name() + ":need more data." + "[" +
                                 d->dump(dataRecived) + "]");
     return;
   }
@@ -317,7 +275,7 @@ void QModbusClient::onSerialPortReadyRead() {
    */
   if (response.serverAddress() != request.serverAddress()) {
     log(LogLevel::kWarning,
-        d->serialPort_->name() +
+        d->device_.name() +
             ":got response, unexpected serveraddress, discard it.[" +
             d->dump(dataRecived) + "]");
 
@@ -328,8 +286,7 @@ void QModbusClient::onSerialPortReadyRead() {
   d->waitResponseTimer_.stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  log(LogLevel::kDebug,
-      d->serialPort_->name() + " recived " + d->dump(dataRecived));
+  log(LogLevel::kDebug, d->device_.name() + " recived " + d->dump(dataRecived));
 
   /**
    * Pop at the end
@@ -339,7 +296,7 @@ void QModbusClient::onSerialPortReadyRead() {
   d->scheduleNextRequest(d->t3_5_);
 }
 
-void QModbusClient::onSerialPortBytesWritten(qint16 bytes) {
+void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
   Q_D(QModbusClient);
 
   assert(d->sessionState_.state() == SessionState::kSendingRequest &&
@@ -360,7 +317,7 @@ void QModbusClient::onSerialPortBytesWritten(qint16 bytes) {
     d->scheduleNextRequest(d->waitConversionDelay_);
 
     log(LogLevel::kWarning,
-        d->serialPort_->name() + " brocast request, turn into idle status");
+        d->device_.name() + " brocast request, turn into idle status");
     return;
   }
 
@@ -377,16 +334,10 @@ void QModbusClient::onSerialPortBytesWritten(qint16 bytes) {
   d->waitResponseTimer_.start();
 }
 
-void QModbusClient::onSerialPortError(const QString &errorString) {
+void QModbusClient::onIoDeviceError(const QString &errorString) {
   Q_D(QModbusClient);
 
   d->errorString_ = errorString;
-  /**
-   * no error
-   */
-  if (d->errorString_.isEmpty()) {
-    return;
-  }
 
   switch (d->sessionState_.state()) {
   case SessionState::kWaitingResponse:
@@ -396,51 +347,7 @@ void QModbusClient::onSerialPortError(const QString &errorString) {
   }
 
   d->sessionState_.setState(SessionState::kIdle);
-  if (d->openRetryTimes_ == 0) {
-    emit errorOccur(errorString);
-  }
-  log(LogLevel::kWarning,
-      d->serialPort_->name() + " " + errorString.toStdString());
-  if (isOpened()) {
-    closeNotClearOpenRetrys();
-  } else {
-    onSerialPortClosed();
-  }
-} // namespace modbus
-
-void QModbusClient::onSerialPortClosed() {
-  Q_D(QModbusClient);
-  d->connectionState_.setState(ConnectionState::kClosed);
-  /**
-   * closed final,clear all pending request
-   */
-  clearPendingRequest();
-
-  /// force close, do not check reconnect
-  if (d->forceClose_) {
-    d->forceClose_ = false;
-    emit clientClosed();
-    return;
-  }
-
-  // check reconnect
-  if (d->openRetryTimes_ == 0) {
-    emit clientClosed();
-    return;
-  }
-
-  /// do reconnect
-  log(LogLevel::kWarning, d->serialPort_->name() +
-                              " closed, try reconnect after " +
-                              std::to_string(d->reopenDelay_) + "ms");
-  d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
-  QTimer::singleShot(d->reopenDelay_, this, &QModbusClient::open);
-}
-
-void QModbusClient::onSerialPortOpened() {
-  Q_D(QModbusClient);
-  d->connectionState_.setState(ConnectionState::kOpened);
-  emit clientOpened();
+  emit errorOccur(errorString);
 }
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {

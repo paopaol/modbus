@@ -54,7 +54,7 @@ a modbus library for c++11,using qt
 #include <QCoreApplication>
 #include <QDebug>
 #include <modbus/base/single_bit_access.h>
-#include <modbus/tools/modbus_serial_client.h>
+#include <modbus/tools/modbus_client.h>
 
 static QString modbusBitValueToString(modbus::BitValue value);
 
