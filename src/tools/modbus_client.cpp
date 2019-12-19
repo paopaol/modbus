@@ -209,8 +209,6 @@ void QModbusClient::onIoDeviceResponseTimeout() {
         d->device_.name() +
             ": waiting response timeout, retry it, retrytimes " +
             std::to_string(element.retryTimes));
-
-    d->scheduleNextRequest(d->t3_5_);
   } else {
     log(LogLevel::kWarning, d->device_.name() + ": waiting response timeout");
 
@@ -222,8 +220,8 @@ void QModbusClient::onIoDeviceResponseTimeout() {
     d->elementQueue_.pop();
     response.setError(modbus::Error::kTimeout);
     emit requestFinished(request, response);
-    d->scheduleNextRequest(d->t3_5_);
   }
+  d->scheduleNextRequest(d->t3_5_);
 }
 
 void QModbusClient::onIoDeviceReadyRead() {
