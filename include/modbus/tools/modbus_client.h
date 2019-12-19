@@ -1,19 +1,20 @@
-#ifndef __MODBUS_SERIAL_CLIENT_H_
-#define __MODBUS_SERIAL_CLIENT_H_
+#ifndef __MODBUS_CLIENT_H_
+#define __MODBUS_CLIENT_H_
 
 #include "modbus/base/modbus.h"
 #include <QObject>
 #include <QScopedPointer>
+#include <QTimer>
 #include <QtSerialPort/QSerialPort>
 #include <queue>
 
 namespace modbus {
 
-class AbstractSerialPort : public QObject {
+class AbstractIoDevice : public QObject {
   Q_OBJECT
 public:
-  AbstractSerialPort(QObject *parent = nullptr) {}
-  virtual ~AbstractSerialPort() {}
+  AbstractIoDevice(QObject *parent = nullptr) : QObject(parent) {}
+  virtual ~AbstractIoDevice() {}
   virtual void open() = 0;
   virtual void close() = 0;
   virtual void write(const char *data, size_t size) = 0;
@@ -28,14 +29,55 @@ signals:
   void readyRead();
 };
 
+class ReconnectableIoDevicePrivate;
+class ReconnectableIoDevice : public QObject {
+  Q_OBJECT
+  Q_DECLARE_PRIVATE(ReconnectableIoDevice);
+
+public:
+  static const int kBrokenLineReconnection = -1;
+  ReconnectableIoDevice(QObject *parent = nullptr);
+  ReconnectableIoDevice(AbstractIoDevice *iodevice, QObject *parent = nullptr);
+  ~ReconnectableIoDevice();
+  void setOpenRetryTimes(int retryTimes, int delay);
+  int openRetryTimes();
+  int openRetryDelay();
+
+  void open();
+  void close();
+  void write(const char *data, size_t size);
+  QByteArray readAll();
+  void clear();
+  std::string name();
+
+  bool isOpened();
+  bool isClosed();
+signals:
+  void opened();
+  void closed();
+  void error(const QString &errorString);
+  void bytesWritten(qint64 bytes);
+  void readyRead();
+  void connectionIsLostWillReconnect();
+
+private:
+  void setupEnvironment();
+  void onIoDeviceOpened();
+  void onIoDeviceClosed();
+
+  void onIoDeviceError(const QString &errorString);
+  void closeButNotSetForceCloseFlag();
+
+  QScopedPointer<ReconnectableIoDevicePrivate> d_ptr;
+};
+
 class QModbusClientPrivate;
-class QModbusClient:public QObject {
+class QModbusClient : public QObject {
   Q_OBJECT
   Q_DECLARE_PRIVATE(QModbusClient);
 
 public:
-  static const int kBrokenLineReconnection = -1;
-  QModbusClient(AbstractSerialPort *serialPort, QObject *parent = nullptr);
+  QModbusClient(AbstractIoDevice *iodevice, QObject *parent = nullptr);
   QModbusClient(QObject *parent = nullptr);
   ~QModbusClient();
 
@@ -82,12 +124,10 @@ private:
   void initMemberValues();
   void closeNotClearOpenRetrys();
 
-  void onSerialPortOpened();
-  void onSerialPortClosed();
-  void onSerialPortError(const QString &errorString);
-  void onSerialPortBytesWritten(qint16 bytes);
-  void onSerialPortReadyRead();
-  void onSerialPortResponseTimeout();
+  void onIoDeviceError(const QString &errorString);
+  void onIoDeviceBytesWritten(qint16 bytes);
+  void onIoDeviceReadyRead();
+  void onIoDeviceResponseTimeout();
   void clearPendingRequest();
 
   QScopedPointer<QModbusClientPrivate> d_ptr;
@@ -104,4 +144,4 @@ newQtSerialClient(const QString &serialName,
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
 
-#endif // __MODBUS_SERIAL_CLIENT_H_
+#endif // __MODBUS_CLIENT_H_

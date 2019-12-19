@@ -717,10 +717,9 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
         .WillOnce(testing::Invoke([&](const char *data, size_t size) {
           serialPort->error("write error, just fot test");
         }));
-    serialClient.setOpenRetryTimes(3, 2000);
     serialClient.open();
     serialClient.sendRequest(session.request);
-    spy.wait(20000);
+    spy.wait(10000);
     EXPECT_EQ(spy.count(), 0);
     EXPECT_EQ(serialClient.pendingRequestSize(), 0);
   }

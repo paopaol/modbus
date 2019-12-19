@@ -5,8 +5,9 @@ set(src-files
   "./base/modbus_logger.h"
   "./base/modbus_sixteen_bit_access_process.cpp"
   "./base/modbus_single_bit_access_process.cpp"
-  "./tools/modbus_serial_client.cpp"
-  "./tools/modbus_serial_client_p.h"
+  "./tools/modbus_client.cpp"
+  "./tools/modbus_reconnectable_iodevice.cpp"
+  "./tools/modbus_client_p.h"
   "./tools/modbus_qt_serialport.cpp")
 
 add_library(modbus ${src-files})

@@ -6,7 +6,7 @@
 #include <base/modbus_logger.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
-#include <modbus/tools/modbus_serial_client.h>
+#include <modbus/tools/modbus_client.h>
 #include <queue>
 
 namespace modbus {
@@ -34,9 +34,9 @@ inline std::ostream &operator<<(std::ostream &output,
 class QModbusClientPrivate : public QObject {
   Q_OBJECT
 public:
-  QModbusClientPrivate(AbstractSerialPort *serialPort,
-                       QObject *parent = nullptr)
-      : serialPort_(serialPort), QObject(parent) {}
+  QModbusClientPrivate(AbstractIoDevice *serialPort, QObject *parent = nullptr)
+      : device_(serialPort, this), QObject(parent) {
+  }
 
   void enqueueElement(const Element &element) {
     elementQueue_.push(element);
@@ -70,8 +70,8 @@ public:
       auto &ele = elementQueue_.front();
       auto data = ele.requestFrame->marshal();
 
-      log(LogLevel::kDebug, serialPort_->name() + " will send: " + dump(data));
-      serialPort_->write((const char *)data.data(), data.size());
+      log(LogLevel::kDebug, device_.name() + " will send: " + dump(data));
+      device_.write((const char *)data.data(), data.size());
     });
   }
 
@@ -91,25 +91,37 @@ public:
    * removed.
    */
   ElementQueue elementQueue_;
-  StateManager<ConnectionState> connectionState_;
   StateManager<SessionState> sessionState_;
-  AbstractSerialPort *serialPort_ = nullptr;
+  ReconnectableIoDevice device_;
   int waitConversionDelay_;
   int t3_5_;
   int waitResponseTimeout_;
   int retryTimes_;
   QTimer waitResponseTimer_;
-  int openRetryTimes_;
-  int reopenDelay_;
-  /**
-   * if user call QModbusClient::close(), this is force close
-   * if the connection broken,the device is closed, this is not force close
-   */
-  bool forceClose_ = false;
   QString errorString_;
 
   /// the default transfer mode must be rtu mode
   TransferMode transferMode_;
+};
+
+class ReconnectableIoDevicePrivate : public QObject {
+  Q_OBJECT
+public:
+  ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
+                               QObject *parent = nullptr)
+      : ioDevice_(iodevice), QObject(parent) {}
+  ~ReconnectableIoDevicePrivate() {}
+
+  int openRetryTimes_ = 0;
+  int reopenDelay_ = 1000;
+  AbstractIoDevice *ioDevice_;
+  /**
+   * if user call ReconnectableIoDevice::close(), this is force close
+   * if the connection broken,the device is closed, this is not force close
+   */
+  bool forceClose_ = false;
+  StateManager<ConnectionState> connectionState_;
+  QString errorString_;
 };
 
 } // namespace modbus
