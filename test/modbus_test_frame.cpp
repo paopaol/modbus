@@ -111,6 +111,65 @@ TEST(ModbusFrame, unmarshalAsciiFrame_success) {
             modbus::DataChecker::Result::kSizeOk);
 }
 
+TEST(ModbusFrame, MbapFrame_marshalSize_success) {
+  modbus::SingleBitAccess access;
+  access.setStartAddress(0x00);
+  access.setQuantity(2);
+
+  modbus::Adu adu =
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access);
+
+  modbus::MbapFrame frame;
+  frame.setAdu(adu);
+
+  EXPECT_EQ(frame.marshalSize(), 12);
+}
+
+TEST(ModbusFrame, MbapFrame_marshal_success) {
+  modbus::SingleBitAccess access;
+  access.setStartAddress(0x00);
+  access.setQuantity(2);
+
+  modbus::Adu adu =
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access);
+
+  modbus::MbapFrame frame;
+  frame.setAdu(adu);
+
+  EXPECT_THAT(frame.marshal(),
+              testing::ElementsAre(0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
+                                   modbus::FunctionCode::kReadCoils, 0x00, 0x00,
+                                   0x00, 0x02));
+}
+
+TEST(Modbusframe, MbapFrame_unmrshal_success) {
+  modbus::Adu adu;
+  adu.setDataChecker(readCoilDataChecker);
+
+  modbus::Error error = modbus::Error::kNoError;
+  modbus::MbapFrame frame;
+  frame.setAdu(adu);
+
+  auto result = frame.unmarshal(
+      modbus::ByteArray({{0x00, 0x00, 0x00, 0x00, 0x00}}), &error);
+  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
+
+  result = frame.unmarshal(
+      modbus::ByteArray({{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
+                          modbus::FunctionCode::kReadCoils}}),
+      &error);
+  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
+
+  result = frame.unmarshal(
+      modbus::ByteArray(
+          {{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
+            modbus::FunctionCode::kReadCoils, 0x00, 0x00, 0x00, 0x02}}),
+      &error);
+
+  EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
+  EXPECT_EQ(error, modbus::Error::kNoError);
+}
+
 static modbus::Adu
 createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
                          modbus::FunctionCode functionCode,
