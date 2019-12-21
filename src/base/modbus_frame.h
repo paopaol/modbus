@@ -5,6 +5,7 @@
 #include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
+#include <mutex>
 
 namespace modbus {
 static void appendStdString(ByteArray &array, const std::string &subString) {
@@ -159,6 +160,77 @@ private:
   static const int kColonSize = 1; //':'
   static const int kLrcHexSize = 2;
   static const int kCRLRSize = 2;
+};
+
+class MbapFrame : public Frame {
+public:
+  MbapFrame() {}
+  ~MbapFrame() {}
+
+  size_t marshalSize() override {
+    return kTransactionMetaIdSize + kProtocolIdSize + kLenSize +
+           adu_.marshalSize();
+  }
+  ByteArray marshal() override {
+    ByteArray output;
+
+    TransactionId id = nextTransactionId();
+
+    /// transaction meta id
+    output.push_back(id / 256);
+    output.push_back(id % 256);
+
+    /// protocol id
+    output.push_back(kProtocolId / 256);
+    output.push_back(kProtocolId % 256);
+
+    /// len
+    size_t aduSize = adu_.marshalSize();
+    output.push_back(aduSize / 256);
+    output.push_back(aduSize % 256);
+
+    ByteArray aduArray = adu_.marshalAduWithoutCrc();
+    output.insert(output.end(), aduArray.begin(), aduArray.end());
+
+    return output;
+  }
+
+  DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
+    if (data.size() < 6) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    TransactionId transactionId = data[0] * 256 + data[1];
+    uint16_t protocolId = data[2] * 256 + data[3];
+    uint16_t size = data[4] * 256 + data[5];
+    uint16_t totalSize = 6 + size;
+    if (data.size() < totalSize) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    auto result = unmarshalAdu(tool::subArray(data, 6), &adu_, error);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+    if (adu_.isException()) {
+      *error = Error(adu_.data()[0]);
+    }
+    return DataChecker::Result::kSizeOk;
+  }
+
+private:
+  using TransactionId = uint16_t;
+
+  static TransactionId nextTransactionId() {
+    static std::mutex mutex_;
+    static TransactionId nextId = 0;
+
+    std::lock_guard<std::mutex> l(mutex_);
+    return nextId++;
+  }
+
+  static const int kTransactionMetaIdSize = 2;
+  static const int kProtocolIdSize = 2;
+  static const int kLenSize = 2;
+  static const int kProtocolId = 0;
 };
 
 } // namespace modbus
