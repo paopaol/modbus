@@ -7,7 +7,7 @@ namespace modbus {
 class QtSerialPort : public AbstractIoDevice {
   Q_OBJECT
 public:
-  explicit QtSerialPort(QObject *parent = nullptr) : AbstractIoDevice(this) {
+  explicit QtSerialPort(QObject *parent = nullptr) : AbstractIoDevice(parent) {
     setupEnvironment();
   }
   ~QtSerialPort() {}
