@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QScopedPointer>
 #include <QTimer>
+#include <QtNetwork/QAbstractSocket>
 #include <QtSerialPort/QSerialPort>
 #include <queue>
 
@@ -140,6 +141,11 @@ newQtSerialClient(const QString &serialName,
                   QSerialPort::Parity parity = QSerialPort::NoParity,
                   QSerialPort::StopBits stopBits = QSerialPort::OneStop,
                   QObject *parent = nullptr);
+
+QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
+                               const QString &hostName, quint16 port,
+                               QObject *parent = nullptr);
+
 } // namespace modbus
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);

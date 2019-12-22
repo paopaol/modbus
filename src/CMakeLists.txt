@@ -8,6 +8,7 @@ set(src-files
   "./tools/modbus_client.cpp"
   "./tools/modbus_reconnectable_iodevice.cpp"
   "./tools/modbus_client_p.h"
+  "./tools/modbus_qt_socket.cpp"
   "./tools/modbus_qt_serialport.cpp")
 
 add_library(modbus ${src-files})
@@ -15,3 +16,4 @@ target_include_directories(modbus PRIVATE ".")
 target_include_directories(modbus PRIVATE "./base")
 target_link_libraries(modbus PUBLIC Qt5::Core)
 target_link_libraries(modbus PUBLIC Qt5::SerialPort)
+target_link_libraries(modbus PUBLIC Qt5::Network)
