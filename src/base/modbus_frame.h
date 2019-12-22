@@ -162,7 +162,7 @@ private:
   static const int kCRLRSize = 2;
 };
 
-class MbapFrame : public Frame {
+class MbapFrame final : public Frame {
 public:
   MbapFrame() {}
   ~MbapFrame() {}
