@@ -1,5 +1,5 @@
-#include "modbus_client_types.h"
 #include "modbus_client_p.h"
+#include "modbus_client_types.h"
 #include <assert.h>
 #include <base/modbus_logger.h>
 #include <modbus/tools/modbus_client.h>
@@ -34,6 +34,7 @@ void ReconnectableIoDevice::setOpenRetryTimes(int retryTimes, int delay) {
     retryTimes = kBrokenLineReconnection;
   }
   d->openRetryTimes_ = retryTimes;
+  d->openRetryTimesBack_ = retryTimes;
 
   if (delay < 0) {
     delay = 0;
@@ -102,6 +103,7 @@ void ReconnectableIoDevice::setupEnvironment() {
 void ReconnectableIoDevice::onIoDeviceOpened() {
   Q_D(ReconnectableIoDevice);
   d->connectionState_.setState(ConnectionState::kOpened);
+  d->openRetryTimes_ = d->openRetryTimesBack_;
   emit opened();
 }
 

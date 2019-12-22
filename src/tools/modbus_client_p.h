@@ -35,8 +35,8 @@ class QModbusClientPrivate : public QObject {
   Q_OBJECT
 public:
   QModbusClientPrivate(AbstractIoDevice *serialPort, QObject *parent = nullptr)
-      : device_(serialPort, this), QObject(parent) {
-  }
+      : device_(serialPort, this), QObject(parent) {}
+  ~QModbusClientPrivate() {}
 
   void enqueueElement(const Element &element) {
     elementQueue_.push(element);
@@ -113,6 +113,7 @@ public:
   ~ReconnectableIoDevicePrivate() {}
 
   int openRetryTimes_ = 0;
+  int openRetryTimesBack_ = 0;
   int reopenDelay_ = 1000;
   AbstractIoDevice *ioDevice_;
   /**
