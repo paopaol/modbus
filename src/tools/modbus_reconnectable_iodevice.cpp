@@ -54,6 +54,15 @@ int ReconnectableIoDevice::openRetryDelay() {
 
 void ReconnectableIoDevice::open() {
   Q_D(ReconnectableIoDevice);
+
+  if (!isClosed()) {
+    log(LogLevel::kInfo,
+        d->ioDevice_->name() + ": is already opened or opening or closing");
+    return;
+  }
+
+  d->connectionState_.setState(ConnectionState::kOpening);
+
   d->ioDevice_->open();
 }
 
