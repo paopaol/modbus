@@ -7,17 +7,14 @@
 #include <modbus/tools/modbus_client.h>
 
 namespace modbus {
-class QtSocket : public AbstractIoDevice {
+class QtTcpSocket : public AbstractIoDevice {
   Q_OBJECT
 public:
-  QtSocket(QAbstractSocket::SocketType socketType, QObject *parent = nullptr)
-      : socket_(nullptr), AbstractIoDevice(parent) {
-    socket_ = (socketType == QAbstractSocket::UdpSocket)
-                  ? static_cast<QAbstractSocket *>(new QUdpSocket(this))
-                  : static_cast<QAbstractSocket *>(new QTcpSocket(this));
+  QtTcpSocket(QObject *parent = nullptr)
+      : socket_(new QTcpSocket(this)), AbstractIoDevice(parent) {
     setupEnvironment();
   }
-  ~QtSocket() {
+  ~QtTcpSocket() {
     if (socket_->isOpen()) {
       socket_->close();
     }
@@ -53,8 +50,9 @@ public:
 private:
   void setupEnvironment() {
     socket_->socketOption(QAbstractSocket::KeepAliveOption);
-    connect(socket_, &QAbstractSocket::disconnected, this, &QtSocket::closed);
-    connect(socket_, &QAbstractSocket::connected, this, &QtSocket::opened);
+    connect(socket_, &QAbstractSocket::disconnected, this,
+            &QtTcpSocket::closed);
+    connect(socket_, &QAbstractSocket::connected, this, &QtTcpSocket::opened);
 #if (QT_VERSION <= QT_VERSION_CHECK(5, 6, 1))
     connect(
         socket_,
@@ -68,23 +66,104 @@ private:
           emit error(socket_->errorString());
         });
     connect(socket_, &QAbstractSocket::bytesWritten, this,
-            &QtSocket::bytesWritten);
-    connect(socket_, &QAbstractSocket::readyRead, this, &QtSocket::readyRead);
+            &QtTcpSocket::bytesWritten);
+    connect(socket_, &QAbstractSocket::readyRead, this,
+            &QtTcpSocket::readyRead);
   }
 
   QString hostName_;
   quint16 port_;
-  QAbstractSocket *socket_;
+  QTcpSocket *socket_;
+};
+
+class QtUdpSocket : public AbstractIoDevice {
+  Q_OBJECT
+public:
+  QtUdpSocket(QObject *parent = nullptr)
+      : socket_(new QUdpSocket(this)), AbstractIoDevice(parent) {
+    setupEnvironment();
+  }
+  ~QtUdpSocket() { socket_->deleteLater(); }
+
+  void setHostName(const QString &hostName) { hostName_ = hostName; }
+
+  void setPort(quint16 port) { port_ = port; }
+
+  std::string name() override {
+    return QString("%1:%2").arg(hostName_).arg(port_).toStdString();
+  }
+
+  void open() override {
+    emit opened();
+    return;
+  }
+
+  void close() override {
+    emit closed();
+    return;
+  }
+
+  void write(const char *data, size_t size) override {
+    socket_->writeDatagram(data, size, QHostAddress(hostName_), port_);
+  }
+
+  QByteArray readAll() override {
+    QByteArray datagram;
+
+    do {
+      datagram.resize(socket_->pendingDatagramSize());
+      socket_->readDatagram(datagram.data(), datagram.size());
+    } while (socket_->hasPendingDatagrams());
+    return datagram;
+  }
+
+  void clear() override {}
+
+private:
+  void setupEnvironment() {
+    socket_->bind(port_);
+
+#if (QT_VERSION <= QT_VERSION_CHECK(5, 6, 1))
+    connect(
+        socket_,
+        static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
+            &QAbstractSocket::error),
+        this, [&](QAbstractSocket::SocketError err) {
+#else
+    connect(socket_, &QAbstractSocket::errorOccurred, this,
+            [&](QAbstractSocket::SocketError err) {
+#endif
+          emit error(socket_->errorString());
+        });
+    connect(socket_, &QAbstractSocket::bytesWritten, this,
+            &QtUdpSocket::bytesWritten);
+    connect(socket_, &QAbstractSocket::readyRead, this,
+            &QtUdpSocket::readyRead);
+  }
+
+  QString hostName_;
+  quint16 port_;
+  QUdpSocket *socket_;
 };
 
 QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
                                const QString &hostName, quint16 port,
                                QObject *parent) {
-  QtSocket *socket = new QtSocket(type, parent);
-  socket->setHostName(hostName);
-  socket->setPort(port);
 
-  QModbusClient *client = new QModbusClient(socket, parent);
+  AbstractIoDevice *ioDevice = nullptr;
+  if (type == QAbstractSocket::TcpSocket) {
+    QtTcpSocket *socket = new QtTcpSocket(parent);
+    socket->setHostName(hostName);
+    socket->setPort(port);
+    ioDevice = socket;
+  } else {
+    QtUdpSocket *socket = new QtUdpSocket(parent);
+    socket->setHostName(hostName);
+    socket->setPort(port);
+    ioDevice = socket;
+  }
+
+  QModbusClient *client = new QModbusClient(ioDevice, parent);
   client->setTransferMode(TransferMode::kMbap);
   return client;
 }
