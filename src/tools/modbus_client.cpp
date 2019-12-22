@@ -206,8 +206,7 @@ void QModbusClient::onIoDeviceResponseTimeout() {
 
   if (element.retryTimes-- > 0) {
     log(LogLevel::kWarning,
-        d->device_.name() +
-            ": waiting response timeout, retry it, retrytimes " +
+        d->device_.name() + " waiting response timeout, retry it, retrytimes " +
             std::to_string(element.retryTimes));
   } else {
     log(LogLevel::kWarning, d->device_.name() + ": waiting response timeout");
@@ -360,6 +359,8 @@ std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
     return std::make_shared<RtuFrame>();
   case TransferMode::kAscii:
     return std::make_shared<AsciiFrame>();
+  case TransferMode::kMbap:
+    return std::make_shared<MbapFrame>();
   default:
     smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
     return nullptr;
