@@ -64,6 +64,14 @@ void QModbusClient::sendRequest(const Request &request) {
   d->enqueueElement(element);
 }
 
+void QModbusClient::readRegisters(modbus::ServerAddress serverAddress,
+                                  modbus::FunctionCode functionCode,
+                                  const modbus::SixteenBitAccess &access) {
+  auto request =
+      createReadRegistersRequest(serverAddress, functionCode, access);
+  sendRequest(request);
+}
+
 bool QModbusClient::isIdle() {
   Q_D(QModbusClient);
   return d->sessionState_.state() == SessionState::kIdle;
@@ -82,6 +90,7 @@ bool QModbusClient::isOpened() {
 void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
+  qRegisterMetaType<SixteenBitAccess>("SixteenBitAccess");
   Q_D(QModbusClient);
 
   connect(&d->device_, &ReconnectableIoDevice::opened, this,
@@ -100,6 +109,8 @@ void QModbusClient::setupEnvironment() {
           &QModbusClient::onIoDeviceReadyRead);
   connect(&d->waitResponseTimer_, &QTimer::timeout, this,
           &QModbusClient::onIoDeviceResponseTimeout);
+  connect(this, &QModbusClient::requestFinished, this,
+          &QModbusClient::processResponseAnyFunctionCode);
 }
 
 void QModbusClient::setTimeout(uint64_t timeout) {
@@ -345,6 +356,21 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
 
   d->sessionState_.setState(SessionState::kIdle);
   emit errorOccur(errorString);
+}
+
+void QModbusClient::processResponseAnyFunctionCode(
+    const modbus::Request &request, const modbus::Response &response) {
+  switch (request.functionCode()) {
+  case FunctionCode::kReadHoldingRegisters:
+  case FunctionCode::kReadInputRegister: {
+    modbus::SixteenBitAccess access;
+    modbus::processReadRegisters(request, response, &access);
+    emit readRegistersFinished(request, response, access);
+    return;
+  }
+  default:
+    return;
+  }
 }
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {

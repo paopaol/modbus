@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QtNetwork/QAbstractSocket>
 #include <QtSerialPort/QSerialPort>
+#include <modbus/base/sixteen_bit_access.h>
 #include <queue>
 
 namespace modbus {
@@ -88,6 +89,13 @@ public:
    * if the connection is not opened, the request will dropped
    */
   void sendRequest(const Request &request);
+
+  /**
+   * sixteem bit access, for function code 3/4
+   */
+  void readRegisters(ServerAddress serverAddress, FunctionCode functionCode,
+                     const SixteenBitAccess &access);
+
   bool isIdle();
 
   bool isClosed();
@@ -118,6 +126,8 @@ signals:
   void clientClosed();
   void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
+  void readRegistersFinished(const Request &request, const Response &response,
+                             const SixteenBitAccess &access);
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);
@@ -130,6 +140,8 @@ private:
   void onIoDeviceReadyRead();
   void onIoDeviceResponseTimeout();
   void clearPendingRequest();
+  void processResponseAnyFunctionCode(const Request &request,
+                                      const Response &response);
 
   QScopedPointer<QModbusClientPrivate> d_ptr;
 };
@@ -149,5 +161,6 @@ QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
 } // namespace modbus
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
+Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
 
 #endif // __MODBUS_CLIENT_H_

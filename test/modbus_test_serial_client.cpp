@@ -3,6 +3,7 @@
 #include <QTest>
 #include <QTimer>
 #include <modbus/base/single_bit_access.h>
+#include <modbus/base/sixteen_bit_access.h>
 #include <modbus_frame.h>
 
 struct Session {
@@ -919,6 +920,68 @@ TEST(ModbusSerialClient,
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(5000);
     EXPECT_EQ(spy.count(), 5);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(ModbusSerialClient, readRegisters) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::readRegistersFinished);
+
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->opened();
+    }));
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
+        }));
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->closed();
+    }));
+
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
+      modbus::ByteArray responseWithoutCrc = {kServerAddress, 0x03, 0x08, 0x00,
+                                              0x01,           0x00, 0x02, 0x00,
+                                              0x03,           0x00, 0x04};
+
+      modbus::ByteArray responseWithCrc =
+          modbus::tool::appendCrc(responseWithoutCrc);
+
+      QByteArray qarray((const char *)responseWithCrc.data(),
+                        responseWithCrc.size());
+      return qarray;
+    }));
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    modbus::SixteenBitAccess access;
+
+    access.setStartAddress(0x00);
+    access.setQuantity(4);
+    serialClient.readRegisters(kServerAddress, modbus::FunctionCode(0x03),
+                               access);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(5000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    access = qvariant_cast<modbus::SixteenBitAccess>(arguments.at(2));
+    EXPECT_EQ(access.value(access.startAddress()).toUint16(), 0x01);
+    EXPECT_EQ(access.value(access.startAddress() + 1).toUint16(), 0x02);
+    EXPECT_EQ(access.value(access.startAddress() + 2).toUint16(), 0x03);
+    EXPECT_EQ(access.value(access.startAddress() + 3).toUint16(), 0x04);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
