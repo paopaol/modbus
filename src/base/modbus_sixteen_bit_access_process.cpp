@@ -6,8 +6,8 @@ namespace modbus {
 static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
 
 Request createReadRegistersRequest(ServerAddress serverAddress,
-                                   const SixteenBitAccess &access,
-                                   FunctionCode functionCode) {
+                                   FunctionCode functionCode,
+                                   const SixteenBitAccess &access) {
   static const DataChecker readMultipleRegisters_ = {
       modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
 

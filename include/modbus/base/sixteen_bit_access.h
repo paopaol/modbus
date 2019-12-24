@@ -155,8 +155,8 @@ private:
 };
 
 Request createReadRegistersRequest(ServerAddress serverAddress,
-                                   const SixteenBitAccess &access,
-                                   FunctionCode functionCode);
+                                   FunctionCode functionCode,
+                                   const SixteenBitAccess &access);
 bool processReadRegisters(const Request &request, const Response &response,
                           SixteenBitAccess *access);
 } // namespace modbus
