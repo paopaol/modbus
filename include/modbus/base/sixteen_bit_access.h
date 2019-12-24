@@ -41,12 +41,12 @@ public:
       valueMap_[address] = valueEx;
     }
   }
-  SixteenBitValue value(Address address, bool *ok = nullptr) {
+  SixteenBitValue value(Address address, bool *ok = nullptr) const {
     auto v = valueEx(address, ok);
     return v.value;
   }
 
-  SixteenBitValueEx valueEx(Address address, bool *ok = nullptr) {
+  SixteenBitValueEx valueEx(Address address, bool *ok = nullptr) const {
     SixteenBitValueEx value;
 
     bool isFound = true;
