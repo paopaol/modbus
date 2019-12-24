@@ -82,7 +82,7 @@ public:
     /// server data(expectSize) + crc(2)
     size_t expectSize = adu_.marshalSize();
     size_t totalSize = expectSize + 2;
-    if (data.size() != totalSize) {
+    if (data.size() < totalSize) {
       return DataChecker::Result::kNeedMoreData;
     }
 
@@ -134,7 +134,7 @@ public:
     if (result != DataChecker::Result::kSizeOk) {
       return result;
     }
-    if (data.size() !=
+    if (data.size() <
         kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize) {
       return DataChecker::Result::kNeedMoreData;
     }
