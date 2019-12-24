@@ -33,10 +33,9 @@ int main(int argc, char *argv[]) {
         access.setDescription(modbus::Address(0x01), "temperature");
         access.setDescription(modbus::Address(0x05), "CO2 concentration");
 
-        auto request = modbus::createReadRegistersRequest(
-            modbus::ServerAddress(0x01), access,
-            modbus::FunctionCode::kReadHoldingRegisters);
-        client->sendRequest(request);
+        client->readRegisters(modbus::ServerAddress(0x01),
+                              modbus::FunctionCode::kReadHoldingRegisters,
+                              access);
       }
       {
         modbus::SixteenBitAccess access;
@@ -45,10 +44,9 @@ int main(int argc, char *argv[]) {
         access.setDeviceName("Smoke detector");
         access.setDescription(modbus::Address(0x03), "Alarm status");
 
-        auto request = modbus::createReadRegistersRequest(
-            modbus::ServerAddress(0x02), access,
-            modbus::FunctionCode::kReadHoldingRegisters);
-        client->sendRequest(request);
+        client->readRegisters(modbus::ServerAddress(0x02),
+                              modbus::FunctionCode::kReadHoldingRegisters,
+                              access);
       }
     });
   };
@@ -63,8 +61,9 @@ int main(int argc, char *argv[]) {
   });
 
   QObject::connect(
-      client.data(), &modbus::QModbusClient::requestFinished,
-      [&](const modbus::Request &req, const modbus::Response &resp) {
+      client.data(), &modbus::QModbusClient::readRegistersFinished,
+      [&](const modbus::Request &req, const modbus::Response &resp,
+          const modbus::SixteenBitAccess &access) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
                                   printf("pending Request size:%ld\n",
                                          client->pendingRequestSize());
@@ -72,13 +71,6 @@ int main(int argc, char *argv[]) {
                                     sendAfter(3000);
                                   }
                                 }));
-        modbus::SixteenBitAccess access;
-
-        bool success = modbus::processReadRegisters(req, resp, &access);
-        if (!success) {
-          return;
-        }
-
         printf("device name:[%d] %s\n", resp.serverAddress(),
                access.deviceName().c_str());
         for (int offset = 0; offset < access.quantity(); offset++) {
