@@ -11,7 +11,7 @@ TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   access.setDescription(modbus::Address(0x02), "CO2 concentration");
 
   modbus::Request request = modbus::createReadRegistersRequest(
-      0x01, access, modbus::FunctionCode::kReadHoldingRegisters);
+      0x01, modbus::FunctionCode::kReadHoldingRegisters, access);
   modbus::Response response;
 
   response.setError(modbus::Error::kNoError);
