@@ -70,7 +70,7 @@ public:
    * Conversion to modbus protocol format
    * function code 0x05
    */
-  ByteArray marshalSingleWriteRequest() {
+  ByteArray marshalSingleWriteRequest() const {
     ByteArray data;
 
     auto it = valueMap_.find(startAddress_);
