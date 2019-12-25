@@ -14,9 +14,8 @@ static void processFunctionCode3(const modbus::Request &request,
   }
 }
 
-static void processFunctionCode6(const modbus::Request &request,
-                                 const modbus::Response &response,
-                                 bool isSuccess) {
+static void processFunctionCode6(modbus::ServerAddress serverAddress,
+                                 modbus::Address address, bool isSuccess) {
   qDebug() << "write signle register:" << isSuccess;
 }
 
@@ -43,10 +42,9 @@ int main(int argc, char *argv[]) {
   /**
    * function code 0x06
    */
-  modbus::SixteenBitAccess access2;
-  access.setStartAddress(0x01);
-  access.setValue(0x17);
-  client->writeSingleRegister(0x01, access2);
+  client->writeSingleRegister(modbus::ServerAddress(0x01),
+                              modbus::Address(0x01),
+                              modbus::SixteenBitValue(0x17));
 
   return app.exec();
 }
