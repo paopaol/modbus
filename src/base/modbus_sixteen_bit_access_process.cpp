@@ -47,6 +47,18 @@ bool processReadRegisters(const Request &request, const Response &response,
   return true;
 }
 
+Request createWriteSingleRegisterRequest(ServerAddress serverAddress,
+                                         const SixteenBitAccess &access) {
+  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
+  Request request;
+
+  request.setServerAddress(serverAddress);
+  request.setFunctionCode(FunctionCode::kWriteSingleRegister);
+  request.setDataChecker(dataChecker);
+  request.setData(access.marshalSingleWriteRequest());
+  request.setUserData(access);
+  return request;
+}
 
 static bool validateSixteenBitAccessResponse(const Response &resp) {
   if (resp.error() != modbus::Error::kNoError) {
