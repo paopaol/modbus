@@ -64,9 +64,9 @@ void QModbusClient::sendRequest(const Request &request) {
   d->enqueueElement(element);
 }
 
-void QModbusClient::readRegisters(modbus::ServerAddress serverAddress,
-                                  modbus::FunctionCode functionCode,
-                                  const modbus::SixteenBitAccess &access) {
+void QModbusClient::readRegisters(ServerAddress serverAddress,
+                                  FunctionCode functionCode,
+                                  const SixteenBitAccess &access) {
   auto request =
       createReadRegistersRequest(serverAddress, functionCode, access);
   sendRequest(request);
@@ -125,7 +125,7 @@ uint64_t QModbusClient::timeout() {
   return d->waitResponseTimeout_;
 }
 
-void QModbusClient::setTransferMode(modbus::TransferMode transferMode) {
+void QModbusClient::setTransferMode(TransferMode transferMode) {
   Q_D(QModbusClient);
 
   d->transferMode_ = transferMode;
@@ -228,7 +228,7 @@ void QModbusClient::onIoDeviceResponseTimeout() {
      * if have no retry times, remove this request
      */
     d->elementQueue_.pop();
-    response.setError(modbus::Error::kTimeout);
+    response.setError(Error::kTimeout);
     emit requestFinished(request, response);
   }
   d->scheduleNextRequest(d->t3_5_);
@@ -358,8 +358,8 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
   emit errorOccur(errorString);
 }
 
-void QModbusClient::processResponseAnyFunctionCode(
-    const modbus::Request &request, const modbus::Response &response) {
+void QModbusClient::processResponseAnyFunctionCode(const Request &request,
+                                                   const Response &response) {
   switch (request.functionCode()) {
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {

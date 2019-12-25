@@ -3,7 +3,7 @@
 #include <modbus_logger.h>
 
 namespace modbus {
-static bool validateSixteenBitAccessResponse(const modbus::Response &resp);
+static bool validateSixteenBitAccessResponse(const Response &resp);
 
 Request createReadRegistersRequest(ServerAddress serverAddress,
                                    FunctionCode functionCode,
@@ -47,7 +47,8 @@ bool processReadRegisters(const Request &request, const Response &response,
   return true;
 }
 
-static bool validateSixteenBitAccessResponse(const modbus::Response &resp) {
+
+static bool validateSixteenBitAccessResponse(const Response &resp) {
   if (resp.error() != modbus::Error::kNoError) {
     log(LogLevel::kError, resp.errorString().c_str());
     return false;
