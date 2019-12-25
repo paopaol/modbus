@@ -1,9 +1,9 @@
 #include <QCoreApplication>
 #include <modbus/tools/modbus_client.h>
 
-static void process(const modbus::Request &request,
-                    const modbus::Response &response,
-                    const modbus::SixteenBitAccess &access) {
+static void processFunctionCode3(const modbus::Request &request,
+                                 const modbus::Response &response,
+                                 const modbus::SixteenBitAccess &access) {
   if (response.isException()) {
     return;
   }
@@ -14,21 +14,39 @@ static void process(const modbus::Request &request,
   }
 }
 
+static void processFunctionCode6(const modbus::Request &request,
+                                 const modbus::Response &response,
+                                 bool isSuccess) {
+  qDebug() << "write signle register:" << isSuccess;
+}
+
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
   modbus::QModbusClient *client = modbus::newQtSerialClient("COM1");
 
   QObject::connect(client, &modbus::QModbusClient::readRegistersFinished, &app,
-                   process);
+                   processFunctionCode3);
+  QObject::connect(client, &modbus::QModbusClient::writeSingleRegisterFinished,
+                   &app, processFunctionCode6);
   client->open();
 
+  /**
+   * function code 0x03
+   */
   modbus::SixteenBitAccess access;
-
   access.setStartAddress(0x00);
   access.setQuantity(0x02);
 
   client->readRegisters(0x01, modbus::FunctionCode(0x03), access);
+
+  /**
+   * function code 0x06
+   */
+  modbus::SixteenBitAccess access2;
+  access.setStartAddress(0x01);
+  access.setValue(0x17);
+  client->writeSingleRegister(0x01, access2);
 
   return app.exec();
 }
