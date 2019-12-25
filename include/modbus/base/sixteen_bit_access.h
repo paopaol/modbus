@@ -75,7 +75,7 @@ public:
     return array;
   }
 
-  ByteArray marshalSingleWriteRequest() {
+  ByteArray marshalSingleWriteRequest() const {
     smart_assert(valueMap_.find(startAddress_) != valueMap_.end() &&
                  "no set value of start address")(startAddress_);
 
@@ -151,7 +151,7 @@ private:
   Address startAddress_ = 0;
   Quantity quantity_ = 0;
   std::string deviceName_;
-  std::map<Address, SixteenBitValueEx> valueMap_;
+  mutable std::map<Address, SixteenBitValueEx> valueMap_;
 };
 
 Request createReadRegistersRequest(ServerAddress serverAddress,
