@@ -73,7 +73,12 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
 }
 
 void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
-                                        const SixteenBitAccess &access) {
+                                        Address address,
+                                        const SixteenBitValue &value) {
+  SixteenBitAccess access;
+
+  access.setStartAddress(address);
+  access.setValue(value.toUint16());
   auto request = createWriteSingleRegisterRequest(serverAddress, access);
   sendRequest(request);
 }
@@ -97,6 +102,9 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
   qRegisterMetaType<SixteenBitAccess>("SixteenBitAccess");
+  qRegisterMetaType<ServerAddress>("ServerAddress");
+  qRegisterMetaType<Address>("Address");
+
   Q_D(QModbusClient);
 
   connect(&d->device_, &ReconnectableIoDevice::opened, this,
@@ -375,7 +383,9 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     return;
   }
   case FunctionCode::kWriteSingleRegister: {
-    emit writeSingleRegisterFinished(request, response,
+    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    emit writeSingleRegisterFinished(request.serverAddress(),
+                                     access.startAddress(),
                                      !response.isException());
     return;
   }

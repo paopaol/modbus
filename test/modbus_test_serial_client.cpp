@@ -1012,7 +1012,7 @@ TEST(ModbusClient, writeSingleRegister_Success) {
     EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
       modbus::ByteArray responseWithoutCrc = {
           kServerAddress, modbus::FunctionCode::kWriteSingleRegister,
-          0x00,           0x00,
+          0x00,           0x05,
           0x00,           0x01};
 
       modbus::ByteArray responseWithCrc =
@@ -1028,19 +1028,16 @@ TEST(ModbusClient, writeSingleRegister_Success) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    modbus::SixteenBitAccess access;
-
-    access.setStartAddress(0x00);
-    access.setValue(0x01);
-    serialClient.writeSingleRegister(kServerAddress, access);
+    serialClient.writeSingleRegister(kServerAddress, modbus::Address(0x05),
+                                     modbus::SixteenBitValue(0x00, 0x01));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    auto response = qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(response.isException(), false);
+    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(address, 0x05);
     bool result = qvariant_cast<bool>(arguments.at(2));
     EXPECT_EQ(result, true);
   }
@@ -1077,7 +1074,7 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
           modbus::FunctionCode::kWriteSingleRegister |
               modbus::Pdu::kExceptionByte,
           0x00,
-          0x00,
+          0x05,
           0x00,
           0x01};
 
@@ -1094,19 +1091,16 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    modbus::SixteenBitAccess access;
-
-    access.setStartAddress(0x00);
-    access.setValue(0x01);
-    serialClient.writeSingleRegister(kServerAddress, access);
+    serialClient.writeSingleRegister(kServerAddress, modbus::Address(0x05),
+                                     modbus::SixteenBitValue(0x00, 0x01));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    auto response = qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(response.isException(), true);
+    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(address, 0x05);
     bool result = qvariant_cast<bool>(arguments.at(2));
     EXPECT_EQ(result, false);
   }
