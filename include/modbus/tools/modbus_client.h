@@ -95,6 +95,11 @@ public:
    */
   void readRegisters(ServerAddress serverAddress, FunctionCode functionCode,
                      const SixteenBitAccess &access);
+  /**
+   * for function code 0x06
+   */
+  void writeSingleRegister(ServerAddress serverAddress,
+                           const SixteenBitAccess &access);
 
   bool isIdle();
 
@@ -128,6 +133,8 @@ signals:
   void requestFinished(const Request &request, const Response &response);
   void readRegistersFinished(const Request &request, const Response &response,
                              const SixteenBitAccess &access);
+  void writeSingleRegisterFinished(const Request &request,
+                                   const Response &response, bool isSuccess);
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);

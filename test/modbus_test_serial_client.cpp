@@ -987,6 +987,134 @@ TEST(ModbusSerialClient, readRegisters) {
   app.exec();
 }
 
+TEST(ModbusClient, writeSingleRegister_Success) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::writeSingleRegisterFinished);
+
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->opened();
+    }));
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
+        }));
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->closed();
+    }));
+
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
+      modbus::ByteArray responseWithoutCrc = {
+          kServerAddress, modbus::FunctionCode::kWriteSingleRegister,
+          0x00,           0x00,
+          0x00,           0x01};
+
+      modbus::ByteArray responseWithCrc =
+          modbus::tool::appendCrc(responseWithoutCrc);
+
+      QByteArray qarray((const char *)responseWithCrc.data(),
+                        responseWithCrc.size());
+      return qarray;
+    }));
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    modbus::SixteenBitAccess access;
+
+    access.setStartAddress(0x00);
+    access.setValue(0x01);
+    serialClient.writeSingleRegister(kServerAddress, access);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    auto response = qvariant_cast<modbus::Response>(arguments.at(1));
+    EXPECT_EQ(response.isException(), false);
+    bool result = qvariant_cast<bool>(arguments.at(2));
+    EXPECT_EQ(result, true);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(ModbusClient, writeSingleRegister_Failed) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::writeSingleRegisterFinished);
+
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->opened();
+    }));
+    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
+        }));
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
+      serialPort->closed();
+    }));
+
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
+      modbus::ByteArray responseWithoutCrc = {
+          kServerAddress,
+          modbus::FunctionCode::kWriteSingleRegister |
+              modbus::Pdu::kExceptionByte,
+          0x00,
+          0x00,
+          0x00,
+          0x01};
+
+      modbus::ByteArray responseWithCrc =
+          modbus::tool::appendCrc(responseWithoutCrc);
+
+      QByteArray qarray((const char *)responseWithCrc.data(),
+                        responseWithCrc.size());
+      return qarray;
+    }));
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    modbus::SixteenBitAccess access;
+
+    access.setStartAddress(0x00);
+    access.setValue(0x01);
+    serialClient.writeSingleRegister(kServerAddress, access);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    auto response = qvariant_cast<modbus::Response>(arguments.at(1));
+    EXPECT_EQ(response.isException(), true);
+    bool result = qvariant_cast<bool>(arguments.at(2));
+    EXPECT_EQ(result, false);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,

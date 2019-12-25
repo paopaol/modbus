@@ -159,6 +159,9 @@ Request createReadRegistersRequest(ServerAddress serverAddress,
                                    const SixteenBitAccess &access);
 bool processReadRegisters(const Request &request, const Response &response,
                           SixteenBitAccess *access);
+
+Request createWriteSingleRegisterRequest(ServerAddress serverAddress,
+                                         const SixteenBitAccess &access);
 } // namespace modbus
 
 #endif /* SIXTEEN_BIT_ACCESS_H */

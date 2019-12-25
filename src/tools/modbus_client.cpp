@@ -72,6 +72,12 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
   sendRequest(request);
 }
 
+void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
+                                        const SixteenBitAccess &access) {
+  auto request = createWriteSingleRegisterRequest(serverAddress, access);
+  sendRequest(request);
+}
+
 bool QModbusClient::isIdle() {
   Q_D(QModbusClient);
   return d->sessionState_.state() == SessionState::kIdle;
@@ -368,10 +374,15 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     emit readRegistersFinished(request, response, access);
     return;
   }
+  case FunctionCode::kWriteSingleRegister: {
+    emit writeSingleRegisterFinished(request, response,
+                                     !response.isException());
+    return;
+  }
   default:
     return;
   }
-}
+} // namespace modbus
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
   uint8_t *data = (uint8_t *)qarray.constData();
