@@ -21,6 +21,9 @@ static void logMessage(modbus::LogLevel level, const std::string &msg) {
   case modbus::LogLevel::kWarning:
     qWarning() << msg.c_str();
     break;
+  case modbus::LogLevel::kError:
+    qWarning() << msg.c_str();
+    break;
   }
 }
 
