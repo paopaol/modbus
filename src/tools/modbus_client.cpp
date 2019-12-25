@@ -363,8 +363,8 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
   switch (request.functionCode()) {
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {
-    modbus::SixteenBitAccess access;
-    modbus::processReadRegisters(request, response, &access);
+    SixteenBitAccess access;
+    processReadRegisters(request, response, &access);
     emit readRegistersFinished(request, response, access);
     return;
   }
