@@ -1,16 +1,15 @@
 #include <QCoreApplication>
 #include <modbus/tools/modbus_client.h>
 
-static void processFunctionCode3(const modbus::Request &request,
-                                 const modbus::Response &response,
-                                 const modbus::SixteenBitAccess &access) {
-  if (response.isException()) {
+static void processFunctionCode3(
+    modbus::ServerAddress serverAddress, modbus::Address address,
+    const QVector<modbus::SixteenBitValue> &valueList, modbus::Error error) {
+  if (error != modbus::Error::kNoError) {
     return;
   }
 
-  for (int i = 0; i < access.quantity(); i++) {
-    qDebug() << "value is:"
-             << access.value(access.startAddress() + i).toUint16();
+  for (const auto &value : valueList) {
+    qDebug() << "value is:" << value.toUint16();
   }
 }
 
@@ -33,11 +32,8 @@ int main(int argc, char *argv[]) {
   /**
    * function code 0x03
    */
-  modbus::SixteenBitAccess access;
-  access.setStartAddress(0x00);
-  access.setQuantity(0x02);
-
-  client->readRegisters(0x01, modbus::FunctionCode(0x03), access);
+  client->readRegisters(modbus::ServerAddress(0x01), modbus::FunctionCode(0x03),
+                        modbus::Address(0x00), modbus::Quantity(0x02));
 
   /**
    * function code 0x06

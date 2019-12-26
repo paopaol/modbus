@@ -967,21 +967,25 @@ TEST(ModbusSerialClient, readRegisters) {
     /// send the request
     modbus::SixteenBitAccess access;
 
-    access.setStartAddress(0x00);
-    access.setQuantity(4);
     serialClient.readRegisters(kServerAddress, modbus::FunctionCode(0x03),
-                               access);
+                               modbus::Address(0x00), modbus::Quantity(0x04));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(5000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    access = qvariant_cast<modbus::SixteenBitAccess>(arguments.at(2));
-    EXPECT_EQ(access.value(access.startAddress()).toUint16(), 0x01);
-    EXPECT_EQ(access.value(access.startAddress() + 1).toUint16(), 0x02);
-    EXPECT_EQ(access.value(access.startAddress() + 2).toUint16(), 0x03);
-    EXPECT_EQ(access.value(access.startAddress() + 3).toUint16(), 0x04);
+
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
+    EXPECT_EQ(error, modbus::Error::kNoError);
+
+    QVector<modbus::SixteenBitValue> valueList =
+        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+    EXPECT_EQ(valueList.size(), 4);
+    EXPECT_EQ(valueList[0].toUint16(), 0x01);
+    EXPECT_EQ(valueList[1].toUint16(), 0x02);
+    EXPECT_EQ(valueList[2].toUint16(), 0x03);
+    EXPECT_EQ(valueList[3].toUint16(), 0x04);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();

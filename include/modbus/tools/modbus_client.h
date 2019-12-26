@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QScopedPointer>
 #include <QTimer>
+#include <QVector>
 #include <QtNetwork/QAbstractSocket>
 #include <QtSerialPort/QSerialPort>
 #include <modbus/base/sixteen_bit_access.h>
@@ -95,7 +96,7 @@ public:
    * will emit readRegistersFinished signal
    */
   void readRegisters(ServerAddress serverAddress, FunctionCode functionCode,
-                     const SixteenBitAccess &access);
+                     Address startAddress, Quantity quantity);
   /**
    * for function code 0x06
    * will emit writeSingleRegisterFinished signal
@@ -139,8 +140,9 @@ signals:
   void clientClosed();
   void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
-  void readRegistersFinished(const Request &request, const Response &response,
-                             const SixteenBitAccess &access);
+  void readRegistersFinished(ServerAddress serverAddress, Address startAddress,
+                             const QVector<SixteenBitValue> &valueList,
+                             Error error);
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,
                                    Error error);
 
@@ -181,5 +183,6 @@ Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
 Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
 Q_DECLARE_METATYPE(modbus::Error);
+Q_DECLARE_METATYPE(QVector<modbus::SixteenBitValue>);
 
 #endif // __MODBUS_CLIENT_H_

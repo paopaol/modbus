@@ -24,30 +24,10 @@ int main(int argc, char *argv[]) {
 
   auto sendAfter = [&](int delay) {
     QTimer::singleShot(delay, [&]() {
-      {
-        modbus::SixteenBitAccess access;
-        access.setStartAddress(0);
-        access.setQuantity(10);
-        access.setDeviceName("device-1");
-        access.setDescription(modbus::Address(0x00), "humidity");
-        access.setDescription(modbus::Address(0x01), "temperature");
-        access.setDescription(modbus::Address(0x05), "CO2 concentration");
-
-        client->readRegisters(modbus::ServerAddress(0x01),
-                              modbus::FunctionCode::kReadHoldingRegisters,
-                              access);
-      }
-      {
-        modbus::SixteenBitAccess access;
-        access.setStartAddress(0);
-        access.setQuantity(10);
-        access.setDeviceName("Smoke detector");
-        access.setDescription(modbus::Address(0x03), "Alarm status");
-
-        client->readRegisters(modbus::ServerAddress(0x02),
-                              modbus::FunctionCode::kReadHoldingRegisters,
-                              access);
-      }
+      client->readRegisters(modbus::ServerAddress(0x01),
+                            modbus::FunctionCode::kReadHoldingRegisters, 0, 10);
+      client->readRegisters(modbus::ServerAddress(0x02),
+                            modbus::FunctionCode::kReadHoldingRegisters, 0, 10);
     });
   };
 
@@ -62,8 +42,9 @@ int main(int argc, char *argv[]) {
 
   QObject::connect(
       client.data(), &modbus::QModbusClient::readRegistersFinished,
-      [&](const modbus::Request &req, const modbus::Response &resp,
-          const modbus::SixteenBitAccess &access) {
+      [&](modbus::ServerAddress serverAddress, modbus::Address startAddress,
+          const QVector<modbus::SixteenBitValue> &valueList,
+          modbus::Error error) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
                                   printf("pending Request size:%ld\n",
                                          client->pendingRequestSize());
@@ -71,18 +52,10 @@ int main(int argc, char *argv[]) {
                                     sendAfter(3000);
                                   }
                                 }));
-        printf("device name:[%d] %s\n", resp.serverAddress(),
-               access.deviceName().c_str());
-        for (int offset = 0; offset < access.quantity(); offset++) {
-          modbus::Address currentAddress = access.startAddress() + offset;
-          auto valueEx = access.valueEx(currentAddress);
-          if (valueEx.description.empty()) {
-            continue;
-          }
-
-          printf("\taddress: %d value:%d [%s] \t%s\n", currentAddress,
-                 valueEx.value.toUint16(), valueEx.value.toHexString().c_str(),
-                 valueEx.description.c_str());
+        int offset = 0;
+        for (const auto &value : valueList) {
+          modbus::Address address = startAddress + offset;
+          printf("\taddress: %d value:%d\n", address, value.toUint16());
         }
         std::cout << std::endl;
       });
