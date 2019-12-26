@@ -1038,8 +1038,8 @@ TEST(ModbusClient, writeSingleRegister_Success) {
     QList<QVariant> arguments = spy.takeFirst();
     modbus::Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    bool isSuccess = qvariant_cast<bool>(arguments.at(2));
-    EXPECT_EQ(isSuccess, true);
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
+    EXPECT_EQ(error, modbus::Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1073,10 +1073,7 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
           kServerAddress,
           modbus::FunctionCode::kWriteSingleRegister |
               modbus::Pdu::kExceptionByte,
-          0x00,
-          0x05,
-          0x00,
-          0x01};
+          (uint8_t)modbus::Error::kIllegalFunctionCode};
 
       modbus::ByteArray responseWithCrc =
           modbus::tool::appendCrc(responseWithoutCrc);
@@ -1101,8 +1098,8 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
     QList<QVariant> arguments = spy.takeFirst();
     modbus::Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    bool isSuccess = qvariant_cast<bool>(arguments.at(2));
-    EXPECT_EQ(isSuccess, false);
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
+    EXPECT_EQ(error, modbus::Error::kIllegalFunctionCode);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
