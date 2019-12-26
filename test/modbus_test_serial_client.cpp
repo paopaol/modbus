@@ -1038,8 +1038,8 @@ TEST(ModbusClient, writeSingleRegister_Success) {
     QList<QVariant> arguments = spy.takeFirst();
     modbus::Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    bool result = qvariant_cast<bool>(arguments.at(2));
-    EXPECT_EQ(result, true);
+    bool isSuccess = qvariant_cast<bool>(arguments.at(2));
+    EXPECT_EQ(isSuccess, true);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1101,8 +1101,8 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
     QList<QVariant> arguments = spy.takeFirst();
     modbus::Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    bool result = qvariant_cast<bool>(arguments.at(2));
-    EXPECT_EQ(result, false);
+    bool isSuccess = qvariant_cast<bool>(arguments.at(2));
+    EXPECT_EQ(isSuccess, false);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });

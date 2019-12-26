@@ -67,9 +67,7 @@ void QModbusClient::sendRequest(const Request &request) {
 void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   FunctionCode functionCode,
                                   const SixteenBitAccess &access) {
-  auto request =
-      createReadRegistersRequest(serverAddress, functionCode, access);
-  sendRequest(request);
+  sendRequest(createReadRegistersRequest(serverAddress, functionCode, access));
 }
 
 void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
@@ -79,8 +77,7 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
 
   access.setStartAddress(address);
   access.setValue(value.toUint16());
-  auto request = createWriteSingleRegisterRequest(serverAddress, access);
-  sendRequest(request);
+  sendRequest(createWriteSingleRegisterRequest(serverAddress, access));
 }
 
 bool QModbusClient::isIdle() {
