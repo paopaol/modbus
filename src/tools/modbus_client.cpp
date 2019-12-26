@@ -10,6 +10,8 @@
 namespace modbus {
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
+static QVector<SixteenBitValue>
+toSixteenBitValueList(const SixteenBitAccess &access);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
 QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
@@ -66,7 +68,11 @@ void QModbusClient::sendRequest(const Request &request) {
 
 void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   FunctionCode functionCode,
-                                  const SixteenBitAccess &access) {
+                                  Address startAddress, Quantity quantity) {
+  SixteenBitAccess access;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(quantity);
   sendRequest(createReadRegistersRequest(serverAddress, functionCode, access));
 }
 
@@ -119,6 +125,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<ServerAddress>("ServerAddress");
   qRegisterMetaType<Address>("Address");
   qRegisterMetaType<Error>("Error");
+  qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
 
   Q_D(QModbusClient);
 
@@ -394,7 +401,8 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
   case FunctionCode::kReadInputRegister: {
     SixteenBitAccess access;
     processReadRegisters(request, response, &access);
-    emit readRegistersFinished(request, response, access);
+    emit readRegistersFinished(request.serverAddress(), access.startAddress(),
+                               toSixteenBitValueList(access), response.error());
     return;
   }
   case FunctionCode::kWriteSingleRegister: {
@@ -418,6 +426,23 @@ static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
   uint8_t *data = (uint8_t *)qarray.constData();
   size_t size = qarray.size();
   array.insert(array.end(), data, data + size);
+}
+
+static QVector<SixteenBitValue>
+toSixteenBitValueList(const SixteenBitAccess &access) {
+  QVector<SixteenBitValue> valueList;
+
+  for (size_t i = 0; i < access.quantity(); i++) {
+    Address address = access.startAddress() + i;
+
+    bool found = true;
+    SixteenBitValue value = access.value(address, &found);
+    if (!found) {
+      continue;
+    }
+    valueList.push_back(value);
+  }
+  return valueList;
 }
 
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
