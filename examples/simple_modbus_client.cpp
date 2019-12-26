@@ -15,8 +15,8 @@ static void processFunctionCode3(const modbus::Request &request,
 }
 
 static void processFunctionCode6(modbus::ServerAddress serverAddress,
-                                 modbus::Address address, bool isSuccess) {
-  qDebug() << "write signle register:" << isSuccess;
+                                 modbus::Address address, modbus::Error error) {
+  qDebug() << "write signle register:" << (error == modbus::Error::kNoError);
 }
 
 int main(int argc, char *argv[]) {

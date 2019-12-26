@@ -118,6 +118,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<SixteenBitAccess>("SixteenBitAccess");
   qRegisterMetaType<ServerAddress>("ServerAddress");
   qRegisterMetaType<Address>("Address");
+  qRegisterMetaType<Error>("Error");
 
   Q_D(QModbusClient);
 
@@ -399,8 +400,7 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
   case FunctionCode::kWriteSingleRegister: {
     auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
     emit writeSingleRegisterFinished(request.serverAddress(),
-                                     access.startAddress(),
-                                     !response.isException());
+                                     access.startAddress(), response.error());
     return;
   }
   case FunctionCode::kWriteMultipleRegisters: {

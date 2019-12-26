@@ -142,7 +142,7 @@ signals:
   void readRegistersFinished(const Request &request, const Response &response,
                              const SixteenBitAccess &access);
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,
-                                   bool isSuccess);
+                                   Error error);
 
   void writeMultipleRegistersFinished(ServerAddress serverAddress,
                                       Address address, Error error);
