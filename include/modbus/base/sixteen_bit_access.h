@@ -90,7 +90,7 @@ public:
     return array;
   }
 
-  ByteArray marshalMultipleWriteRequest() {
+  ByteArray marshalMultipleWriteRequest() const {
     smart_assert(quantity_ == valueMap_.size() &&
                  "invalid data, no set some value,or more")(quantity_)(
         valueMap_.size());
