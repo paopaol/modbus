@@ -102,6 +102,12 @@ public:
    */
   void writeSingleRegister(ServerAddress serverAddress, Address address,
                            const SixteenBitValue &value);
+  /**
+   *for function code 0x10
+   *wiil emit writeMultipleRegistersFinished signal
+   */
+  void writeMultipleRegisters(ServerAddress serverAddress, Address startAddress,
+                              const QVector<SixteenBitValue> &valueList);
 
   bool isIdle();
 
@@ -138,6 +144,9 @@ signals:
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,
                                    bool isSuccess);
 
+  void writeMultipleRegistersFinished(ServerAddress serverAddress,
+                                      Address address, Error error);
+
 private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();
@@ -171,5 +180,6 @@ QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
 Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
+Q_DECLARE_METATYPE(modbus::Error);
 
 #endif // __MODBUS_CLIENT_H_
