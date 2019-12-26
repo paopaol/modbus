@@ -80,6 +80,23 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
   sendRequest(createWriteSingleRegisterRequest(serverAddress, access));
 }
 
+void QModbusClient::writeMultipleRegisters(
+    ServerAddress serverAddress, Address startAddress,
+    const QVector<SixteenBitValue> &valueList) {
+  SixteenBitAccess access;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(valueList.size());
+
+  int offset = 0;
+  for (const auto &sixValue : valueList) {
+    auto address = access.startAddress() + offset;
+    access.setValue(address, sixValue.toUint16());
+    offset++;
+  }
+  sendRequest(createWriteMultipleRegisterRequest(serverAddress, access));
+}
+
 bool QModbusClient::isIdle() {
   Q_D(QModbusClient);
   return d->sessionState_.state() == SessionState::kIdle;
@@ -384,6 +401,12 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     emit writeSingleRegisterFinished(request.serverAddress(),
                                      access.startAddress(),
                                      !response.isException());
+    return;
+  }
+  case FunctionCode::kWriteMultipleRegisters: {
+    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    emit writeMultipleRegistersFinished(
+        request.serverAddress(), access.startAddress(), response.error());
     return;
   }
   default:

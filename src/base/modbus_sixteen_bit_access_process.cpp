@@ -72,4 +72,19 @@ static bool validateSixteenBitAccessResponse(const Response &resp) {
   }
   return true;
 }
+
+Request createWriteMultipleRegisterRequest(ServerAddress serverAddress,
+                                           const SixteenBitAccess &access) {
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex4,
+                                          bytesRequired<4>};
+  Request request;
+
+  request.setServerAddress(serverAddress);
+  request.setFunctionCode(FunctionCode::kWriteMultipleRegisters);
+  request.setDataChecker(dataChecker);
+  request.setData(access.marshalMultipleWriteRequest());
+  request.setUserData(access);
+  return request;
+}
+
 } // namespace modbus
