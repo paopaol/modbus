@@ -92,11 +92,13 @@ public:
 
   /**
    * sixteem bit access, for function code 3/4
+   * will emit readRegistersFinished signal
    */
   void readRegisters(ServerAddress serverAddress, FunctionCode functionCode,
                      const SixteenBitAccess &access);
   /**
    * for function code 0x06
+   * will emit writeSingleRegisterFinished signal
    */
   void writeSingleRegister(ServerAddress serverAddress, Address address,
                            const SixteenBitValue &value);
