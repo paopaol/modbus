@@ -38,18 +38,4 @@ static bool validateSixteenBitAccessResponse(const Response &resp) {
   return true;
 }
 
-Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const DataChecker &dataChecker,
-                      const SixteenBitAccess &access, const ByteArray &data) {
-  Request request;
-
-  request.setServerAddress(serverAddress);
-  request.setFunctionCode(functionCode);
-  request.setUserData(access);
-  request.setDataChecker(dataChecker);
-  request.setData(data);
-
-  return request;
-}
-
 } // namespace modbus

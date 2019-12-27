@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <modbus/base/single_bit_access.h>
+#include <modbus/tools/modbus_client.h>
 
 TEST(SingleBitAccessProcess, readSingleBitProcess) {
   modbus::DataChecker dataChecker = {modbus::bytesRequired<4>,
