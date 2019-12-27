@@ -2,6 +2,9 @@
 #include <modbus/base/single_bit_access.h>
 
 TEST(SingleBitAccessProcess, readSingleBitProcess) {
+  modbus::DataChecker dataChecker = {modbus::bytesRequired<4>,
+                                     modbus::bytesRequiredStoreInArrayIndex0};
+
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0x03);
@@ -11,8 +14,9 @@ TEST(SingleBitAccessProcess, readSingleBitProcess) {
   access.setDescription(access.startAddress() + 1, "value2");
   access.setDescription(access.startAddress() + 2, "value3");
 
-  auto request = modbus::createReadSingleBitRequest(
-      0x01, modbus::FunctionCode::kReadCoils, access);
+  auto request =
+      modbus::createRequest(0x01, modbus::FunctionCode::kReadCoils, dataChecker,
+                            access, access.marshalReadRequest());
   modbus::Response response;
 
   response.setServerAddress(0x01);
