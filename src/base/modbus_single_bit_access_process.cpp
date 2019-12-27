@@ -47,6 +47,21 @@ bool processReadSingleBit(const Request &request, const Response &response,
   return true;
 }
 
+Request createWriteSingleCoilRequest(ServerAddress serverAddress,
+                                     const SingleBitAccess &access) {
+  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
+
+  Request request;
+
+  request.setServerAddress(serverAddress);
+  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setUserData(access);
+  request.setData(access.marshalSingleWriteRequest());
+  request.setDataChecker(dataChecker);
+
+  return request;
+}
+
 static bool validateSingleBitAccessResponse(const modbus::Response &resp) {
   if (resp.error() != modbus::Error::kNoError) {
     log(LogLevel::kError, resp.errorString().c_str());
