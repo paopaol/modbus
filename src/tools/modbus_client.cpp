@@ -71,21 +71,39 @@ void QModbusClient::sendRequest(const Request &request) {
 void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                    FunctionCode functionCode,
                                    Address startAddress, Quantity quantity) {
+  if (functionCode != FunctionCode::kReadCoils &&
+      functionCode != FunctionCode::kReadInputDiscrete) {
+    log(LogLevel::kWarning, "single bit access:[read] invalid function code(" +
+                                std::to_string(functionCode) + ")");
+  }
+
+  static const DataChecker dataChecker = {bytesRequired<4>,
+                                          bytesRequiredStoreInArrayIndex0};
+
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
-  sendRequest(createReadSingleBitRequest(serverAddress, functionCode, access));
+
+  auto request = createRequest(serverAddress, functionCode, dataChecker, access,
+                               access.marshalReadRequest());
+  sendRequest(request);
 }
 
 void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
                                     Address startAddress, BitValue value) {
+  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
+
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(1);
   access.setValue(value);
-  sendRequest(createWriteSingleCoilRequest(serverAddress, access));
+  auto request =
+      createRequest(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
+                    access, access.marshalSingleWriteRequest());
+  sendRequest(request);
+}
 }
 
 void QModbusClient::readRegisters(ServerAddress serverAddress,

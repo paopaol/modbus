@@ -214,15 +214,11 @@ private:
   mutable std::map<Address, BitValueEx> valueMap_;
 };
 
-Request createReadSingleBitRequest(ServerAddress serverAddress,
-                                   FunctionCode functionCode,
-                                   const SingleBitAccess &access);
-
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access);
-
-Request createWriteSingleCoilRequest(ServerAddress serverAddress,
-                                     const SingleBitAccess &access);
+Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
+                      const DataChecker &dataChecker,
+                      const SingleBitAccess &access, const ByteArray &data);
 
 } // namespace modbus
 

@@ -4,29 +4,6 @@
 namespace modbus {
 static bool validateSingleBitAccessResponse(const modbus::Response &resp);
 
-Request createReadSingleBitRequest(ServerAddress serverAddress,
-                                   FunctionCode functionCode,
-                                   const SingleBitAccess &access) {
-  static const DataChecker dataChecker = {bytesRequired<4>,
-                                          bytesRequiredStoreInArrayIndex0};
-
-  if (functionCode != FunctionCode::kReadCoils &&
-      functionCode != FunctionCode::kReadInputDiscrete) {
-    log(LogLevel::kWarning, "single bit access:[read] invalid function code(" +
-                                std::to_string(functionCode) + ")");
-  }
-
-  Request request;
-
-  request.setServerAddress(serverAddress);
-  request.setFunctionCode(functionCode);
-  request.setUserData(access);
-  request.setData(access.marshalReadRequest());
-  request.setDataChecker(dataChecker);
-
-  return request;
-}
-
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access) {
   if (!access) {
@@ -47,16 +24,15 @@ bool processReadSingleBit(const Request &request, const Response &response,
   return true;
 }
 
-Request createWriteSingleCoilRequest(ServerAddress serverAddress,
-                                     const SingleBitAccess &access) {
-  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
-
+Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
+                      const DataChecker &dataChecker,
+                      const SingleBitAccess &access, const ByteArray &data) {
   Request request;
 
   request.setServerAddress(serverAddress);
-  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setFunctionCode(functionCode);
   request.setUserData(access);
-  request.setData(access.marshalSingleWriteRequest());
+  request.setData(data);
   request.setDataChecker(dataChecker);
 
   return request;
