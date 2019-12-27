@@ -907,7 +907,7 @@ TEST(ModbusSerialClient,
   app.exec();
 }
 
-TEST(ModbusSerialClient, readRegisters) {
+TEST(ModbusSerialClient, readRegisters_success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
@@ -947,6 +947,48 @@ TEST(ModbusSerialClient, readRegisters) {
     EXPECT_EQ(valueList[1].toUint16(), 0x02);
     EXPECT_EQ(valueList[2].toUint16(), 0x03);
     EXPECT_EQ(valueList[3].toUint16(), 0x04);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(ModbusSerialClient, readRegisters_failed) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::readRegistersFinished);
+
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress, 0x03 | 0x80,
+                          uint8_t(modbus::Error::kSlaveDeviceBusy)});
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    modbus::SixteenBitAccess access;
+
+    serialClient.readRegisters(kServerAddress, modbus::FunctionCode(0x03),
+                               modbus::Address(0x00), modbus::Quantity(0x04));
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(5000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
+    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
+
+    QVector<modbus::SixteenBitValue> valueList =
+        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+    EXPECT_EQ(valueList.size(), 0);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -1067,6 +1109,48 @@ TEST(ModbusClient, writeMultipleRegisters_success) {
     EXPECT_EQ(address, 0x05);
     modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
     EXPECT_EQ(error, modbus::Error::kNoError);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(ModbusClient, writeMultipleRegisters_failed) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::writeMultipleRegistersFinished);
+
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress,
+                          modbus::FunctionCode::kWriteMultipleRegisters | 0x80,
+                          uint8_t(modbus::Error::kSlaveDeviceBusy)});
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    QVector<modbus::SixteenBitValue> valueList;
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x01));
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x02));
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x03));
+    serialClient.writeMultipleRegisters(kServerAddress, modbus::Address(0x05),
+                                        valueList);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(address, 0x05);
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
+    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
