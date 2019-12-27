@@ -127,26 +127,46 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
 void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   FunctionCode functionCode,
                                   Address startAddress, Quantity quantity) {
+  if (functionCode != FunctionCode::kReadHoldingRegisters &&
+      functionCode != FunctionCode::kReadInputRegister) {
+    log(LogLevel::kWarning, "invalid function code for read registers" +
+                                std::to_string(functionCode));
+  }
+
+  static const DataChecker dataChecker = {bytesRequired<4>,
+                                          bytesRequiredStoreInArrayIndex0};
+
   SixteenBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
-  sendRequest(createReadRegistersRequest(serverAddress, functionCode, access));
+
+  auto request = createRequest(serverAddress, functionCode, dataChecker, access,
+                               access.marshalMultipleReadRequest());
+
+  sendRequest(request);
 }
 
 void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
                                         Address address,
                                         const SixteenBitValue &value) {
+  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(address);
   access.setValue(value.toUint16());
-  sendRequest(createWriteSingleRegisterRequest(serverAddress, access));
+
+  auto request =
+      createRequest(serverAddress, FunctionCode::kWriteSingleRegister,
+                    dataChecker, access, access.marshalSingleWriteRequest());
+  sendRequest(request);
 }
 
 void QModbusClient::writeMultipleRegisters(
     ServerAddress serverAddress, Address startAddress,
     const QVector<SixteenBitValue> &valueList) {
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex4,
+                                          bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(startAddress);
@@ -158,7 +178,10 @@ void QModbusClient::writeMultipleRegisters(
     access.setValue(address, sixValue.toUint16());
     offset++;
   }
-  sendRequest(createWriteMultipleRegisterRequest(serverAddress, access));
+  auto request =
+      createRequest(serverAddress, FunctionCode::kWriteMultipleRegisters,
+                    dataChecker, access, access.marshalMultipleWriteRequest());
+  sendRequest(request);
 }
 
 bool QModbusClient::isIdle() {

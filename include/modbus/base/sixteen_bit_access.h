@@ -154,17 +154,11 @@ private:
   mutable std::map<Address, SixteenBitValueEx> valueMap_;
 };
 
-Request createReadRegistersRequest(ServerAddress serverAddress,
-                                   FunctionCode functionCode,
-                                   const SixteenBitAccess &access);
 bool processReadRegisters(const Request &request, const Response &response,
                           SixteenBitAccess *access);
-
-Request createWriteSingleRegisterRequest(ServerAddress serverAddress,
-                                         const SixteenBitAccess &access);
-
-Request createWriteMultipleRegisterRequest(ServerAddress serverAddress,
-                                           const SixteenBitAccess &access);
+Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
+                      const DataChecker &dataChecker,
+                      const SixteenBitAccess &access, const ByteArray &data);
 } // namespace modbus
 
 #endif /* SIXTEEN_BIT_ACCESS_H */
