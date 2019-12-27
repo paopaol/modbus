@@ -4,7 +4,7 @@
 
 TEST(SingleBitAccessProcess, readSingleBitProcess) {
   modbus::DataChecker dataChecker = {modbus::bytesRequired<4>,
-                                     modbus::bytesRequiredStoreInArrayIndex0};
+                                     modbus::bytesRequiredStoreInArrayIndex<0>};
 
   modbus::SingleBitAccess access;
 

@@ -163,7 +163,7 @@ public:
 
   bool unmarshalReadResponse(const ByteArray &array) {
     size_t size = 0;
-    auto result = bytesRequiredStoreInArrayIndex0(size, array);
+    auto result = bytesRequiredStoreInArrayIndex<0>(size, array);
     if (result != DataChecker::Result::kSizeOk) {
       return false;
     }

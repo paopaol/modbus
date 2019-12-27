@@ -21,7 +21,7 @@ TEST(DataChecker, bytesRequiredStoreInArrayIndex0_success) {
   modbus::ByteArray array({0x03, 0x02, 0x03, 0x04});
 
   size_t size = 0;
-  auto result = modbus::bytesRequiredStoreInArrayIndex0(size, array);
+  auto result = modbus::bytesRequiredStoreInArrayIndex<0>(size, array);
   EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
   EXPECT_EQ(size, 4);
 }
@@ -30,6 +30,6 @@ TEST(DataChecker, bytesRequiredStoreInArrayIndex0_failed) {
   modbus::ByteArray array({0x03, 0x02});
 
   size_t size = 0;
-  auto result = modbus::bytesRequiredStoreInArrayIndex0(size, array);
+  auto result = modbus::bytesRequiredStoreInArrayIndex<0>(size, array);
   EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
 }

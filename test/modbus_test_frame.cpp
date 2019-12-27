@@ -13,7 +13,7 @@ createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
                          const modbus::SingleBitAccess &access);
 
 static modbus::DataChecker readCoilDataChecker = {
-    modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
+    modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex<0>};
 
 TEST(modbusFrame, rtuMarshalFrame) {
 

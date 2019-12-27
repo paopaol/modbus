@@ -83,7 +83,7 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
   }
 
   static const DataChecker dataChecker = {bytesRequired<4>,
-                                          bytesRequiredStoreInArrayIndex0};
+                                          bytesRequiredStoreInArrayIndex<0>};
 
   SingleBitAccess access;
 
@@ -113,7 +113,7 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
 void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
                                        Address startAddress,
                                        const QVector<BitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex4,
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<4>,
                                           bytesRequired<4>};
   SingleBitAccess access;
 
@@ -139,7 +139,7 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
   }
 
   static const DataChecker dataChecker = {bytesRequired<4>,
-                                          bytesRequiredStoreInArrayIndex0};
+                                          bytesRequiredStoreInArrayIndex<0>};
 
   SixteenBitAccess access;
 
@@ -170,7 +170,7 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
 void QModbusClient::writeMultipleRegisters(
     ServerAddress serverAddress, Address startAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex4,
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<4>,
                                           bytesRequired<4>};
   SixteenBitAccess access;
 
@@ -193,8 +193,8 @@ void QModbusClient::readWriteMultipleRegisters(
     ServerAddress serverAddress, Address readStartAddress,
     Quantity readQuantity, Address writeStartAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex9,
-                                          bytesRequiredStoreInArrayIndex0};
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<9>,
+                                          bytesRequiredStoreInArrayIndex<0>};
 
   ReadWriteRegistersAccess access;
 

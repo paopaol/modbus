@@ -45,27 +45,19 @@ static inline DataChecker::Result bytesRequired(size_t &size,
  * the byte-number == n.
  * so, the expected size is byte-number + 1
  */
+template <int index>
 static inline DataChecker::Result
-bytesRequiredStoreInArrayIndex0(size_t &size, const ByteArray &data) {
-  if (data.empty()) {
+bytesRequiredStoreInArrayIndex(size_t &size, const ByteArray &data) {
+  int preSize = index + 1;
+  if (data.size() < preSize) {
     return DataChecker::Result::kNeedMoreData;
   }
-  size_t bytes = data[0];
-  if (data.size() < bytes + 1) {
+  size_t bytes = data[index];
+  if (data.size() < bytes + preSize) {
     return DataChecker::Result::kNeedMoreData;
   }
-  size = bytes + 1;
+  size = bytes + preSize;
   return DataChecker::Result::kSizeOk;
-}
-
-static inline DataChecker::Result
-bytesRequiredStoreInArrayIndex4(size_t &size, const ByteArray &data) {
-  return DataChecker::Result::kFailed;
-}
-
-static inline DataChecker::Result
-bytesRequiredStoreInArrayIndex9(size_t &size, const ByteArray &data) {
-  return DataChecker::Result::kFailed;
 }
 
 /**
