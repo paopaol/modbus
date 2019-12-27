@@ -61,6 +61,9 @@ inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
   }
 
   adu->setData(tool::subArray(data, 2, expectSize));
+  if (adu->isException()) {
+    *error = Error(adu->data()[0]);
+  }
   return DataChecker::Result::kSizeOk;
 }
 
@@ -93,9 +96,6 @@ public:
      */
     if (dataWithCrc != data) {
       *error = Error::kStorageParityError;
-    }
-    if (adu_.isException()) {
-      *error = Error(adu_.data()[0]);
     }
 
     return DataChecker::Result::kSizeOk;
@@ -148,9 +148,6 @@ public:
     auto dataWithCrc = tool::appendCrc(adu_.marshalAduWithoutCrc());
     if (dataWithCrc != tool::subArray(subdata, 0, adu_.marshalSize())) {
       *error = Error::kStorageParityError;
-    }
-    if (adu_.isException()) {
-      *error = Error(adu_.data()[0]);
     }
 
     return DataChecker::Result::kSizeOk;
@@ -209,9 +206,6 @@ public:
     auto result = unmarshalAdu(tool::subArray(data, 6), &adu_, error);
     if (result != DataChecker::Result::kSizeOk) {
       return result;
-    }
-    if (adu_.isException()) {
-      *error = Error(adu_.data()[0]);
     }
     return DataChecker::Result::kSizeOk;
   }
