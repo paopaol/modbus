@@ -131,6 +131,16 @@ public:
   void writeMultipleRegisters(ServerAddress serverAddress, Address startAddress,
                               const QVector<SixteenBitValue> &valueList);
 
+  /**
+   *for function code 0x17
+   *will emit readWriteMultipleRegistersFinished signal
+   */
+  void readWriteMultipleRegisters(ServerAddress serverAddress,
+                                  Address readStartAddress,
+                                  Quantity readQuantity,
+                                  Address writeStartAddress,
+                                  const QVector<SixteenBitValue> &valueList);
+
   bool isIdle();
 
   bool isClosed();
@@ -176,6 +186,9 @@ signals:
 
   void writeMultipleCoilsFinished(ServerAddress serverAddress, Address address,
                                   Error error);
+  void readWriteMultipleRegistersFinished(
+      ServerAddress serverAddress, Address readStartAddress,
+      const QVector<SixteenBitValue> &valueList, Error error);
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);

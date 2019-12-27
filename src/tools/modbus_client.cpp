@@ -16,6 +16,11 @@ toSixteenBitValueList(const SixteenBitAccess &access);
 static QVector<BitValue> toBitValueList(const SingleBitAccess &access);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
+struct ReadWriteRegistersAccess {
+  SixteenBitAccess readAccess;
+  SixteenBitAccess writeAccess;
+};
+
 QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
     : d_ptr(new QModbusClientPrivate(iodevice, this)), QObject(parent) {
   initMemberValues();
@@ -181,6 +186,37 @@ void QModbusClient::writeMultipleRegisters(
   auto request =
       createRequest(serverAddress, FunctionCode::kWriteMultipleRegisters,
                     dataChecker, access, access.marshalMultipleWriteRequest());
+  sendRequest(request);
+}
+
+void QModbusClient::readWriteMultipleRegisters(
+    ServerAddress serverAddress, Address readStartAddress,
+    Quantity readQuantity, Address writeStartAddress,
+    const QVector<SixteenBitValue> &valueList) {
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex9,
+                                          bytesRequiredStoreInArrayIndex0};
+
+  ReadWriteRegistersAccess access;
+
+  access.readAccess.setStartAddress(readStartAddress);
+  access.readAccess.setQuantity(readQuantity);
+
+  access.writeAccess.setStartAddress(writeStartAddress);
+  access.writeAccess.setQuantity(valueList.size());
+
+  int offset = 0;
+  for (const auto &value : valueList) {
+    auto address = writeStartAddress + offset++;
+    access.writeAccess.setValue(address, value.toUint16());
+  }
+
+  ByteArray data = access.readAccess.marshalMultipleReadRequest();
+  ByteArray writeData = access.writeAccess.marshalMultipleWriteRequest();
+
+  data.insert(data.end(), writeData.begin(), writeData.end());
+  auto request =
+      createRequest(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
+                    dataChecker, access, data);
   sendRequest(request);
 }
 
@@ -521,6 +557,18 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
     emit writeMultipleRegistersFinished(
         request.serverAddress(), access.startAddress(), response.error());
+    return;
+  }
+  case FunctionCode::kReadWriteMultipleRegisters: {
+    auto access =
+        modbus::any::any_cast<ReadWriteRegistersAccess>(request.userData());
+    auto readAccess = access.readAccess;
+    if (!response.isException()) {
+      processReadRegisters(request, response, &readAccess);
+    }
+    emit readWriteMultipleRegistersFinished(
+        request.serverAddress(), readAccess.startAddress(),
+        toSixteenBitValueList(readAccess), response.error());
     return;
   }
   default:

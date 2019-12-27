@@ -1448,6 +1448,65 @@ TEST(ModbusClient, writeMultipleCoils_failed) {
   app.exec();
 }
 
+TEST(ModbusClient, readWriteMultipleRegisters_success) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::readWriteMultipleRegistersFinished);
+
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{
+            kServerAddress,
+            uint8_t(modbus::FunctionCode::kReadWriteMultipleRegisters), 0x06,
+            0x00, 0x01, 0x00, 0x02, 0x00, 0x03});
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    QVector<modbus::SixteenBitValue> valueList;
+
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0a));
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0b));
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0c));
+    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0d));
+
+    serialClient.readWriteMultipleRegisters(
+        kServerAddress, modbus::Address(0x05), modbus::Quantity(0x03),
+        modbus::Address(0x04), valueList);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::ServerAddress serverAddress =
+        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    EXPECT_EQ(serverAddress, kServerAddress);
+
+    modbus::Address readStartAddress = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(readStartAddress, 0x05);
+
+    valueList =
+        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+    EXPECT_EQ(valueList.size(), 3);
+    EXPECT_EQ(valueList[0].toUint16(), 0x01);
+    EXPECT_EQ(valueList[1].toUint16(), 0x02);
+    EXPECT_EQ(valueList[2].toUint16(), 0x03);
+
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
+    EXPECT_EQ(error, modbus::Error::kNoError);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,
