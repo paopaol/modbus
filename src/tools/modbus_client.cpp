@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <base/modbus_logger.h>
 #include <modbus/base/modbus_tool.h>
+#include <modbus/base/single_bit_access.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus_frame.h>
 
@@ -12,6 +13,7 @@ namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 static QVector<SixteenBitValue>
 toSixteenBitValueList(const SixteenBitAccess &access);
+static QVector<BitValue> toBitValueList(const SingleBitAccess &access);
 std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
 QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
@@ -64,6 +66,16 @@ void QModbusClient::sendRequest(const Request &request) {
 
   element.retryTimes = d->retryTimes_;
   d->enqueueElement(element);
+}
+
+void QModbusClient::readSingleBits(ServerAddress serverAddress,
+                                   FunctionCode functionCode,
+                                   Address startAddress, Quantity quantity) {
+  SingleBitAccess access;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(quantity);
+  sendRequest(createReadSingleBitRequest(serverAddress, functionCode, access));
 }
 
 void QModbusClient::readRegisters(ServerAddress serverAddress,
@@ -126,6 +138,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Address>("Address");
   qRegisterMetaType<Error>("Error");
   qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
+  qRegisterMetaType<QVector<BitValue>>("QVector<BitValue>");
 
   Q_D(QModbusClient);
 
@@ -397,6 +410,16 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
 void QModbusClient::processResponseAnyFunctionCode(const Request &request,
                                                    const Response &response) {
   switch (request.functionCode()) {
+  case FunctionCode::kReadCoils:
+  case FunctionCode::kReadInputDiscrete: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    if (!response.isException()) {
+      processReadSingleBit(request, response, &access);
+    }
+    emit readSingleBitsFinished(request.serverAddress(), access.startAddress(),
+                                toBitValueList(access), response.error());
+    return;
+  }
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {
     auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
@@ -440,6 +463,21 @@ toSixteenBitValueList(const SixteenBitAccess &access) {
     bool found = true;
     SixteenBitValue value = access.value(address, &found);
     if (!found) {
+      continue;
+    }
+    valueList.push_back(value);
+  }
+  return valueList;
+}
+
+static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
+  QVector<BitValue> valueList;
+
+  for (size_t i = 0; i < access.quantity(); i++) {
+    Address address = access.startAddress() + i;
+
+    BitValue value = access.value(address);
+    if (value == BitValue::kBadValue) {
       continue;
     }
     valueList.push_back(value);
