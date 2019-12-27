@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <modbus/base/sixteen_bit_access.h>
+#include <modbus/tools/modbus_client.h>
 
 TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   const modbus::DataChecker dataChecker = {

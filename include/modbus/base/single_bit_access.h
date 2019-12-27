@@ -216,10 +216,6 @@ private:
 
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access);
-Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const DataChecker &dataChecker,
-                      const SingleBitAccess &access, const ByteArray &data);
-
 } // namespace modbus
 
 #endif /* FUNCTIONS_H */

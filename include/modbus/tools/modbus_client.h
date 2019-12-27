@@ -194,6 +194,10 @@ private:
   QScopedPointer<QModbusClientPrivate> d_ptr;
 };
 
+Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
+                      const DataChecker &dataChecker, const any &userData,
+                      const ByteArray &data);
+
 QModbusClient *
 newQtSerialClient(const QString &serialName,
                   QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,

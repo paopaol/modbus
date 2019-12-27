@@ -24,20 +24,6 @@ bool processReadSingleBit(const Request &request, const Response &response,
   return true;
 }
 
-Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const DataChecker &dataChecker,
-                      const SingleBitAccess &access, const ByteArray &data) {
-  Request request;
-
-  request.setServerAddress(serverAddress);
-  request.setFunctionCode(functionCode);
-  request.setUserData(access);
-  request.setData(data);
-  request.setDataChecker(dataChecker);
-
-  return request;
-}
-
 static bool validateSingleBitAccessResponse(const modbus::Response &resp) {
   if (resp.error() != modbus::Error::kNoError) {
     log(LogLevel::kError, resp.errorString().c_str());

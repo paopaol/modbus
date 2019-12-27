@@ -580,4 +580,18 @@ std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
   }
 }
 
+Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
+                      const DataChecker &dataChecker, const any &userData,
+                      const ByteArray &data) {
+  Request request;
+
+  request.setServerAddress(serverAddress);
+  request.setFunctionCode(functionCode);
+  request.setUserData(userData);
+  request.setDataChecker(dataChecker);
+  request.setData(data);
+
+  return request;
+}
+
 } // namespace modbus
