@@ -109,7 +109,7 @@ enum FunctionCode {
   kReadFileRecords = 0x14,
   kWriteFileRecords = 0x15,
   kMaskWriteRegister = 0x16,
-  kReadwriteMultipleRegisters = 0x17,
+  kReadWriteMultipleRegisters = 0x17,
   kReadDeviceIdentificationCode = 0x2b
 };
 inline std::ostream &operator<<(std::ostream &output,
@@ -151,7 +151,7 @@ inline std::ostream &operator<<(std::ostream &output,
   case FunctionCode::kMaskWriteRegister:
     output << "mask write register";
     break;
-  case FunctionCode::kReadwriteMultipleRegisters:
+  case FunctionCode::kReadWriteMultipleRegisters:
     output << "read/write multiple registers";
     break;
   case FunctionCode::kReadDeviceIdentificationCode:
