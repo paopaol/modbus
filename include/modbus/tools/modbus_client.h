@@ -92,6 +92,13 @@ public:
   void sendRequest(const Request &request);
 
   /**
+   *for function code 0x01/0x02
+   *will emit readSingleBitsFinished signal
+   */
+  void readSingleBits(ServerAddress serverAddress, FunctionCode functionCode,
+                      Address startAddress, Quantity quantity);
+
+  /**
    * sixteem bit access, for function code 3/4
    * will emit readRegistersFinished signal
    */
@@ -140,6 +147,8 @@ signals:
   void clientClosed();
   void errorOccur(const QString &errorString);
   void requestFinished(const Request &request, const Response &response);
+  void readSingleBitsFinished(ServerAddress serverAddress, Address startAddress,
+                              const QVector<BitValue> &valueList, Error error);
   void readRegistersFinished(ServerAddress serverAddress, Address startAddress,
                              const QVector<SixteenBitValue> &valueList,
                              Error error);
@@ -184,5 +193,6 @@ Q_DECLARE_METATYPE(modbus::Request);
 Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
 Q_DECLARE_METATYPE(modbus::Error);
 Q_DECLARE_METATYPE(QVector<modbus::SixteenBitValue>);
+Q_DECLARE_METATYPE(QVector<modbus::BitValue>);
 
 #endif // __MODBUS_CLIENT_H_
