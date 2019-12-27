@@ -2,6 +2,9 @@
 #include <modbus/base/sixteen_bit_access.h>
 
 TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
+  const modbus::DataChecker dataChecker = {
+      modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex0};
+
   modbus::SixteenBitAccess access;
   access.setStartAddress(0);
   access.setQuantity(3);
@@ -10,8 +13,9 @@ TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   access.setDescription(modbus::Address(0x01), "temperature");
   access.setDescription(modbus::Address(0x02), "CO2 concentration");
 
-  modbus::Request request = modbus::createReadRegistersRequest(
-      0x01, modbus::FunctionCode::kReadHoldingRegisters, access);
+  modbus::Request request = modbus::createRequest(
+      0x01, modbus::FunctionCode::kReadHoldingRegisters, dataChecker, access,
+      access.marshalMultipleReadRequest());
   modbus::Response response;
 
   response.setError(modbus::Error::kNoError);
