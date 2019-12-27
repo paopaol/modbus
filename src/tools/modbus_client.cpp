@@ -399,8 +399,10 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
   switch (request.functionCode()) {
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {
-    SixteenBitAccess access;
-    processReadRegisters(request, response, &access);
+    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    if (!response.isException()) {
+      processReadRegisters(request, response, &access);
+    }
     emit readRegistersFinished(request.serverAddress(), access.startAddress(),
                                toSixteenBitValueList(access), response.error());
     return;
