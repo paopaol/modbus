@@ -19,9 +19,9 @@ public:
   SingleBitAccess() {}
 
   void setStartAddress(Address startAddress) { startAddress_ = startAddress; }
-  Address startAddress() { return startAddress_; }
+  Address startAddress() const { return startAddress_; }
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
-  Quantity quantity() { return quantity_; }
+  Quantity quantity() const { return quantity_; }
 
   void setDeviceName(const std::string &name) { deviceName_ = name; }
   std::string deviceName() const { return deviceName_; }
@@ -191,12 +191,12 @@ public:
     return true;
   }
 
-  BitValue value(Address address) {
+  BitValue value(Address address) const {
     auto value = valueEx(address);
     return value.value;
   }
 
-  BitValueEx valueEx(Address address) {
+  BitValueEx valueEx(Address address) const {
     BitValueEx value;
 
     auto it = valueMap_.find(address);
@@ -211,7 +211,7 @@ private:
   Address startAddress_;
   Quantity quantity_ = 0;
   std::string deviceName_;
-  std::map<Address, BitValueEx> valueMap_;
+  mutable std::map<Address, BitValueEx> valueMap_;
 };
 
 Request createReadSingleBitRequest(ServerAddress serverAddress,
