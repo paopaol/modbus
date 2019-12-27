@@ -221,6 +221,9 @@ Request createReadSingleBitRequest(ServerAddress serverAddress,
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access);
 
+Request createWriteSingleCoilRequest(ServerAddress serverAddress,
+                                     const SingleBitAccess &access);
+
 } // namespace modbus
 
 #endif /* FUNCTIONS_H */

@@ -99,6 +99,13 @@ public:
                       Address startAddress, Quantity quantity);
 
   /**
+   *for function code 0x05
+   *will emit writeSingleCoilFinished signal
+   */
+  void writeSingleCoil(ServerAddress serverAddress, Address startAddress,
+                       BitValue value);
+
+  /**
    * sixteem bit access, for function code 3/4
    * will emit readRegistersFinished signal
    */
@@ -149,6 +156,8 @@ signals:
   void requestFinished(const Request &request, const Response &response);
   void readSingleBitsFinished(ServerAddress serverAddress, Address startAddress,
                               const QVector<BitValue> &valueList, Error error);
+  void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
+                               Error error);
   void readRegistersFinished(ServerAddress serverAddress, Address startAddress,
                              const QVector<SixteenBitValue> &valueList,
                              Error error);

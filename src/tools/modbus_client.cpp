@@ -78,6 +78,16 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
   sendRequest(createReadSingleBitRequest(serverAddress, functionCode, access));
 }
 
+void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
+                                    Address startAddress, BitValue value) {
+  SingleBitAccess access;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(1);
+  access.setValue(value);
+  sendRequest(createWriteSingleCoilRequest(serverAddress, access));
+}
+
 void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   FunctionCode functionCode,
                                   Address startAddress, Quantity quantity) {
@@ -418,6 +428,12 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     }
     emit readSingleBitsFinished(request.serverAddress(), access.startAddress(),
                                 toBitValueList(access), response.error());
+    return;
+  }
+  case FunctionCode::kWriteSingleCoil: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    emit writeSingleCoilFinished(request.serverAddress(), access.startAddress(),
+                                 response.error());
     return;
   }
   case FunctionCode::kReadHoldingRegisters:
