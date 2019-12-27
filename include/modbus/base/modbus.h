@@ -63,6 +63,11 @@ bytesRequiredStoreInArrayIndex4(size_t &size, const ByteArray &data) {
   return DataChecker::Result::kFailed;
 }
 
+static inline DataChecker::Result
+bytesRequiredStoreInArrayIndex9(size_t &size, const ByteArray &data) {
+  return DataChecker::Result::kFailed;
+}
+
 /**
  * Protocol data unit
  * in modbus frame, it is function Code + data
