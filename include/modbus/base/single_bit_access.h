@@ -215,8 +215,8 @@ private:
 };
 
 Request createReadSingleBitRequest(ServerAddress serverAddress,
-                                   const SingleBitAccess &access,
-                                   FunctionCode functionCode);
+                                   FunctionCode functionCode,
+                                   const SingleBitAccess &access);
 
 bool processReadSingleBit(const Request &request, const Response &response,
                           SingleBitAccess *access);

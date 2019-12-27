@@ -12,7 +12,7 @@ TEST(SingleBitAccessProcess, readSingleBitProcess) {
   access.setDescription(access.startAddress() + 2, "value3");
 
   auto request = modbus::createReadSingleBitRequest(
-      0x01, access, modbus::FunctionCode::kReadCoils);
+      0x01, modbus::FunctionCode::kReadCoils, access);
   modbus::Response response;
 
   response.setServerAddress(0x01);
