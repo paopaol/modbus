@@ -1341,6 +1341,113 @@ TEST(ModbusClient, writeSingleCoil_failed) {
   app.exec();
 }
 
+TEST(ModbusClient, writeMultipleCoils_success) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::writeMultipleCoilsFinished);
+
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress,
+                          uint8_t(modbus::FunctionCode::kWriteMultipleCoils),
+                          0x00, 0x05, 0x00, 0x09});
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    QVector<modbus::BitValue> valueList;
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    serialClient.writeMultipleCoils(kServerAddress, modbus::Address(0x05),
+                                    valueList);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::ServerAddress serverAddress =
+        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    EXPECT_EQ(serverAddress, kServerAddress);
+
+    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(address, 0x05);
+
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
+    EXPECT_EQ(error, modbus::Error::kNoError);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
+TEST(ModbusClient, writeMultipleCoils_failed) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::writeMultipleCoilsFinished);
+
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{
+            kServerAddress,
+            uint8_t(modbus::FunctionCode::kWriteMultipleCoils | 0x80),
+            uint8_t(modbus::Error::kSlaveDeviceBusy)});
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    QVector<modbus::BitValue> valueList;
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    valueList.push_back(modbus::BitValue::kOff);
+    valueList.push_back(modbus::BitValue::kOn);
+    serialClient.writeMultipleCoils(kServerAddress, modbus::Address(0x05),
+                                    valueList);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    modbus::ServerAddress serverAddress =
+        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    EXPECT_EQ(serverAddress, kServerAddress);
+
+    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    EXPECT_EQ(address, 0x05);
+
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
+    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,

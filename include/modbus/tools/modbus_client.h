@@ -105,6 +105,13 @@ public:
   void writeSingleCoil(ServerAddress serverAddress, Address startAddress,
                        BitValue value);
 
+  /*
+   *for function code 0x0f
+   *will emit writeMultipleCoilsFinished signal
+   */
+  void writeMultipleCoils(ServerAddress serverAddress, Address startAddress,
+                          const QVector<BitValue> &valueList);
+
   /**
    * sixteem bit access, for function code 3/4
    * will emit readRegistersFinished signal
@@ -166,6 +173,9 @@ signals:
 
   void writeMultipleRegistersFinished(ServerAddress serverAddress,
                                       Address address, Error error);
+
+  void writeMultipleCoilsFinished(ServerAddress serverAddress, Address address,
+                                  Error error);
 
 private:
   void runAfter(int delay, const std::function<void()> &functor);

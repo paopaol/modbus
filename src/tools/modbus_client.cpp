@@ -104,6 +104,24 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
                     access, access.marshalSingleWriteRequest());
   sendRequest(request);
 }
+
+void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
+                                       Address startAddress,
+                                       const QVector<BitValue> &valueList) {
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex4,
+                                          bytesRequired<4>};
+  SingleBitAccess access;
+
+  access.setStartAddress(startAddress);
+  access.setQuantity(valueList.size());
+  for (size_t offset = 0; offset < valueList.size(); offset++) {
+    Address address = startAddress + offset;
+    access.setValue(address, valueList[offset]);
+  }
+  auto request =
+      createRequest(serverAddress, FunctionCode::kWriteMultipleCoils,
+                    dataChecker, access, access.marshalMultipleWriteRequest());
+  sendRequest(request);
 }
 
 void QModbusClient::readRegisters(ServerAddress serverAddress,
@@ -452,6 +470,12 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
     auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
     emit writeSingleCoilFinished(request.serverAddress(), access.startAddress(),
                                  response.error());
+    return;
+  }
+  case FunctionCode::kWriteMultipleCoils: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    emit writeMultipleCoilsFinished(request.serverAddress(),
+                                    access.startAddress(), response.error());
     return;
   }
   case FunctionCode::kReadHoldingRegisters:
