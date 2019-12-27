@@ -5,8 +5,8 @@ namespace modbus {
 static bool validateSingleBitAccessResponse(const modbus::Response &resp);
 
 Request createReadSingleBitRequest(ServerAddress serverAddress,
-                                   const SingleBitAccess &access,
-                                   FunctionCode functionCode) {
+                                   FunctionCode functionCode,
+                                   const SingleBitAccess &access) {
   static const DataChecker dataChecker = {bytesRequired<4>,
                                           bytesRequiredStoreInArrayIndex0};
 
