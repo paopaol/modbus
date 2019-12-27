@@ -28,6 +28,9 @@ template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,
                             modbus::Quantity quantity, Session &session);
+static void
+configMockSerialPortWithReponse(MockSerialPort *mocker,
+                                const modbus::ByteArray &expectResponse);
 
 static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
   auto serialPort = new MockSerialPort();
@@ -882,31 +885,10 @@ TEST(ModbusSerialClient,
 
     QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->opened();
-    }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        }));
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    modbus::ByteArray responseWithoutCrc = {kServerAddress,
-                                            modbus::FunctionCode::kReadCoils,
-                                            0x02, 0x01, 0x05 /*b 0000 0101*/};
-
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
-
-    QByteArray qarray((const char *)responseWithCrc.data(),
-                      responseWithCrc.size());
-
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
-      return qarray;
-    }));
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress, modbus::FunctionCode::kReadCoils,
+                          0x02, 0x01, 0x05 /*b 0000 0101*/});
 
     // make sure the client is opened
     serialClient.open();
@@ -935,30 +917,9 @@ TEST(ModbusSerialClient, readRegisters) {
     QSignalSpy spy(&serialClient,
                    &modbus::QModbusClient::readRegistersFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->opened();
-    }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        }));
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
-      modbus::ByteArray responseWithoutCrc = {kServerAddress, 0x03, 0x08, 0x00,
-                                              0x01,           0x00, 0x02, 0x00,
-                                              0x03,           0x00, 0x04};
-
-      modbus::ByteArray responseWithCrc =
-          modbus::tool::appendCrc(responseWithoutCrc);
-
-      QByteArray qarray((const char *)responseWithCrc.data(),
-                        responseWithCrc.size());
-      return qarray;
-    }));
+    configMockSerialPortWithReponse(
+        serialPort, modbus::ByteArray{kServerAddress, 0x03, 0x08, 0x00, 0x01,
+                                      0x00, 0x02, 0x00, 0x03, 0x00, 0x04});
 
     // make sure the client is opened
     serialClient.open();
@@ -1001,31 +962,11 @@ TEST(ModbusClient, writeSingleRegister_Success) {
     QSignalSpy spy(&serialClient,
                    &modbus::QModbusClient::writeSingleRegisterFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->opened();
-    }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        }));
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
-      modbus::ByteArray responseWithoutCrc = {
-          kServerAddress, modbus::FunctionCode::kWriteSingleRegister,
-          0x00,           0x05,
-          0x00,           0x01};
-
-      modbus::ByteArray responseWithCrc =
-          modbus::tool::appendCrc(responseWithoutCrc);
-
-      QByteArray qarray((const char *)responseWithCrc.data(),
-                        responseWithCrc.size());
-      return qarray;
-    }));
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress,
+                          modbus::FunctionCode::kWriteSingleRegister, 0x00,
+                          0x05, 0x00, 0x01});
 
     // make sure the client is opened
     serialClient.open();
@@ -1060,32 +1001,12 @@ TEST(ModbusClient, writeSingleRegister_Failed) {
     QSignalSpy spy(&serialClient,
                    &modbus::QModbusClient::writeSingleRegisterFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->opened();
-    }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        }));
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
-      modbus::ByteArray responseWithoutCrc = {
-          kServerAddress,
-          modbus::FunctionCode::kWriteSingleRegister |
-              modbus::Pdu::kExceptionByte,
-          (uint8_t)modbus::Error::kIllegalFunctionCode};
-
-      modbus::ByteArray responseWithCrc =
-          modbus::tool::appendCrc(responseWithoutCrc);
-
-      QByteArray qarray((const char *)responseWithCrc.data(),
-                        responseWithCrc.size());
-      return qarray;
-    }));
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress,
+                          modbus::FunctionCode::kWriteSingleRegister |
+                              modbus::Pdu::kExceptionByte,
+                          (uint8_t)modbus::Error::kIllegalFunctionCode});
 
     // make sure the client is opened
     serialClient.open();
@@ -1120,32 +1041,11 @@ TEST(ModbusClient, writeMultipleRegisters_success) {
     QSignalSpy spy(&serialClient,
                    &modbus::QModbusClient::writeMultipleRegistersFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->opened();
-    }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
-        .WillRepeatedly(testing::Invoke([&](const char *data, size_t size) {
-          serialPort->bytesWritten(size);
-          QTimer::singleShot(0, [&]() { serialPort->readyRead(); });
-        }));
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(testing::Invoke([&]() {
-      modbus::ByteArray responseWithoutCrc = {
-          kServerAddress, modbus::FunctionCode::kWriteMultipleRegisters,
-          0x00,           0x05,
-          0x00,           0x03};
-
-      modbus::ByteArray responseWithCrc =
-          modbus::tool::appendCrc(responseWithoutCrc);
-
-      QByteArray qarray((const char *)responseWithCrc.data(),
-                        responseWithCrc.size());
-      return qarray;
-    }));
-
+    configMockSerialPortWithReponse(
+        serialPort,
+        modbus::ByteArray{kServerAddress,
+                          modbus::FunctionCode::kWriteMultipleRegisters, 0x00,
+                          0x05, 0x00, 0x03});
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
@@ -1242,4 +1142,32 @@ static modbus::Request createBrocastRequest() {
   request.setData(access.marshalReadRequest());
   request.setUserData(access);
   return request;
+}
+
+/**
+ *this will append crc to expectResponse
+ */
+static void
+configMockSerialPortWithReponse(MockSerialPort *mocker,
+                                const modbus::ByteArray &expectResponse) {
+  EXPECT_CALL(*mocker, open()).WillRepeatedly(testing::Invoke([mocker]() {
+    mocker->opened();
+  }));
+  EXPECT_CALL(*mocker, write(testing::_, testing::_))
+      .WillRepeatedly(testing::Invoke([mocker](const char *data, size_t size) {
+        mocker->bytesWritten(size);
+        QTimer::singleShot(0, [mocker]() { mocker->readyRead(); });
+      }));
+  EXPECT_CALL(*mocker, close()).WillRepeatedly(testing::Invoke([mocker]() {
+    mocker->closed();
+  }));
+
+  EXPECT_CALL(*mocker, readAll())
+      .WillRepeatedly(testing::Invoke([mocker, expectResponse]() {
+        modbus::ByteArray responseWithCrc =
+            modbus::tool::appendCrc(expectResponse);
+        QByteArray qarray((const char *)responseWithCrc.data(),
+                          responseWithCrc.size());
+        return qarray;
+      }));
 }
