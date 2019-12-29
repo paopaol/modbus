@@ -102,6 +102,10 @@ public:
 
   /// the default transfer mode must be rtu mode
   TransferMode transferMode_;
+
+  /// defualt is disabled
+  bool enableDiagnosis_ = false;
+  RuntimeDiagnosis runtimeDiagnosis_;
 };
 
 class ReconnectableIoDevicePrivate : public QObject {
