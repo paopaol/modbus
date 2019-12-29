@@ -166,6 +166,14 @@ public:
   size_t pendingRequestSize();
 
   QString errorString();
+
+  /**
+   *enable collection diagnosis
+   *default is disabled
+   */
+  void enableDiagnosis(bool flag);
+  RuntimeDiagnosis runtimeDiagnosis() const;
+
 signals:
   void clientOpened();
   void clientClosed();
@@ -203,6 +211,8 @@ private:
   void clearPendingRequest();
   void processResponseAnyFunctionCode(const Request &request,
                                       const Response &response);
+  void processFunctionCode(const Request &request, const Response &response);
+  void processDiagnosis(const Request &request, const Response &response);
 
   QScopedPointer<QModbusClientPrivate> d_ptr;
 };

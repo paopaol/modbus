@@ -28,9 +28,9 @@ template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,
                             modbus::Quantity quantity, Session &session);
-static void
-configMockSerialPortWithReponse(MockSerialPort *mocker,
-                                const modbus::ByteArray &expectResponse);
+static void configMockSerialPortWithReponse(MockSerialPort *mocker,
+                                            const modbus::ByteArray &response);
+static QByteArray buildResponseArray(const modbus::ByteArray &response);
 
 static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
   auto serialPort = new MockSerialPort();
@@ -1507,6 +1507,79 @@ TEST(ModbusClient, readWriteMultipleRegisters_success) {
   app.exec();
 }
 
+TEST(ModbusClient, frame_diagnostics) {
+  declare_app(app);
+  {
+    auto serialPort = new MockSerialPort();
+
+    modbus::QModbusClient serialClient(serialPort);
+    serialClient.setRetryTimes(1);
+    serialClient.setTimeout(300);
+    serialClient.enableDiagnosis(true);
+
+    QSignalSpy spy(&serialClient,
+                   &modbus::QModbusClient::readRegistersFinished);
+
+    modbus::FunctionCode funcode = modbus::FunctionCode::kReadHoldingRegisters;
+    modbus::ByteArray emptyResponse = {};
+    modbus::ByteArray successReponse = {kServerAddress, uint8_t(funcode), 0x02,
+                                        0x00, 0x01};
+    modbus::ByteArray failedReponse = {
+        kServerAddress, uint8_t(funcode | 0x80),
+        uint8_t(modbus::Error::kSlaveDeviceBusy)};
+
+    configMockSerialPortWithReponse(serialPort, {});
+    EXPECT_CALL(*serialPort, readAll())
+        .WillOnce(testing::Invoke(
+            [emptyResponse]() { return buildResponseArray(emptyResponse); }))
+        .WillOnce(testing::Invoke(
+            [successReponse]() { return buildResponseArray(successReponse); }))
+        .WillOnce(testing::Invoke(
+            [failedReponse]() { return buildResponseArray(failedReponse); }));
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    serialClient.readRegisters(kServerAddress, funcode, modbus::Address(0x05),
+                               modbus::Quantity(0x01));
+    serialClient.readRegisters(kServerAddress, funcode, modbus::Address(0x05),
+                               modbus::Quantity(0x01));
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(5000);
+    EXPECT_EQ(spy.count(), 2);
+    modbus::RuntimeDiagnosis diagnosis = serialClient.runtimeDiagnosis();
+
+    /// timout(1) + + retry-success(1) + failed(1)
+    EXPECT_EQ(diagnosis.totalFrameNumbers(), 3);
+
+    EXPECT_EQ(diagnosis.successedFrameNumbers(), 1);
+    EXPECT_EQ(diagnosis.failedFrameNumbers(), 2);
+    EXPECT_EQ(diagnosis.servers().size(), 1);
+
+    auto servers = diagnosis.servers();
+    EXPECT_NE(servers.find(kServerAddress), servers.end());
+    const auto &server = servers[kServerAddress];
+    EXPECT_EQ(server.errorRecords().size(), 2);
+    EXPECT_EQ(server.errorRecords()[0].error(), modbus::Error::kTimeout);
+    EXPECT_EQ(server.errorRecords()[1].error(),
+              modbus::Error::kSlaveDeviceBusy);
+    // for (const auto &errorRecord : server.errorRecords()) {
+    //   qDebug() << errorRecord.functionCode() << errorRecord.requestFrame()
+    //            << errorRecord.error() << errorRecord.occurrenceCount();
+    //   /// serverAddress:0x01, functionCode:0x03, requestFrame:01 03 00 01
+    //   /// 03,error:[0x02-slave is Busy], occurrenceCount:15;
+    //   EXPECT_EQ(errorRecord.functionCode(), funcode);
+    //   EXPECT_EQ(errorRecord, val2)
+    // }
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 template <modbus::TransferMode mode>
 static void createReadCoils(modbus::ServerAddress serverAddress,
                             modbus::Address startAddress,
@@ -1581,9 +1654,8 @@ static modbus::Request createBrocastRequest() {
 /**
  *this will append crc to expectResponse
  */
-static void
-configMockSerialPortWithReponse(MockSerialPort *mocker,
-                                const modbus::ByteArray &expectResponse) {
+static void configMockSerialPortWithReponse(MockSerialPort *mocker,
+                                            const modbus::ByteArray &response) {
   EXPECT_CALL(*mocker, open()).WillRepeatedly(testing::Invoke([mocker]() {
     mocker->opened();
   }));
@@ -1595,13 +1667,14 @@ configMockSerialPortWithReponse(MockSerialPort *mocker,
   EXPECT_CALL(*mocker, close()).WillRepeatedly(testing::Invoke([mocker]() {
     mocker->closed();
   }));
+  EXPECT_CALL(*mocker, readAll()).WillRepeatedly(testing::Invoke([response]() {
+    return buildResponseArray(response);
+  }));
+}
 
-  EXPECT_CALL(*mocker, readAll())
-      .WillRepeatedly(testing::Invoke([mocker, expectResponse]() {
-        modbus::ByteArray responseWithCrc =
-            modbus::tool::appendCrc(expectResponse);
-        QByteArray qarray((const char *)responseWithCrc.data(),
-                          responseWithCrc.size());
-        return qarray;
-      }));
+static QByteArray buildResponseArray(const modbus::ByteArray &response) {
+  modbus::ByteArray responseWithCrc = modbus::tool::appendCrc(response);
+  QByteArray qarray((const char *)responseWithCrc.data(),
+                    responseWithCrc.size());
+  return qarray;
 }

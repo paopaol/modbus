@@ -342,6 +342,19 @@ QString QModbusClient::errorString() {
   return d->errorString_;
 }
 
+void QModbusClient::enableDiagnosis(bool enable) {
+  Q_D(QModbusClient);
+  if (d->enableDiagnosis_ == enable) {
+    return;
+  }
+  d->enableDiagnosis_ = enable;
+}
+
+RuntimeDiagnosis QModbusClient::runtimeDiagnosis() const {
+  const Q_D(QModbusClient);
+  return d->runtimeDiagnosis_;
+}
+
 void QModbusClient::initMemberValues() {
   Q_D(QModbusClient);
 
@@ -370,15 +383,21 @@ void QModbusClient::onIoDeviceResponseTimeout() {
    */
   d->sessionState_.setState(SessionState::kIdle);
 
+  auto request = element.request;
+  auto response = element.response;
+
   if (element.retryTimes-- > 0) {
     log(LogLevel::kWarning,
         d->device_.name() + " waiting response timeout, retry it, retrytimes " +
             std::to_string(element.retryTimes));
+
+    response.setFunctionCode(request.functionCode());
+    response.setServerAddress(request.serverAddress());
+    response.setError(Error::kTimeout);
+    processDiagnosis(request, response);
   } else {
     log(LogLevel::kWarning, d->device_.name() + ": waiting response timeout");
 
-    auto request = element.request;
-    auto response = element.response;
     /**
      * if have no retry times, remove this request
      */
@@ -515,6 +534,28 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
 
 void QModbusClient::processResponseAnyFunctionCode(const Request &request,
                                                    const Response &response) {
+  processDiagnosis(request, response);
+  processFunctionCode(request, response);
+}
+
+void QModbusClient::processDiagnosis(const Request &request,
+                                     const Response &response) {
+  Q_D(QModbusClient);
+  if (!d->enableDiagnosis_) {
+    return;
+  }
+  auto &runtimeDiagnosis = d->runtimeDiagnosis_;
+  if (response.error() == Error::kNoError) {
+    runtimeDiagnosis.incrementtotalFrameNumbers();
+    return;
+  }
+  runtimeDiagnosis.insertErrorRecord(request.serverAddress(),
+                                     request.functionCode(), response.error(),
+                                     request.data());
+}
+
+void QModbusClient::processFunctionCode(const Request &request,
+                                        const Response &response) {
   switch (request.functionCode()) {
   case FunctionCode::kReadCoils:
   case FunctionCode::kReadInputDiscrete: {
