@@ -535,7 +535,11 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
 void QModbusClient::processResponseAnyFunctionCode(const Request &request,
                                                    const Response &response) {
   processDiagnosis(request, response);
-  processFunctionCode(request, response);
+  try {
+    /// any_cast maybe thown exception
+    processFunctionCode(request, response);
+  } catch (...) {
+  }
 }
 
 void QModbusClient::processDiagnosis(const Request &request,
