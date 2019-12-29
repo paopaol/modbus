@@ -359,6 +359,7 @@ void QModbusClient::onIoDeviceResponseTimeout() {
 
   auto &element = d->elementQueue_.front();
   element.bytesWritten = 0;
+  element.dataRecived.clear();
 
   /**
    *  An error occurs when the response times out but no response is
@@ -574,7 +575,7 @@ void QModbusClient::processResponseAnyFunctionCode(const Request &request,
   default:
     return;
   }
-} // namespace modbus
+}
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
   uint8_t *data = (uint8_t *)qarray.constData();
