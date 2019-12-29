@@ -125,7 +125,7 @@ public:
   }
   FunctionCode functionCode() const { return pdu_.functionCode(); }
 
-  void setPdu(const Pdu &pdu) {}
+  void setPdu(const Pdu &pdu) { pdu_ = pdu; }
   Pdu pdu() const { return pdu_; }
 
   void setDataChecker(const DataChecker &dataChecker) {
