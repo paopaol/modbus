@@ -1566,14 +1566,6 @@ TEST(ModbusClient, frame_diagnostics) {
     EXPECT_EQ(server.errorRecords()[0].error(), modbus::Error::kTimeout);
     EXPECT_EQ(server.errorRecords()[1].error(),
               modbus::Error::kSlaveDeviceBusy);
-    // for (const auto &errorRecord : server.errorRecords()) {
-    //   qDebug() << errorRecord.functionCode() << errorRecord.requestFrame()
-    //            << errorRecord.error() << errorRecord.occurrenceCount();
-    //   /// serverAddress:0x01, functionCode:0x03, requestFrame:01 03 00 01
-    //   /// 03,error:[0x02-slave is Busy], occurrenceCount:15;
-    //   EXPECT_EQ(errorRecord.functionCode(), funcode);
-    //   EXPECT_EQ(errorRecord, val2)
-    // }
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
