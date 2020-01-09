@@ -60,8 +60,7 @@ static QString modbusBitValueToString(modbus::BitValue value);
 
 static modbus::DataChecker newDataChecker() {
   modbus::DataChecker dataChecker;
-  dataChecker.calculateRequestSize = modbus::bytesRequired<4>;
-  dataChecker.calculateResponseSize = modbus::bytesRequiredStoreInArrayIndex0;
+  dataChecker.calculateSize = modbus::bytesRequiredStoreInArrayIndex0;
   return dataChecker;
 }
 

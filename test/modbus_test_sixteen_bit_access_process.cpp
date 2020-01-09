@@ -4,7 +4,7 @@
 
 TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   const modbus::DataChecker dataChecker = {
-      modbus::bytesRequired<4>, modbus::bytesRequiredStoreInArrayIndex<0>};
+      modbus::bytesRequiredStoreInArrayIndex<0>};
 
   modbus::SixteenBitAccess access;
   access.setStartAddress(0);

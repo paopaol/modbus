@@ -33,16 +33,33 @@ inline ByteArray marshalAsciiFrame(const ByteArray &data) {
   return ascii;
 }
 
-inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
-                                        Error *error) {
-  *error = Error::kNoError;
+inline DataChecker::Result
+unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                   ServerAddress *serverAddress,
+                                   FunctionCode *functionCode) {
   /// make sure got serveraddress + function code
   if (data.size() < 2) {
     return DataChecker::Result::kNeedMoreData;
   }
 
-  adu->setServerAddress(data[0]);
-  adu->setFunctionCode(static_cast<FunctionCode>(data[1]));
+  *serverAddress = data[0];
+  *functionCode = static_cast<FunctionCode>(data[1]);
+  return DataChecker::Result::kSizeOk;
+}
+
+inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
+                                        Error *error) {
+  *error = Error::kNoError;
+  ServerAddress serverAddress;
+  FunctionCode functionCode;
+  auto result =
+      unmarshalServerAddressFunctionCode(data, &serverAddress, &functionCode);
+  if (result != DataChecker::Result::kSizeOk) {
+    return result;
+  }
+
+  adu->setServerAddress(serverAddress);
+  adu->setFunctionCode(functionCode);
 
   size_t expectSize = 0;
   DataChecker dataChecker;
@@ -52,10 +69,8 @@ inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
     dataChecker = adu->dataChecker();
   }
 
-  smart_assert(dataChecker.calculateResponseSize &&
-               "not set data size checker");
-  auto result =
-      dataChecker.calculateResponseSize(expectSize, tool::subArray(data, 2));
+  smart_assert(dataChecker.calculateSize && "not set data size checker");
+  result = dataChecker.calculateSize(expectSize, tool::subArray(data, 2));
   if (result == DataChecker::Result::kNeedMoreData) {
     return result;
   }
@@ -75,6 +90,14 @@ public:
     return marshalRtuFrame(adu_.marshalAduWithoutCrc());
   }
   size_t marshalSize() override { return adu_.marshalSize() + 2 /*crc*/; }
+
+  DataChecker::Result
+  unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                     ServerAddress *serverAddress,
+                                     FunctionCode *functionCode) override {
+    return unmarshalServerAddressFunctionCode(data, serverAddress,
+                                              functionCode);
+  }
 
   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
     auto result = unmarshalAdu(data, &adu_, error);
@@ -116,21 +139,34 @@ public:
     return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize;
   }
 
+  DataChecker::Result
+  unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                     ServerAddress *serverAddress,
+                                     FunctionCode *functionCode) override {
+    ByteArray escapedData;
+
+    auto result = escapeColon(data, &escapedData);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+    escapedData = tool::fromHexString(escapedData);
+    return unmarshalServerAddressFunctionCode(escapedData, serverAddress,
+                                              functionCode);
+  }
+
   /**
    * : + hex(adu) + hex(lrc) + \r\n
    */
   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
-    if (data.size() < kColonSize) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    if (data[0] != ':') {
-      *error = Error::kSlaveDeviceFailure;
-      return DataChecker::Result::kFailed;
+    ByteArray subdata;
+
+    auto result = escapeColon(data, &subdata);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
     }
 
-    auto subdata = tool::subArray(data, 1); /// skip ':'
     subdata = tool::fromHexString(subdata);
-    auto result = unmarshalAdu(subdata, &adu_, error);
+    result = unmarshalAdu(subdata, &adu_, error);
     if (result != DataChecker::Result::kSizeOk) {
       return result;
     }
@@ -154,6 +190,19 @@ public:
   }
 
 private:
+  DataChecker::Result escapeColon(const ByteArray &data,
+                                  ByteArray *escapedData) {
+    if (data.size() < kColonSize) {
+      return DataChecker::Result::kNeedMoreData;
+    }
+    if (data[0] != ':') {
+      return DataChecker::Result::kFailed;
+    }
+
+    *escapedData = tool::subArray(data, 1); /// skip ':'
+    return DataChecker::Result::kSizeOk;
+  }
+
   static const int kColonSize = 1; //':'
   static const int kLrcHexSize = 2;
   static const int kCRLRSize = 2;
@@ -192,7 +241,36 @@ public:
     return output;
   }
 
+  DataChecker::Result
+  unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                     ServerAddress *serverAddress,
+                                     FunctionCode *functionCode) override {
+    ByteArray escapedData;
+    auto result = escapeMbapHeader(data, escapedData);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+
+    return unmarshalServerAddressFunctionCode(escapedData, serverAddress,
+                                              functionCode);
+  }
+
   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
+    ByteArray escapedData;
+    auto result = escapeMbapHeader(data, escapedData);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+    result = unmarshalAdu(escapedData, &adu_, error);
+    if (result != DataChecker::Result::kSizeOk) {
+      return result;
+    }
+    return DataChecker::Result::kSizeOk;
+  }
+
+private:
+  DataChecker::Result escapeMbapHeader(const ByteArray &data,
+                                       ByteArray &escapedData) {
     if (data.size() < 6) {
       return DataChecker::Result::kNeedMoreData;
     }
@@ -203,14 +281,11 @@ public:
     if (data.size() < totalSize) {
       return DataChecker::Result::kNeedMoreData;
     }
-    auto result = unmarshalAdu(tool::subArray(data, 6), &adu_, error);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
+
+    escapedData = tool::subArray(data, 6);
     return DataChecker::Result::kSizeOk;
   }
 
-private:
   using TransactionId = uint16_t;
 
   static TransactionId nextTransactionId() {

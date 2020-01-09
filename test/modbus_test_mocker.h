@@ -97,9 +97,7 @@ class MockReadCoilsDataChecker {
 public:
   static modbus::DataChecker newDataChecker() {
     modbus::DataChecker dataChecker;
-    dataChecker.calculateRequestSize = modbus::bytesRequired<4>;
-    dataChecker.calculateResponseSize =
-        modbus::bytesRequiredStoreInArrayIndex<0>;
+    dataChecker.calculateSize = modbus::bytesRequiredStoreInArrayIndex<0>;
     return dataChecker;
   };
 };

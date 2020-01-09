@@ -82,8 +82,7 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                 std::to_string(functionCode) + ")");
   }
 
-  static const DataChecker dataChecker = {bytesRequired<4>,
-                                          bytesRequiredStoreInArrayIndex<0>};
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
 
   SingleBitAccess access;
 
@@ -97,7 +96,7 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
 
 void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
                                     Address startAddress, BitValue value) {
-  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
+  static const DataChecker dataChecker = {bytesRequired<4>};
 
   SingleBitAccess access;
 
@@ -113,8 +112,7 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
 void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
                                        Address startAddress,
                                        const QVector<BitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<4>,
-                                          bytesRequired<4>};
+  static const DataChecker dataChecker = {bytesRequired<4>};
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
@@ -138,8 +136,7 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
                                 std::to_string(functionCode));
   }
 
-  static const DataChecker dataChecker = {bytesRequired<4>,
-                                          bytesRequiredStoreInArrayIndex<0>};
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
 
   SixteenBitAccess access;
 
@@ -155,7 +152,7 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
 void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
                                         Address address,
                                         const SixteenBitValue &value) {
-  static const DataChecker dataChecker = {bytesRequired<4>, bytesRequired<4>};
+  static const DataChecker dataChecker = {bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(address);
@@ -170,8 +167,7 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
 void QModbusClient::writeMultipleRegisters(
     ServerAddress serverAddress, Address startAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<4>,
-                                          bytesRequired<4>};
+  static const DataChecker dataChecker = {bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(startAddress);
@@ -193,8 +189,7 @@ void QModbusClient::readWriteMultipleRegisters(
     ServerAddress serverAddress, Address readStartAddress,
     Quantity readQuantity, Address writeStartAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<9>,
-                                          bytesRequiredStoreInArrayIndex<0>};
+  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
 
   ReadWriteRegistersAccess access;
 
