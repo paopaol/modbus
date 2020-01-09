@@ -6,9 +6,6 @@
 namespace modbus {
 static const DataChecker expectionResponseDataChecker = {
     [](size_t &size, const ByteArray &array) {
-      return DataChecker::Result::kUnkown;
-    },
-    [](size_t &size, const ByteArray &array) {
       size = 1;
       if (array.size() < 1) {
         return DataChecker::Result::kNeedMoreData;

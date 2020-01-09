@@ -16,14 +16,8 @@ public:
   enum class Result { kNeedMoreData, kSizeOk, kUnkown, kFailed };
   using calculateRequiredSizeFunc =
       std::function<Result(size_t &size, const ByteArray &byteArray)>;
-  /**
-   * for check request from client
-   */
-  calculateRequiredSizeFunc calculateRequestSize;
-  /**
-   * for check response from server
-   */
-  calculateRequiredSizeFunc calculateResponseSize;
+
+  calculateRequiredSizeFunc calculateSize;
 };
 
 /**
@@ -182,6 +176,14 @@ public:
    */
   virtual DataChecker::Result unmarshal(const ByteArray &data,
                                         Error *error) = 0;
+
+  /** only unmarshal server address and the functioncode
+   * if success return DataChecker::Result::kSizeOk
+   */
+  virtual DataChecker::Result
+  unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                     ServerAddress *serverAddress,
+                                     FunctionCode *functionCode) = 0;
 
   void setAdu(const Adu &adu) { adu_ = adu; }
   Adu adu() const { return adu_; }

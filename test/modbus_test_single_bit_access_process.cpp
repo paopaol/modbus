@@ -3,8 +3,7 @@
 #include <modbus/tools/modbus_client.h>
 
 TEST(SingleBitAccessProcess, readSingleBitProcess) {
-  modbus::DataChecker dataChecker = {modbus::bytesRequired<4>,
-                                     modbus::bytesRequiredStoreInArrayIndex<0>};
+  modbus::DataChecker dataChecker = {modbus::bytesRequiredStoreInArrayIndex<0>};
 
   modbus::SingleBitAccess access;
 
