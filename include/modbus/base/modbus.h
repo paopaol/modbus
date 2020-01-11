@@ -201,6 +201,8 @@ protected:
  */
 class Request : public Adu {
 public:
+  Request() {}
+  Request(const Adu &adu) : Adu(adu) {}
   void setUserData(const any &userData) { userData_ = userData; }
   any userData() const { return userData_; }
 
