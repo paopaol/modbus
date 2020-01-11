@@ -1,6 +1,7 @@
 #ifndef __MODBUS_FRAME_H_
 #define __MODBUS_FRAME_H_
 
+#include <memory>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
@@ -290,6 +291,20 @@ private:
   static const int kLenSize = 2;
   static const int kProtocolId = 0;
 };
+
+inline std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
+  switch (mode) {
+  case TransferMode::kRtu:
+    return std::make_shared<RtuFrame>();
+  case TransferMode::kAscii:
+    return std::make_shared<AsciiFrame>();
+  case TransferMode::kMbap:
+    return std::make_shared<MbapFrame>();
+  default:
+    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
+    return nullptr;
+  }
+}
 
 } // namespace modbus
 
