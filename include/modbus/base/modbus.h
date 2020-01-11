@@ -140,7 +140,11 @@ public:
     ByteArray array;
 
     array.push_back(serverAddress());
-    array.push_back(pdu_.functionCode());
+    if (isException()) {
+      array.push_back(FunctionCode(pdu_.functionCode() | Pdu::kExceptionByte));
+    } else {
+      array.push_back(pdu_.functionCode());
+    }
     const auto &data = pdu_.data();
     array.insert(array.end(), data.begin(), data.end());
     return array;
