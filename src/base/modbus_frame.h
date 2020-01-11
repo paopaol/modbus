@@ -34,9 +34,9 @@ inline ByteArray marshalAsciiFrame(const ByteArray &data) {
 }
 
 inline DataChecker::Result
-unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                   ServerAddress *serverAddress,
-                                   FunctionCode *functionCode) {
+_unmarshalServerAddressFunctionCode(const ByteArray &data,
+                                    ServerAddress *serverAddress,
+                                    FunctionCode *functionCode) {
   /// make sure got serveraddress + function code
   if (data.size() < 2) {
     return DataChecker::Result::kNeedMoreData;
@@ -53,7 +53,7 @@ inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
   ServerAddress serverAddress;
   FunctionCode functionCode;
   auto result =
-      unmarshalServerAddressFunctionCode(data, &serverAddress, &functionCode);
+      _unmarshalServerAddressFunctionCode(data, &serverAddress, &functionCode);
   if (result != DataChecker::Result::kSizeOk) {
     return result;
   }
@@ -95,8 +95,8 @@ public:
   unmarshalServerAddressFunctionCode(const ByteArray &data,
                                      ServerAddress *serverAddress,
                                      FunctionCode *functionCode) override {
-    return unmarshalServerAddressFunctionCode(data, serverAddress,
-                                              functionCode);
+    return _unmarshalServerAddressFunctionCode(data, serverAddress,
+                                               functionCode);
   }
 
   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
@@ -150,8 +150,8 @@ public:
       return result;
     }
     escapedData = tool::fromHexString(escapedData);
-    return unmarshalServerAddressFunctionCode(escapedData, serverAddress,
-                                              functionCode);
+    return _unmarshalServerAddressFunctionCode(escapedData, serverAddress,
+                                               functionCode);
   }
 
   /**
@@ -251,8 +251,8 @@ public:
       return result;
     }
 
-    return unmarshalServerAddressFunctionCode(escapedData, serverAddress,
-                                              functionCode);
+    return _unmarshalServerAddressFunctionCode(escapedData, serverAddress,
+                                               functionCode);
   }
 
   DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
