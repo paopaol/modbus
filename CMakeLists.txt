@@ -10,6 +10,7 @@ if(MSVC)
     add_compile_options("/wd4800")
     add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
 else()
+    add_compile_options("-O0")
     add_compile_options("-std=c++11")
 endif()
 

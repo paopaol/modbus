@@ -5,6 +5,7 @@ find_package(Qt5 REQUIRED Test)
 include_directories("../thrd/googletest/googletest/include")
 include_directories("../thrd/googletest/googlemock/include")
 include_directories("../src/tools")
+include_directories("../src")
 include_directories("../src/base")
 
 cmake_policy(SET CMP0077 OLD)
@@ -28,6 +29,7 @@ set(src-list "./modbus_test_bytearray_dump.cpp"
   "./modbus_test_frame.cpp"
   "./modbus_test_request_response.cpp"
   "./modbus_test_serial_client.cpp"
+  "./modbus_test_server.cpp"
   "${modbus_root_dir}/include/modbus/tools/modbus_client.h")
 
 add_executable(modbus_test ${src-list})
