@@ -5,11 +5,14 @@ set(src-files
   "./base/modbus_logger.h"
   "./base/modbus_sixteen_bit_access_process.cpp"
   "./base/modbus_single_bit_access_process.cpp"
+  "./base/buffer.cpp"
   "./tools/modbus_client.cpp"
   "./tools/modbus_reconnectable_iodevice.cpp"
   "./tools/modbus_client_p.h"
+  "${CMAKE_SOURCE_DIR}/include/modbus/tools/modbus_server.h"
   "./tools/modbus_qt_socket.cpp"
-  "./tools/modbus_qt_serialport.cpp")
+  "./tools/modbus_qt_serialport.cpp"
+  "./tools/modbus_server.cpp")
 
 add_library(modbus ${src-files})
 target_include_directories(modbus PRIVATE ".")
