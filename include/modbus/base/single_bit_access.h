@@ -66,6 +66,18 @@ public:
     return array;
   }
 
+  bool unmarshalReadRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequired<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = data[2] * 256 + data[3];
+    return true;
+  }
+
   /**
    * Conversion to modbus protocol format
    * function code 0x05
