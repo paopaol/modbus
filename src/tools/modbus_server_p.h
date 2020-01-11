@@ -191,7 +191,7 @@ public:
         return ProcessResult::kBroadcast;
       }
 
-      writeErrorReponse(session, functionCode, Error::kIllegalFunctionCode);
+      writeErrorResponse(session, functionCode, Error::kIllegalFunctionCode);
       return ProcessResult::kBadFunctionCode;
     }
 
@@ -211,49 +211,45 @@ public:
                                 dump(transferMode_, data) + "]");
       return ProcessResult::kNeedMoreData;
     }
+
     if (result == DataChecker::Result::kFailed) {
       buffer->Reset();
-      writeErrorReponse(session, functionCode, Error::kStorageParityError);
+      writeErrorResponse(session, functionCode, Error::kStorageParityError);
       return ProcessResult::kStorageParityError;
     }
+
     char *unused;
     buffer->ZeroCopyRead(unused, requestFrame->marshalSize());
+    Request request(requestFrame->adu());
+    if (serverAddress == Adu::kBrocastAddress) {
+      processBrocastRequest(request);
+      return ProcessResult::kBroadcast;
+    }
 
-    processRequest(session.client->fd(), Request(requestFrame->adu()));
+    writeResponse(session, processRequest(request));
     return ProcessResult::kSuccess;
   }
 
-  void processRequest(quintptr fd, const Request &request) {
-    if (request.serverAddress() == Adu::kBrocastAddress) {
-      processBrocastRequest(request);
-      return;
-    }
+  Response processRequest(const Request &request) {
     switch (request.functionCode()) {
     case FunctionCode::kReadCoils:
-      processReadCoilsRequest(fd, request);
+      return processReadCoilsRequest(request);
       break;
     default:
       break;
     }
   }
 
-  void processBrocastRequest(const Request &request) {}
+  void writeErrorResponse(ClientSession &session, FunctionCode functionCode,
+                          Error error) {
+    writeResponse(session, createErrorReponse(functionCode, error));
+  }
 
-  void writeErrorReponse(ClientSession &session, FunctionCode functionCode,
-                         Error errorCode) {
-    auto &requestFrame = session.requestFrame_;
+  void writeResponse(ClientSession &session, const Response &response) {
     auto &responseFrame = session.responseFrame_;
-
-    Adu adu;
-
-    adu.setServerAddress(serverAddress_);
-    adu.setFunctionCode(FunctionCode(functionCode | Pdu::kExceptionByte));
-    adu.setData(ByteArray({uint8_t(errorCode)}));
-    adu.setDataChecker(expectionResponseDataChecker);
-
-    responseFrame->setAdu(adu);
-
-    uint16_t id = requestFrame->frameId();
+    auto &requestFrame = session.requestFrame_;
+    responseFrame->setAdu(response);
+    auto id = requestFrame->frameId();
     auto array = responseFrame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
 
@@ -261,7 +257,20 @@ public:
                               " will send: " + dump(transferMode_, array));
   }
 
-  void processReadCoilsRequest(quintptr fd, const Request &request) {
+  void processBrocastRequest(const Request &request) {}
+
+  Response createErrorReponse(FunctionCode functionCode, Error errorCode) {
+    Response response;
+
+    response.setServerAddress(serverAddress_);
+    response.setFunctionCode(FunctionCode(functionCode | Pdu::kExceptionByte));
+    response.setData(ByteArray({uint8_t(errorCode)}));
+    response.setDataChecker(expectionResponseDataChecker);
+
+    return response;
+  }
+
+  Response processReadCoilsRequest(const Request &request) {
     // using modbus::FunctionCode;
     // Response response;
 

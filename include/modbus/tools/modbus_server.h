@@ -75,7 +75,7 @@ signals:
   void responseCreated(const Response &response);
 
 protected:
-  virtual void processRequest(quintptr fd, const Request &request);
+  virtual Response processRequest(const Request &request);
   virtual void processBrocastRequest(const Request &request);
 
 private:

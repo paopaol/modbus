@@ -53,9 +53,9 @@ QList<QString> QModbusServer::blacklist() const {
   return d->blacklist();
 }
 
-void QModbusServer::processRequest(quintptr fd, const Request &request) {
+Response QModbusServer::processRequest(const Request &request) {
   Q_D(QModbusServer);
-  d->processRequest(fd, request);
+  return d->processRequest(request);
 }
 
 void QModbusServer::processBrocastRequest(const Request &request) {
