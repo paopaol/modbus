@@ -162,3 +162,20 @@ TEST(SingleBitAccess, unmarshalReadResponse_dataIsInValid_unmarshalFailed) {
   bool ok = access.unmarshalReadResponse(badData);
   EXPECT_EQ(ok, false);
 }
+
+TEST(SingleBitAccess, unmarshalReadRequest_success) {
+  modbus::SingleBitAccess access;
+
+  bool ok =
+      access.unmarshalReadRequest(modbus::ByteArray({0x00, 0x01, 0x00, 0x20}));
+  EXPECT_EQ(ok, true);
+  EXPECT_EQ(access.startAddress(), 0x01);
+  EXPECT_EQ(access.quantity(), 0x20);
+}
+
+TEST(SingleBitAccess, unmarshalReadRequest_failed) {
+  modbus::SingleBitAccess access;
+
+  bool ok = access.unmarshalReadRequest(modbus::ByteArray({0x00, 0x01, 0x20}));
+  EXPECT_EQ(ok, false);
+}
