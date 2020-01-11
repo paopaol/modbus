@@ -3,6 +3,7 @@
 
 #include "modbus_data.h"
 #include <functional>
+#include <mutex>
 
 namespace modbus {
 
@@ -172,7 +173,7 @@ public:
   /**
    * marshal the adu to a complete modbus frame.
    */
-  virtual ByteArray marshal() = 0;
+  virtual ByteArray marshal(const uint16_t *frameId = nullptr) = 0;
   virtual size_t marshalSize() = 0;
   /**
    * unmarshal a bytearray to modbus::Adu
@@ -191,9 +192,21 @@ public:
 
   void setAdu(const Adu &adu) { adu_ = adu; }
   Adu adu() const { return adu_; }
+  uint16_t frameId() const { return id_; }
 
 protected:
+  using TransactionId = uint16_t;
+
+  static TransactionId nextTransactionId() {
+    static std::mutex mutex_;
+    static TransactionId nextId = 0;
+
+    std::lock_guard<std::mutex> l(mutex_);
+    return nextId++;
+  }
+
   Adu adu_;
+  TransactionId id_ = 0;
 };
 
 /**

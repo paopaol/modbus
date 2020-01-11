@@ -5,7 +5,6 @@
 #include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
-#include <mutex>
 
 namespace modbus {
 static void appendStdString(ByteArray &array, const std::string &subString) {
@@ -86,7 +85,7 @@ class RtuFrame final : public Frame {
 public:
   RtuFrame(){};
   ~RtuFrame(){};
-  ByteArray marshal() override {
+  ByteArray marshal(const uint16_t *frameId = nullptr) override {
     return marshalRtuFrame(adu_.marshalAduWithoutCrc());
   }
   size_t marshalSize() override { return adu_.marshalSize() + 2 /*crc*/; }
@@ -130,7 +129,7 @@ public:
   AsciiFrame() {}
   ~AsciiFrame() {}
 
-  ByteArray marshal() override {
+  ByteArray marshal(const uint16_t *frameId = nullptr) override {
     return marshalAsciiFrame(adu_.marshalAduWithoutCrc());
   }
 
@@ -217,14 +216,14 @@ public:
     return kTransactionMetaIdSize + kProtocolIdSize + kLenSize +
            adu_.marshalSize();
   }
-  ByteArray marshal() override {
+  ByteArray marshal(const uint16_t *frameId = nullptr) override {
     ByteArray output;
 
-    TransactionId id = nextTransactionId();
+    id_ = frameId ? *frameId : nextTransactionId();
 
     /// transaction meta id
-    output.push_back(id / 256);
-    output.push_back(id % 256);
+    output.push_back(id_ / 256);
+    output.push_back(id_ % 256);
 
     /// protocol id
     output.push_back(kProtocolId / 256);
@@ -284,16 +283,6 @@ private:
 
     escapedData = tool::subArray(data, 6);
     return DataChecker::Result::kSizeOk;
-  }
-
-  using TransactionId = uint16_t;
-
-  static TransactionId nextTransactionId() {
-    static std::mutex mutex_;
-    static TransactionId nextId = 0;
-
-    std::lock_guard<std::mutex> l(mutex_);
-    return nextId++;
   }
 
   static const int kTransactionMetaIdSize = 2;
