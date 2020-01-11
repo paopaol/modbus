@@ -14,7 +14,6 @@ static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 static QVector<SixteenBitValue>
 toSixteenBitValueList(const SixteenBitAccess &access);
 static QVector<BitValue> toBitValueList(const SingleBitAccess &access);
-std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 
 struct ReadWriteRegistersAccess {
   SixteenBitAccess readAccess;
@@ -655,19 +654,6 @@ static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
   return valueList;
 }
 
-std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
-  switch (mode) {
-  case TransferMode::kRtu:
-    return std::make_shared<RtuFrame>();
-  case TransferMode::kAscii:
-    return std::make_shared<AsciiFrame>();
-  case TransferMode::kMbap:
-    return std::make_shared<MbapFrame>();
-  default:
-    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
-    return nullptr;
-  }
-}
 
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
                       const DataChecker &dataChecker, const any &userData,

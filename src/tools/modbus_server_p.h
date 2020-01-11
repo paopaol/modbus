@@ -8,7 +8,6 @@
 namespace modbus {
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
-static std::shared_ptr<Frame> createModebusFrame(TransferMode mode);
 static void appendByteArray(ByteArray &array, const std::vector<char> &carray);
 
 static auto dump = [](TransferMode transferMode, const ByteArray &byteArray) {
@@ -320,20 +319,6 @@ public:
   AbstractServer *server_ = nullptr;
   ServerAddress serverAddress_ = 1;
 };
-
-static std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
-  switch (mode) {
-  case TransferMode::kRtu:
-    return std::make_shared<RtuFrame>();
-  case TransferMode::kAscii:
-    return std::make_shared<AsciiFrame>();
-  case TransferMode::kMbap:
-    return std::make_shared<MbapFrame>();
-  default:
-    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
-    return nullptr;
-  }
-}
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {
   using modbus::FunctionCode;
