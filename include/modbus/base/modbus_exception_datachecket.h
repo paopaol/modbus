@@ -4,14 +4,7 @@
 #include <modbus/base/modbus.h>
 
 namespace modbus {
-static const DataChecker expectionResponseDataChecker = {
-    [](size_t &size, const ByteArray &array) {
-      size = 1;
-      if (array.size() < 1) {
-        return DataChecker::Result::kNeedMoreData;
-      }
-      return DataChecker::Result::kSizeOk;
-    }};
+static const DataChecker expectionResponseDataChecker = {bytesRequired<1>};
 }
 
 #endif /* EXCEPTION_RESPONSE_DATACHECKER_H */
