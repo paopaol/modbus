@@ -163,6 +163,8 @@ TEST(
             modbus::QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }
 
+
+
 static modbus::Adu
 createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
                          modbus::FunctionCode functionCode,
