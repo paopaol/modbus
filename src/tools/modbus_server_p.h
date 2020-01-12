@@ -11,10 +11,19 @@ namespace modbus {
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
 static void appendByteArray(ByteArray &array, const std::vector<char> &carray);
 
-static auto dump = [](TransferMode transferMode, const ByteArray &byteArray) {
+static std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
   return transferMode == TransferMode::kAscii ? tool::dumpRaw(byteArray)
                                               : tool::dumpHex(byteArray);
-};
+}
+
+static std::string dump(TransferMode transferMode,
+                        const pp::bytes::Buffer &buffer) {
+  ByteArray array;
+  std::vector<char> carray;
+  appendByteArray(array, carray);
+  return transferMode == TransferMode::kAscii ? tool::dumpRaw(array)
+                                              : tool::dumpHex(array);
+}
 
 #define sessionIteratorOrReturn(it, fd)                                        \
   auto it = clientList_.find(fd);                                              \
@@ -39,12 +48,12 @@ class QModbusServerPrivate : public QObject {
   Q_OBJECT
 public:
   enum class ProcessResult {
+    kSuccess,
     kNeedMoreData,
     kBadServerAddress,
     kBadFunctionCode,
     kBroadcast,
-    kStorageParityError,
-    kSuccess
+    kStorageParityError
   };
 
   QModbusServerPrivate(QObject *parent = nullptr) : QObject(parent) {}
@@ -126,14 +135,49 @@ public:
                         const std::shared_ptr<pp::bytes::Buffer> &buffer) {
     sessionIteratorOrReturn(sessionIt, fd);
     auto &session = sessionIt.value();
-    processModbusFrame(session, buffer);
+
+    std::shared_ptr<Frame> requestFrame;
+    std::shared_ptr<Frame> responseFrame;
+    auto result = processModbusRequest(buffer, requestFrame, responseFrame);
+    switch (result) {
+    case ProcessResult::kNeedMoreData: {
+      log(LogLevel::kDebug, "{} need more data R[{}]",
+          session.client->fullName(), dump(transferMode_, *buffer));
+      break;
+    }
+    case ProcessResult::kBadServerAddress: {
+      log(LogLevel::kWarning,
+          "{} unexpected server address,my "
+          "address[{}] R[{}]",
+          session.client->fullName(), serverAddress_,
+          dump(transferMode_, *buffer));
+      break;
+    }
+    case ProcessResult::kBadFunctionCode: {
+      log(LogLevel::kWarning, "{} unsupported function code R[{}]",
+          session.client->fullName(), dump(transferMode_, *buffer));
+      break;
+    }
+    case ProcessResult::kBroadcast: {
+    }
+    case ProcessResult::kStorageParityError: {
+      log(LogLevel::kWarning, "{} invalid request R[{}]",
+          session.client->fullName(), dump(transferMode_, *buffer));
+      break;
+    }
+    case ProcessResult::kSuccess: {
+    }
+    }
+    if (requestFrame && responseFrame) {
+      writeFrame(session, responseFrame, requestFrame->frameId());
+    }
   }
 
   ProcessResult
-  processModbusFrame(ClientSession &session,
-                     const std::shared_ptr<pp::bytes::Buffer> &buffer) {
-    auto &requestFrame = session.requestFrame_;
-    AbstractConnection *client = session.client;
+  processModbusRequest(const std::shared_ptr<pp::bytes::Buffer> &buffer,
+                       std::shared_ptr<Frame> &requestFrame,
+                       std::shared_ptr<Frame> &responseFrame) {
+    requestFrame = createModebusFrame(transferMode_);
 
     ByteArray data;
     std::vector<char> d;
@@ -149,8 +193,6 @@ public:
     auto result = requestFrame->unmarshalServerAddressFunctionCode(
         data, &serverAddress, &functionCode);
     if (result != DataChecker::Result::kSizeOk) {
-      log(LogLevel::kDebug, "{} need more data R[{}]",
-          session.client->fullName(), dump(transferMode_, data));
       return ProcessResult::kNeedMoreData;
     }
 
@@ -160,32 +202,16 @@ public:
      */
     if (serverAddress != serverAddress_ &&
         serverAddress != Adu::kBrocastAddress) {
-      log(LogLevel::kWarning,
-          "{} unexpected server address,my "
-          "address[{}],requested address[{}], R[{}]",
-          session.client->fullName(), serverAddress_, serverAddress,
-          dump(transferMode_, data));
-
       buffer->Reset();
       return ProcessResult::kBadServerAddress;
     }
 
     /**
      *if the function code is not supported,
-     *discard the recive buffer,and
-     *send a error response to client.
-     *but if is brocast, so nothing,just return
+     *discard the recive buffer,
      */
     if (!handleFuncRouter_.contains(functionCode)) {
-      log(LogLevel::kWarning, "{} unsupported function code [{}] R[{}]",
-          session.client->fullName(), functionCode, dump(transferMode_, data));
-
       buffer->Reset();
-      if (serverAddress == Adu::kBrocastAddress) {
-        return ProcessResult::kBroadcast;
-      }
-
-      writeErrorResponse(session, functionCode, Error::kIllegalFunctionCode);
       return ProcessResult::kBadFunctionCode;
     }
 
@@ -201,26 +227,28 @@ public:
     Error error = Error::kNoError;
     result = requestFrame->unmarshal(data, &error);
     if (result == DataChecker::Result::kNeedMoreData) {
-      log(LogLevel::kDebug, session.client->fullName() + " need more data R[" +
-                                dump(transferMode_, data) + "]");
       return ProcessResult::kNeedMoreData;
     }
 
     if (result == DataChecker::Result::kFailed) {
       buffer->Reset();
-      writeErrorResponse(session, functionCode, Error::kStorageParityError);
+      responseFrame = createModebusFrame(transferMode_);
+      responseFrame->setAdu(
+          createErrorReponse(functionCode, Error::kStorageParityError));
       return ProcessResult::kStorageParityError;
     }
 
     char *unused;
     buffer->ZeroCopyRead(unused, requestFrame->marshalSize());
+
     Request request(requestFrame->adu());
     if (serverAddress == Adu::kBrocastAddress) {
       processBrocastRequest(request);
       return ProcessResult::kBroadcast;
     }
 
-    writeResponse(session, processRequest(request));
+    responseFrame = createModebusFrame(transferMode_);
+    responseFrame->setAdu(processRequest(request));
     return ProcessResult::kSuccess;
   }
 
@@ -234,17 +262,9 @@ public:
     }
   }
 
-  void writeErrorResponse(ClientSession &session, FunctionCode functionCode,
-                          Error error) {
-    writeResponse(session, createErrorReponse(functionCode, error));
-  }
-
-  void writeResponse(ClientSession &session, const Response &response) {
-    auto &responseFrame = session.responseFrame_;
-    auto &requestFrame = session.requestFrame_;
-    responseFrame->setAdu(response);
-    auto id = requestFrame->frameId();
-    auto array = responseFrame->marshal(&id);
+  void writeFrame(ClientSession &session, const std::shared_ptr<Frame> &frame,
+                  uint16_t id) {
+    auto array = frame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
 
     log(LogLevel::kDebug, "{} will send:{}", session.client->fullName(),
