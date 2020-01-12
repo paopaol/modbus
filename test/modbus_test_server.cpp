@@ -163,7 +163,58 @@ TEST(
             modbus::QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }
 
+TEST(QModbusServer, processReadCoils_success) {
+  modbus::QModbusServerPrivate d;
 
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  modbus::SingleBitAccess accessServer;
+
+  accessServer.setStartAddress(0x01);
+  accessServer.setQuantity(10);
+  accessServer.setValue(0x01, modbus::BitValue::kOn);
+  accessServer.setValue(0x03, modbus::BitValue::kOn);
+  d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x3);
+
+  modbus::Request request(
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.serverAddress(), 0x01);
+  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kReadCoils);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x01, 0x05}));
+}
+
+TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  modbus::SingleBitAccess accessServer;
+
+  accessServer.setStartAddress(0x01);
+  accessServer.setQuantity(10);
+  accessServer.setValue(0x01, modbus::BitValue::kOn);
+  accessServer.setValue(0x03, modbus::BitValue::kOn);
+  d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x10);
+
+  modbus::Request request(
+      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+}
 
 static modbus::Adu
 createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
