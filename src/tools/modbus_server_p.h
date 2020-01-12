@@ -3,6 +3,7 @@
 
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
+#include <fmt/core.h>
 #include <modbus/tools/modbus_server.h>
 
 namespace modbus {
@@ -85,11 +86,10 @@ public:
                                    : defaultRequestDataChecker(functionCode);
     handleFuncRouter_[functionCode] = entry;
 
-    log(LogLevel::kInfo,
-        "route add Function[" + std::to_string(functionCode) + "]");
+    log(LogLevel::kInfo, "route add Function[{}]", functionCode);
     if (!entry.requestDataChecker.calculateSize) {
-      log(LogLevel::kInfo, "Function[" + std::to_string(functionCode) + "] " +
-                               "invalud request data size checker");
+      log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
+          functionCode);
     }
   }
 
@@ -149,8 +149,8 @@ public:
     auto result = requestFrame->unmarshalServerAddressFunctionCode(
         data, &serverAddress, &functionCode);
     if (result != DataChecker::Result::kSizeOk) {
-      log(LogLevel::kDebug, session.client->fullName() + " need more data R[" +
-                                dump(transferMode_, data) + "]");
+      log(LogLevel::kDebug, "{} need more data R[{}]",
+          session.client->fullName(), dump(transferMode_, data));
       return ProcessResult::kNeedMoreData;
     }
 
@@ -161,13 +161,10 @@ public:
     if (serverAddress != serverAddress_ &&
         serverAddress != Adu::kBrocastAddress) {
       log(LogLevel::kWarning,
-          QString("%1 unexpected server address,my "
-                  "address[%2],requested address[%3], R[%4]")
-              .arg(session.client->fullName().c_str())
-              .arg(serverAddress_)
-              .arg(serverAddress)
-              .arg(dump(transferMode_, data).c_str())
-              .toStdString());
+          "{} unexpected server address,my "
+          "address[{}],requested address[{}], R[{}]",
+          session.client->fullName(), serverAddress_, serverAddress,
+          dump(transferMode_, data));
 
       buffer->Reset();
       return ProcessResult::kBadServerAddress;
@@ -180,11 +177,8 @@ public:
      *but if is brocast, so nothing,just return
      */
     if (!handleFuncRouter_.contains(functionCode)) {
-      log(LogLevel::kWarning, QString("%1 unsupported function code [%2] R[%3]")
-                                  .arg(session.client->fullName().c_str())
-                                  .arg(functionCode)
-                                  .arg(dump(transferMode_, data).c_str())
-                                  .toStdString());
+      log(LogLevel::kWarning, "{} unsupported function code [{}] R[{}]",
+          session.client->fullName(), functionCode, dump(transferMode_, data));
 
       buffer->Reset();
       if (serverAddress == Adu::kBrocastAddress) {
@@ -253,8 +247,8 @@ public:
     auto array = responseFrame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
 
-    log(LogLevel::kDebug, session.client->fullName() +
-                              " will send: " + dump(transferMode_, array));
+    log(LogLevel::kDebug, "{} will send:{}", session.client->fullName(),
+        dump(transferMode_, array));
   }
 
   void processBrocastRequest(const Request &request) {}
@@ -295,12 +289,24 @@ public:
         requestStartAddress > myStartAddress + myQuantity) {
       response.setError(Error::kIllegalDataAddress);
       response.setData(ByteArray({uint8_t(response.error())}));
+      log(LogLevel::kDebug,
+          "requested function "
+          "code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          kReadCoils, myStartAddress, myQuantity, requestStartAddress,
+          requestQuantity);
       return response;
     }
 
     if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
       response.setError(Error::kIllegalDataAddress);
       response.setData(ByteArray({uint8_t(response.error())}));
+      log(LogLevel::kDebug,
+          "requested function "
+          "code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          kReadCoils, myStartAddress, myQuantity, requestStartAddress,
+          requestQuantity);
       return response;
     }
 
