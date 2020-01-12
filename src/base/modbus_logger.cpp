@@ -31,7 +31,7 @@ static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
 };
 void registerLogMessage(const LogWriter &logger) { g_logger = logger; }
 
-void log(LogLevel level, const std::string &msg) { g_logger(level, msg); }
+void logString(LogLevel level, const std::string &msg) { g_logger(level, msg); }
 
 static std::string timeOfNow() {
   char tmp[128] = {0};

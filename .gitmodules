@@ -2,3 +2,6 @@
 	path = thrd/googletest
 	url = https://github.com/google/googletest
 	tag = v1.8.1
+[submodule "thrd/fmt"]
+	path = thrd/fmt
+	url = https://github.com/fmtlib/fmt
