@@ -70,7 +70,7 @@ public:
       auto &ele = elementQueue_.front();
       auto data = ele.requestFrame->marshal();
 
-      log(LogLevel::kDebug, device_.name() + " will send: " + dump(data));
+      log(LogLevel::kDebug, "{} will send: {}", device_.name(), dump(data));
       device_.write((const char *)data.data(), data.size());
     });
   }
