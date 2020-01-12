@@ -54,7 +54,7 @@ void QModbusClient::sendRequest(const Request &request) {
   Q_D(QModbusClient);
 
   if (!isOpened()) {
-    log(LogLevel::kWarning, d->device_.name() + " closed, discard reuqest");
+    log(LogLevel::kWarning, "{} closed, discard reuqest", d->device_.name());
     return;
   }
 
@@ -77,8 +77,8 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                    Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadCoils &&
       functionCode != FunctionCode::kReadInputDiscrete) {
-    log(LogLevel::kWarning, "single bit access:[read] invalid function code(" +
-                                std::to_string(functionCode) + ")");
+    log(LogLevel::kWarning,
+        "single bit access:[read] invalid function code({})", functionCode);
   }
 
   static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
@@ -131,8 +131,8 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadHoldingRegisters &&
       functionCode != FunctionCode::kReadInputRegister) {
-    log(LogLevel::kWarning, "invalid function code for read registers" +
-                                std::to_string(functionCode));
+    log(LogLevel::kWarning, "invalid function code for read registers {}",
+        functionCode);
   }
 
   static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
@@ -382,15 +382,15 @@ void QModbusClient::onIoDeviceResponseTimeout() {
 
   if (element.retryTimes-- > 0) {
     log(LogLevel::kWarning,
-        d->device_.name() + " waiting response timeout, retry it, retrytimes " +
-            std::to_string(element.retryTimes));
+        "{} waiting response timeout, retry it, retrytimes ", d->device_.name(),
+        element.retryTimes);
 
     response.setFunctionCode(request.functionCode());
     response.setServerAddress(request.serverAddress());
     response.setError(Error::kTimeout);
     processDiagnosis(request, response);
   } else {
-    log(LogLevel::kWarning, d->device_.name() + ": waiting response timeout");
+    log(LogLevel::kWarning, "{}: waiting response timeout", d->device_.name());
 
     /**
      * if have no retry times, remove this request
@@ -417,8 +417,8 @@ void QModbusClient::onIoDeviceReadyRead() {
     std::stringstream stream;
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
-        d->device_.name() + " now state is in " + stream.str() +
-            ".got unexpected data, discard them." + "[" + d->dump(data) + "]");
+        "{} now state is in {}.got unexpected data, discard them.[{}]",
+        d->device_.name(), stream, d->dump(data));
 
     d->device_.clear();
     return;
@@ -653,7 +653,6 @@ static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
   }
   return valueList;
 }
-
 
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
                       const DataChecker &dataChecker, const any &userData,
