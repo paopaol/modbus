@@ -418,7 +418,7 @@ void QModbusClient::onIoDeviceReadyRead() {
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
         "{} now state is in {}.got unexpected data, discard them.[{}]",
-        d->device_.name(), stream, d->dump(data));
+        d->device_.name(), stream.str(), d->dump(data));
 
     d->device_.clear();
     return;
