@@ -65,100 +65,61 @@ TEST(QModbusServer, set_get) {
 
 TEST(QModbusServer,
      recivedRequest_requestServerAddressIsBadAddress_discardTheRequest) {
-  quintptr fd = 1;
-  modbus::ServerAddress goodServerAddress = 0x01;
-  modbus::ServerAddress badServerAddress = 0x02;
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
-
-  TestConnection conn;
   TestServer server;
-
-  EXPECT_CALL(conn, fd()).WillRepeatedly(Invoke([&]() { return fd; }));
-
   modbus::QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  d.incomingConnection(&conn);
+  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::ByteArray raw({0x02, 0x01, 0x00, 0x00, 0x00, 0x01});
+  raw = modbus::tool::appendCrc(raw);
+  requestBuffer->Write((char *)raw.data(), raw.size());
 
-  auto &session = d.clientList_.find(fd).value();
-
-  modbus::SingleBitAccess access;
-
-  access.setStartAddress(goodServerAddress);
-  access.setQuantity(0x10);
-
-  modbus::RtuFrame frame;
-  auto adu = createSingleBitAccessAdu(badServerAddress,
-                                      modbus::FunctionCode::kReadCoils, access);
-  frame.setAdu(adu);
-  auto data = frame.marshal();
-  requestBuffer->Write((const char *)data.data(), data.size());
-
-  auto result = d.processModbusFrame(session, requestBuffer);
+  std::shared_ptr<modbus::Frame> request;
+  std::shared_ptr<modbus::Frame> response;
+  auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result,
             modbus::QModbusServerPrivate::ProcessResult::kBadServerAddress);
 }
 
 TEST(QModbusServer, recivedRequest_needMoreData) {
-  quintptr fd = 1;
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
-
-  TestConnection conn;
   TestServer server;
-
-  EXPECT_CALL(conn, fd()).WillRepeatedly(Invoke([&]() { return fd; }));
-
   modbus::QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  d.incomingConnection(&conn);
-  auto &session = d.clientList_.find(fd).value();
 
-  requestBuffer->Write(std::vector<char>({0x00}));
-  auto result = d.processModbusFrame(session, requestBuffer);
+  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::ByteArray raw({0x01});
+  requestBuffer->Write((char *)raw.data(), raw.size());
+
+  std::shared_ptr<modbus::Frame> request;
+  std::shared_ptr<modbus::Frame> response;
+  auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, modbus::QModbusServerPrivate::ProcessResult::kNeedMoreData);
 }
 
 TEST(
     QModbusServer,
     recivedRequest_theRequestedFunctionCodeIsNotSupported_returnIllegalFunctionCodeError) {
-  quintptr fd = 1;
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
-
-  TestConnection conn;
   TestServer server;
-
-  EXPECT_CALL(conn, fd()).WillRepeatedly(Invoke([&]() { return fd; }));
-  EXPECT_CALL(conn, write(_, _)).Times(1);
-
   modbus::QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  d.incomingConnection(&conn);
+  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::ByteArray raw({0x01, 0x01, 0x00, 0x00, 0x00, 0x01});
+  raw = modbus::tool::appendCrc(raw);
+  requestBuffer->Write((char *)raw.data(), raw.size());
 
-  auto &session = d.clientList_.find(fd).value();
-
-  modbus::SingleBitAccess access;
-
-  access.setStartAddress(0x01);
-  access.setQuantity(0x10);
-
-  modbus::RtuFrame frame;
-  auto adu =
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access);
-  frame.setAdu(adu);
-  auto data = frame.marshal();
-  requestBuffer->Write((const char *)data.data(), data.size());
-
-  auto result = d.processModbusFrame(session, requestBuffer);
+  std::shared_ptr<modbus::Frame> request;
+  std::shared_ptr<modbus::Frame> response;
+  auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result,
             modbus::QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }
