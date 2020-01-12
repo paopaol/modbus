@@ -271,53 +271,50 @@ public:
   }
 
   Response processReadCoilsRequest(const Request &request) {
-    // using modbus::FunctionCode;
-    // Response response;
+    using modbus::FunctionCode;
+    Response response;
 
-    // response.setFunctionCode(kReadCoils);
-    // response.setServerAddress(serverAddress_);
+    response.setFunctionCode(kReadCoils);
+    response.setServerAddress(serverAddress_);
 
-    // SingleBitAccess access;
-    // bool ok = access.unmarshalReadRequest(request.data());
-    // if (!ok) {
-    //   response.setError(Error::kStorageParityError);
-    //   response.setData(ByteArray({uint8_t(response.error())}));
-    //   emit responseCreated(response);
-    //   return;
-    // }
+    SingleBitAccess access;
+    bool ok = access.unmarshalReadRequest(request.data());
+    if (!ok) {
+      response.setError(Error::kStorageParityError);
+      response.setData(ByteArray({uint8_t(response.error())}));
+      return response;
+    }
 
-    // auto requestStartAddress = access.startAddress();
-    // auto requestQuantity = access.quantity();
-    // auto &entry = handleFuncRouter_[kReadCoils];
-    // auto myStartAddress = entry.singleBitAccess.startAddress();
-    // auto myQuantity = entry.singleBitAccess.quantity();
+    auto requestStartAddress = access.startAddress();
+    auto requestQuantity = access.quantity();
+    auto &entry = handleFuncRouter_[kReadCoils];
+    auto myStartAddress = entry.singleBitAccess.startAddress();
+    auto myQuantity = entry.singleBitAccess.quantity();
 
-    // if (requestStartAddress < myStartAddress ||
-    //     requestStartAddress > myStartAddress + myQuantity) {
-    //   response.setError(Error::kIllegalDataAddress);
-    //   response.setData(ByteArray({uint8_t(response.error())}));
-    //   emit responseCreated(response);
-    //   return;
-    // }
+    if (requestStartAddress < myStartAddress ||
+        requestStartAddress > myStartAddress + myQuantity) {
+      response.setError(Error::kIllegalDataAddress);
+      response.setData(ByteArray({uint8_t(response.error())}));
+      return response;
+    }
 
-    // if (requestStartAddress + requestQuantity > myStartAddress + myQuantity)
-    // {
-    //   response.setError(Error::kIllegalDataAddress);
-    //   response.setData(ByteArray({uint8_t(response.error())}));
-    //   emit responseCreated(response);
-    // }
+    if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
+      response.setError(Error::kIllegalDataAddress);
+      response.setData(ByteArray({uint8_t(response.error())}));
+      return response;
+    }
 
-    // SingleBitAccess responseAccess;
+    SingleBitAccess responseAccess;
 
-    // responseAccess.setStartAddress(requestStartAddress);
-    // responseAccess.setQuantity(requestQuantity);
-    // for (size_t i = 0; i < responseAccess.quantity(); i++) {
-    //   Address address = responseAccess.startAddress() + i;
-    //   responseAccess.setValue(address, entry.singleBitAccess.value(address));
-    // }
-    // response.setError(Error::kNoError);
-    // response.setData(responseAccess.marshalReadResponse());
-    // emit responseCreated(response);
+    responseAccess.setStartAddress(requestStartAddress);
+    responseAccess.setQuantity(requestQuantity);
+    for (size_t i = 0; i < responseAccess.quantity(); i++) {
+      Address address = responseAccess.startAddress() + i;
+      responseAccess.setValue(address, entry.singleBitAccess.value(address));
+    }
+    response.setError(Error::kNoError);
+    response.setData(responseAccess.marshalReadResponse());
+    return response;
   }
 
   int maxClient_ = 1;
