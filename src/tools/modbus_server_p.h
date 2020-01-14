@@ -33,8 +33,6 @@ static std::string dump(TransferMode transferMode,
 
 struct ClientSession {
   AbstractConnection *client = nullptr;
-  std::shared_ptr<Frame> requestFrame_;
-  std::shared_ptr<Frame> responseFrame_;
 };
 
 struct HandleFuncEntry {
@@ -115,8 +113,6 @@ public:
   void incomingConnection(AbstractConnection *connection) {
     ClientSession session;
     session.client = connection;
-    session.requestFrame_ = createModebusFrame(transferMode_);
-    session.responseFrame_ = createModebusFrame(transferMode_);
 
     connect(session.client, &AbstractConnection::disconnected, this,
             &QModbusServerPrivate::removeClient);
