@@ -128,14 +128,9 @@ public:
     sessionList_.erase(it);
   }
 
-  void onMessageArrived(quintptr fd,
-                        const std::shared_ptr<pp::bytes::Buffer> &buffer) {
-    sessionIteratorOrReturn(sessionIt, fd);
-    auto &session = sessionIt.value();
-
-    std::shared_ptr<Frame> requestFrame;
-    std::shared_ptr<Frame> responseFrame;
-    auto result = processModbusRequest(buffer, requestFrame, responseFrame);
+  void
+  checkProcessRequestResult(const ClientSession &session, ProcessResult result,
+                            const std::shared_ptr<pp::bytes::Buffer> &buffer) {
     switch (result) {
     case ProcessResult::kNeedMoreData: {
       log(LogLevel::kDebug, "{} need more data R[{}]",
@@ -165,6 +160,19 @@ public:
     case ProcessResult::kSuccess: {
     }
     }
+  }
+
+  void onMessageArrived(quintptr fd,
+                        const std::shared_ptr<pp::bytes::Buffer> &buffer) {
+    sessionIteratorOrReturn(sessionIt, fd);
+    auto &session = sessionIt.value();
+
+    std::shared_ptr<Frame> requestFrame;
+    std::shared_ptr<Frame> responseFrame;
+    auto result = processModbusRequest(buffer, requestFrame, responseFrame);
+    checkProcessRequestResult(session, result, buffer);
+    // if requestFrame and responseFrame is not null
+    // that is need reply somthing to client
     if (requestFrame && responseFrame) {
       writeFrame(session, responseFrame, requestFrame->frameId());
     }
