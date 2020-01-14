@@ -26,8 +26,8 @@ static std::string dump(TransferMode transferMode,
 }
 
 #define sessionIteratorOrReturn(it, fd)                                        \
-  auto it = clientList_.find(fd);                                              \
-  if (it == clientList_.end()) {                                               \
+  auto it = sessionList_.find(fd);                                             \
+  if (it == sessionList_.end()) {                                              \
     return;                                                                    \
   }
 
@@ -122,13 +122,13 @@ public:
             &QModbusServerPrivate::removeClient);
     connect(session.client, &AbstractConnection::messageArrived, this,
             &QModbusServerPrivate::onMessageArrived);
-    clientList_[connection->fd()] = session;
+    sessionList_[connection->fd()] = session;
   }
 
   void removeClient(qintptr fd) {
     sessionIteratorOrReturn(it, fd);
     it.value().client->deleteLater();
-    clientList_.erase(it);
+    sessionList_.erase(it);
   }
 
   void onMessageArrived(quintptr fd,
@@ -347,7 +347,7 @@ public:
   QMap<QString, QString> blacklist_;
   TransferMode transferMode_ = TransferMode::kMbap;
   QMap<FunctionCode, HandleFuncEntry> handleFuncRouter_;
-  QMap<qintptr, ClientSession> clientList_;
+  QMap<qintptr, ClientSession> sessionList_;
   AbstractServer *server_ = nullptr;
   ServerAddress serverAddress_ = 1;
 };
