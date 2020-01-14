@@ -253,10 +253,14 @@ public:
   }
 
   Response processRequest(const Request &request) {
+    using modbus::FunctionCode;
     switch (request.functionCode()) {
-    case FunctionCode::kReadCoils:
-      return processReadCoilsRequest(request);
-      break;
+    case kReadCoils: {
+      return processReadSingleBitRequest(request, kReadCoils);
+    } break;
+    case kReadInputDiscrete: {
+      return processReadSingleBitRequest(request, kReadInputDiscrete);
+    } break;
     default:
       break;
     }
@@ -284,11 +288,11 @@ public:
     return response;
   }
 
-  Response processReadCoilsRequest(const Request &request) {
-    using modbus::FunctionCode;
+  Response processReadSingleBitRequest(const Request &request,
+                                       FunctionCode functionCode) {
     Response response;
 
-    response.setFunctionCode(kReadCoils);
+    response.setFunctionCode(functionCode);
     response.setServerAddress(serverAddress_);
 
     SingleBitAccess access;
@@ -301,7 +305,7 @@ public:
 
     auto requestStartAddress = access.startAddress();
     auto requestQuantity = access.quantity();
-    auto &entry = handleFuncRouter_[kReadCoils];
+    auto &entry = handleFuncRouter_[functionCode];
     auto myStartAddress = entry.singleBitAccess.startAddress();
     auto myQuantity = entry.singleBitAccess.quantity();
 
@@ -313,7 +317,7 @@ public:
           "requested function "
           "code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
-          kReadCoils, myStartAddress, myQuantity, requestStartAddress,
+          functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
       return response;
     }
@@ -325,7 +329,7 @@ public:
           "requested function "
           "code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
-          kReadCoils, myStartAddress, myQuantity, requestStartAddress,
+          functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
       return response;
     }
