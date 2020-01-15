@@ -274,7 +274,7 @@ private:
     if (data.size() < 6) {
       return DataChecker::Result::kNeedMoreData;
     }
-    TransactionId transactionId = data[0] * 256 + data[1];
+    id_ = data[0] * 256 + data[1];
     uint16_t protocolId = data[2] * 256 + data[3];
     uint16_t size = data[4] * 256 + data[5];
     uint16_t totalSize = 6 + size;
