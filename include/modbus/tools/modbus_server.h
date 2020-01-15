@@ -15,6 +15,7 @@
 
 namespace modbus {
 
+using BytesBufferPtr = std::shared_ptr<pp::bytes::Buffer>;
 class AbstractConnection : public QObject {
   Q_OBJECT
 public:
@@ -27,8 +28,7 @@ public:
 
 signals:
   void disconnected(quintptr fd);
-  void messageArrived(quintptr fd,
-                      const std::shared_ptr<pp::bytes::Buffer> &message);
+  void messageArrived(quintptr fd, const BytesBufferPtr &message);
 };
 
 class AbstractServer : public QObject {
@@ -38,6 +38,7 @@ public:
 
   AbstractServer(QObject *parent = nullptr) : QObject(parent) {}
   virtual ~AbstractServer() {}
+  virtual void listenAndServe() = 0;
 
   void handleNewConnFunc(const HandleNewConnFunc &functor) {
     handleNewConnFunc_ = functor;
@@ -67,12 +68,7 @@ public:
 
   void handleFunc(FunctionCode functionCode, const SingleBitAccess &access,
                   DataChecker *requestDataChecker = nullptr);
-signals:
-
-  /**
-   *private signal
-   */
-  void responseCreated(const Response &response);
+  void listenAndServe();
 
 protected:
   virtual Response processRequest(const Request &request);
@@ -82,6 +78,10 @@ private:
   QScopedPointer<QModbusServerPrivate> d_ptr;
 };
 
+QModbusServer *createQModbusTcpServer(uint16_t port = 502,
+                                      QObject *parent = nullptr);
 } // namespace modbus
 
+Q_DECLARE_METATYPE(modbus::BytesBufferPtr);
+Q_DECLARE_METATYPE(quintptr);
 #endif // __MODBUS_SERVER_H_

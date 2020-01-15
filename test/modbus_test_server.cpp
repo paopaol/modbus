@@ -1,6 +1,7 @@
 #include "../src/tools/modbus_server_p.h"
 #include <QObject>
 #include <QScopedPointer>
+#include <QSignalSpy>
 #include <QTcpServer>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -35,6 +36,7 @@ class TestServer : public modbus::AbstractServer {
 public:
   TestServer(QObject *parent = nullptr) : modbus::AbstractServer(parent) {}
   ~TestServer() {}
+  MOCK_METHOD0(listenAndServe, void());
 };
 
 TEST(QModbusServer, constructor) {
@@ -63,6 +65,23 @@ TEST(QModbusServer, set_get) {
   EXPECT_EQ(server.serverAddress(), 0x01);
 }
 
+TEST(QModbusServer, testSignles) {
+  int argc = 1;
+  char *argv[] = {(char *)"test"};
+  QCoreApplication name(argc, argv);
+
+  TestConnection testConn;
+  modbus::AbstractConnection *conn = &testConn;
+  QSignalSpy spy(conn, &modbus::AbstractConnection::messageArrived);
+
+  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  testConn.messageArrived(1, requestBuffer);
+
+  EXPECT_EQ(spy.count(), 1);
+
+  name.exec();
+}
+
 TEST(QModbusServer,
      recivedRequest_requestServerAddressIsBadAddress_discardTheRequest) {
   TestServer server;
@@ -72,7 +91,7 @@ TEST(QModbusServer,
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
   modbus::ByteArray raw({0x02, 0x01, 0x00, 0x00, 0x00, 0x01});
   raw = modbus::tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
@@ -92,7 +111,7 @@ TEST(QModbusServer, recivedRequest_needMoreData) {
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
   modbus::ByteArray raw({0x01});
   requestBuffer->Write((char *)raw.data(), raw.size());
 
@@ -112,7 +131,7 @@ TEST(
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  std::shared_ptr<pp::bytes::Buffer> requestBuffer(new pp::bytes::Buffer);
+  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
   modbus::ByteArray raw({0x01, 0x01, 0x00, 0x00, 0x00, 0x01});
   raw = modbus::tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
