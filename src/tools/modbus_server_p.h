@@ -19,9 +19,8 @@ static std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
 
 static std::string dump(TransferMode transferMode,
                         const pp::bytes::Buffer &buffer) {
-  ByteArray array;
-  std::vector<char> carray;
-  appendByteArray(array, carray);
+  ByteArray array =
+      byteArrayFromBuffer(const_cast<pp::bytes::Buffer &>(buffer));
   return transferMode == TransferMode::kAscii ? tool::dumpRaw(array)
                                               : tool::dumpHex(array);
 }
@@ -102,6 +101,7 @@ public:
   }
 
   void setServer(AbstractServer *server) { server_ = server; }
+  void listenAndServe() { server_->listenAndServe(); }
 
   void setEnv() {
     assert(server_ && "not set ConnectionServer");
@@ -112,49 +112,49 @@ public:
   }
 
   void incomingConnection(AbstractConnection *connection) {
+    connect(connection, &AbstractConnection::disconnected, this,
+            &QModbusServerPrivate::removeClient);
+    bool ok = connect(connection, &AbstractConnection::messageArrived, this,
+                      &QModbusServerPrivate::onMessageArrived);
+
     ClientSession session;
     session.client = connection;
-
-    connect(session.client, &AbstractConnection::disconnected, this,
-            &QModbusServerPrivate::removeClient);
-    connect(session.client, &AbstractConnection::messageArrived, this,
-            &QModbusServerPrivate::onMessageArrived);
     sessionList_[connection->fd()] = session;
   }
 
   void removeClient(qintptr fd) {
     sessionIteratorOrReturn(it, fd);
+    log(LogLevel::kInfo, "{} closed", it.value().client->fullName());
     it.value().client->deleteLater();
     sessionList_.erase(it);
   }
 
-  void
-  checkProcessRequestResult(const ClientSession &session, ProcessResult result,
-                            const std::shared_ptr<pp::bytes::Buffer> &buffer) {
+  void checkProcessRequestResult(const ClientSession &session,
+                                 ProcessResult result,
+                                 const std::shared_ptr<Frame> &requestFrame,
+                                 const pp::bytes::Buffer &buffer) {
     switch (result) {
     case ProcessResult::kNeedMoreData: {
       log(LogLevel::kDebug, "{} need more data R[{}]",
-          session.client->fullName(), dump(transferMode_, *buffer));
+          session.client->fullName(), dump(transferMode_, buffer));
       break;
     }
     case ProcessResult::kBadServerAddress: {
       log(LogLevel::kWarning,
           "{} unexpected server address,my "
-          "address[{}] R[{}]",
-          session.client->fullName(), serverAddress_,
-          dump(transferMode_, *buffer));
+          "address[{}]",
+          session.client->fullName(), serverAddress_);
       break;
     }
     case ProcessResult::kBadFunctionCode: {
-      log(LogLevel::kWarning, "{} unsupported function code R[{}]",
-          session.client->fullName(), dump(transferMode_, *buffer));
+      log(LogLevel::kWarning, "{} unsupported function code",
+          session.client->fullName());
       break;
     }
     case ProcessResult::kBroadcast: {
     }
     case ProcessResult::kStorageParityError: {
-      log(LogLevel::kWarning, "{} invalid request R[{}]",
-          session.client->fullName(), dump(transferMode_, *buffer));
+      log(LogLevel::kWarning, "{} invalid request", session.client->fullName());
       break;
     }
     case ProcessResult::kSuccess: {
@@ -162,15 +162,16 @@ public:
     }
   }
 
-  void onMessageArrived(quintptr fd,
-                        const std::shared_ptr<pp::bytes::Buffer> &buffer) {
+  void onMessageArrived(quintptr fd, const BytesBufferPtr &buffer) {
     sessionIteratorOrReturn(sessionIt, fd);
     auto &session = sessionIt.value();
+    log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
+        dump(transferMode_, *buffer));
 
     std::shared_ptr<Frame> requestFrame;
     std::shared_ptr<Frame> responseFrame;
     auto result = processModbusRequest(buffer, requestFrame, responseFrame);
-    checkProcessRequestResult(session, result, buffer);
+    checkProcessRequestResult(session, result, requestFrame, *buffer);
     // if requestFrame and responseFrame is not null
     // that is need reply somthing to client
     if (requestFrame && responseFrame) {
@@ -178,10 +179,9 @@ public:
     }
   }
 
-  ProcessResult
-  processModbusRequest(const std::shared_ptr<pp::bytes::Buffer> &buffer,
-                       std::shared_ptr<Frame> &requestFrame,
-                       std::shared_ptr<Frame> &responseFrame) {
+  ProcessResult processModbusRequest(const BytesBufferPtr &buffer,
+                                     std::shared_ptr<Frame> &requestFrame,
+                                     std::shared_ptr<Frame> &responseFrame) {
     requestFrame = createModebusFrame(transferMode_);
     auto data = byteArrayFromBuffer(*buffer);
 
@@ -196,6 +196,10 @@ public:
       return ProcessResult::kNeedMoreData;
     }
 
+    auto adu = requestFrame->adu();
+    adu.setServerAddress(serverAddress);
+    adu.setFunctionCode(functionCode);
+    requestFrame->setAdu(adu);
     /**
      *if the requested server address is not self server address, and is
      *not brocast too, discard the recived buffer.
@@ -220,7 +224,7 @@ public:
      *call user defined handlers
      */
     auto &entry = handleFuncRouter_[functionCode];
-    auto adu = requestFrame->adu();
+    adu = requestFrame->adu();
     adu.setDataChecker(entry.requestDataChecker);
     requestFrame->setAdu(adu);
 
@@ -271,7 +275,7 @@ public:
     auto array = frame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
 
-    log(LogLevel::kDebug, "{} will send:{}", session.client->fullName(),
+    log(LogLevel::kDebug, "S[{}]:[{}]", session.client->fullName(),
         dump(transferMode_, array));
   }
 
