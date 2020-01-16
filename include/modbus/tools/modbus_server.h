@@ -38,7 +38,7 @@ public:
 
   AbstractServer(QObject *parent = nullptr) : QObject(parent) {}
   virtual ~AbstractServer() {}
-  virtual void listenAndServe() = 0;
+  virtual bool listenAndServe() = 0;
 
   void handleNewConnFunc(const HandleNewConnFunc &functor) {
     handleNewConnFunc_ = functor;
@@ -68,7 +68,7 @@ public:
 
   void handleFunc(FunctionCode functionCode, const SingleBitAccess &access,
                   DataChecker *requestDataChecker = nullptr);
-  void listenAndServe();
+  bool listenAndServe();
 
 protected:
   virtual Response processRequest(const Request &request);
