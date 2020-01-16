@@ -290,6 +290,7 @@ public:
   Response createErrorReponse(FunctionCode functionCode, Error errorCode) {
     Response response;
 
+    response.setError(errorCode);
     response.setServerAddress(serverAddress_);
     response.setFunctionCode(FunctionCode(functionCode | Pdu::kExceptionByte));
     response.setData(ByteArray({uint8_t(errorCode)}));
@@ -298,26 +299,16 @@ public:
     return response;
   }
 
-  Response processReadSingleBitRequest(const Request &request,
-                                       FunctionCode functionCode) {
-    Response response;
 
     response.setFunctionCode(functionCode);
     response.setServerAddress(serverAddress_);
 
-    DeferRun([&]() {
-      if (response.error() != Error::kNoError) {
-        response.setFunctionCode(
-            FunctionCode(functionCode | Pdu::kExceptionByte));
-      }
-    });
-
+  Response processReadSingleBitRequest(const Request &request,
+                                       FunctionCode functionCode) {
     SingleBitAccess access;
     bool ok = access.unmarshalReadRequest(request.data());
     if (!ok) {
-      response.setError(Error::kStorageParityError);
-      response.setData(ByteArray({uint8_t(response.error())}));
-      return response;
+      return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
     auto requestStartAddress = access.startAddress();
@@ -328,25 +319,21 @@ public:
 
     if (requestStartAddress < myStartAddress ||
         requestStartAddress > myStartAddress + myQuantity) {
-      response.setError(Error::kIllegalDataAddress);
-      response.setData(ByteArray({uint8_t(response.error())}));
       log(LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
-      return response;
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
     }
 
     if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
-      response.setError(Error::kIllegalDataAddress);
-      response.setData(ByteArray({uint8_t(response.error())}));
       log(LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
-      return response;
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
     }
 
     SingleBitAccess responseAccess;
@@ -357,6 +344,10 @@ public:
       Address address = responseAccess.startAddress() + i;
       responseAccess.setValue(address, entry.singleBitAccess.value(address));
     }
+
+    Response response;
+    response.setFunctionCode(functionCode);
+    response.setServerAddress(serverAddress_);
     response.setError(Error::kNoError);
     response.setData(responseAccess.marshalReadResponse());
     return response;
