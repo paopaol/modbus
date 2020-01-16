@@ -4,6 +4,7 @@
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
 #include <fmt/core.h>
+#include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_server.h>
 
 namespace modbus {
@@ -271,7 +272,11 @@ public:
     case kReadInputDiscrete: {
       return processReadSingleBitRequest(request, kReadInputDiscrete);
     } break;
+    case kWriteSingleCoil: {
+      return processWriteSingleBitRequest(request, kWriteSingleCoil);
+    } break;
     default:
+      smart_assert(0 && "unsuported function")(request.functionCode());
       break;
     }
   }
@@ -299,9 +304,39 @@ public:
     return response;
   }
 
+  Response processWriteSingleBitRequest(const Request &request,
+                                        FunctionCode functionCode) {
+    SingleBitAccess access;
 
+    bool ok = access.unmarshalSingleWriteRequest(request.data());
+    if (!ok) {
+      log(LogLevel::kError, "invalid request");
+      return createErrorReponse(functionCode, Error::kStorageParityError);
+    }
+    auto &entry = handleFuncRouter_[functionCode];
+    Address startAddress = access.startAddress();
+    Address myStartAddress = entry.singleBitAccess.startAddress();
+    if (startAddress < myStartAddress || startAddress > myStartAddress) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestAddress({})",
+          functionCode, myStartAddress, access.quantity(), startAddress);
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    }
+    auto value = access.value(startAddress);
+    if (value == BitValue::kBadValue) {
+      log(LogLevel::kError, "invalid request code({}): bad data {}",
+          functionCode, dump(transferMode_, request.data()));
+      return createErrorReponse(functionCode, Error::kIllegalDataValue);
+    }
+    entry.singleBitAccess.setValue(startAddress, access.value(startAddress));
+    Response response;
+    response.setError(Error::kNoError);
     response.setFunctionCode(functionCode);
     response.setServerAddress(serverAddress_);
+    response.setData(access.marshalSingleWriteRequest());
+    return response;
+  }
 
   Response processReadSingleBitRequest(const Request &request,
                                        FunctionCode functionCode) {

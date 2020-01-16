@@ -3,6 +3,7 @@
 #include <QScopedPointer>
 #include <QSignalSpy>
 #include <QTcpServer>
+#include <QTimer>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <modbus/base/single_bit_access.h>
@@ -201,8 +202,82 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   EXPECT_EQ(response.isException(), true);
 }
 
+TEST(QModbusServer, processWriteSingleCoils_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  modbus::SingleBitAccess accessServer;
+
+  accessServer.setStartAddress(0x01);
+  accessServer.setQuantity(10);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x01);
+  access.setValue(modbus::BitValue::kOn);
+
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kWriteSingleCoil,
+      access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.serverAddress(), 0x01);
+  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x01, 0xff, 0x00}));
+}
+
+TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  modbus::SingleBitAccess accessServer;
+
+  accessServer.setStartAddress(0x99);
+  accessServer.setQuantity(10);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+
+  modbus::SingleBitAccess access;
+
+  access.setStartAddress(0x01);
+  access.setQuantity(0x01);
+  access.setValue(modbus::BitValue::kOn);
+
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kWriteSingleCoil,
+      access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x02}));
+}
+
+TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  modbus::SingleBitAccess accessServer;
+
+  accessServer.setStartAddress(0x01);
+  accessServer.setQuantity(10);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kWriteSingleCoil,
+      modbus::ByteArray({0x00, 0x01, 0xff, 0xff}), modbus::bytesRequired<4>));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataValue);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
 }
 
 static modbus::Adu
