@@ -31,6 +31,9 @@ static std::string dump(TransferMode transferMode,
     return;                                                                    \
   }
 
+#define DeferRun(functor)                                                      \
+  std::shared_ptr<void> _##__LINE__(nullptr, std::bind(functor))
+
 struct ClientSession {
   AbstractConnection *client = nullptr;
 };
@@ -301,6 +304,13 @@ public:
 
     response.setFunctionCode(functionCode);
     response.setServerAddress(serverAddress_);
+
+    DeferRun([&]() {
+      if (response.error() != Error::kNoError) {
+        response.setFunctionCode(
+            FunctionCode(functionCode | Pdu::kExceptionByte));
+      }
+    });
 
     SingleBitAccess access;
     bool ok = access.unmarshalReadRequest(request.data());
