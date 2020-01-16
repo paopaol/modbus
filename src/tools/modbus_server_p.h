@@ -140,21 +140,21 @@ public:
       break;
     }
     case ProcessResult::kBadServerAddress: {
-      log(LogLevel::kWarning,
+      log(LogLevel::kError,
           "{} unexpected server address,my "
           "address[{}]",
           session.client->fullName(), serverAddress_);
       break;
     }
     case ProcessResult::kBadFunctionCode: {
-      log(LogLevel::kWarning, "{} unsupported function code",
+      log(LogLevel::kError, "{} unsupported function code",
           session.client->fullName());
       break;
     }
     case ProcessResult::kBroadcast: {
     }
     case ProcessResult::kStorageParityError: {
-      log(LogLevel::kWarning, "{} invalid request", session.client->fullName());
+      log(LogLevel::kError, "{} invalid request", session.client->fullName());
       break;
     }
     case ProcessResult::kSuccess: {
@@ -320,9 +320,8 @@ public:
         requestStartAddress > myStartAddress + myQuantity) {
       response.setError(Error::kIllegalDataAddress);
       response.setData(ByteArray({uint8_t(response.error())}));
-      log(LogLevel::kDebug,
-          "requested function "
-          "code({}):myStartAddress({}),myMaxQuantity({}),"
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
@@ -332,9 +331,8 @@ public:
     if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
       response.setError(Error::kIllegalDataAddress);
       response.setData(ByteArray({uint8_t(response.error())}));
-      log(LogLevel::kDebug,
-          "requested function "
-          "code({}):myStartAddress({}),myMaxQuantity({}),"
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, myStartAddress, myQuantity, requestStartAddress,
           requestQuantity);
