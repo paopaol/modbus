@@ -203,6 +203,24 @@ public:
     return true;
   }
 
+  bool unmarshalSingleWriteRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequired<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = 1;
+    if (data[2] == 0xff && data[3] == 0x00) {
+      setValue(BitValue::kOn);
+    } else if (data[2] == 0x00 && data[3] == 0x00) {
+      setValue(BitValue::kOff);
+    } else {
+      setValue(BitValue::kBadValue);
+    }
+    return true;
+  }
+
   BitValue value(Address address) const {
     auto value = valueEx(address);
     return value.value;
