@@ -10,9 +10,10 @@
 
 using namespace testing;
 static modbus::Adu
-createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
-                         modbus::FunctionCode functionCode,
-                         const modbus::SingleBitAccess &access);
+createSingleBitAdu(modbus::ServerAddress serverAddress,
+                   modbus::FunctionCode functionCode,
+                   const modbus::ByteArray &data,
+                   const modbus::DataChecker::calculateRequiredSizeFunc &func);
 
 class TestConnection : public modbus::AbstractConnection {
   Q_OBJECT
@@ -68,7 +69,7 @@ TEST(QModbusServer, set_get) {
 TEST(QModbusServer, testSignles) {
   int argc = 1;
   char *argv[] = {(char *)"test"};
-  QCoreApplication name(argc, argv);
+  QCoreApplication app(argc, argv);
 
   TestConnection testConn;
   modbus::AbstractConnection *conn = &testConn;
@@ -79,7 +80,8 @@ TEST(QModbusServer, testSignles) {
 
   EXPECT_EQ(spy.count(), 1);
 
-  name.exec();
+  QTimer::singleShot(0, [&]() { app.quit(); });
+  app.exec();
 }
 
 TEST(QModbusServer,
@@ -161,8 +163,9 @@ TEST(QModbusServer, processReadCoils_success) {
   access.setStartAddress(0x01);
   access.setQuantity(0x3);
 
-  modbus::Request request(
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kReadCoils, access.marshalReadRequest(),
+      modbus::bytesRequired<4>));
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kNoError);
@@ -186,25 +189,32 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
 
   modbus::SingleBitAccess access;
 
-  access.setStartAddress(0x01);
+  access.setStartAddress(0x06);
   access.setQuantity(0x10);
 
-  modbus::Request request(
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kReadCoils, access.marshalReadRequest(),
+      modbus::bytesRequired<4>));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+}
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
 }
 
 static modbus::Adu
-createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
-                         modbus::FunctionCode functionCode,
-                         const modbus::SingleBitAccess &access) {
+createSingleBitAdu(modbus::ServerAddress serverAddress,
+                   modbus::FunctionCode functionCode,
+                   const modbus::ByteArray &data,
+                   const modbus::DataChecker::calculateRequiredSizeFunc &func) {
   modbus::Adu adu;
   adu.setServerAddress(serverAddress);
   adu.setFunctionCode(functionCode);
-  adu.setData(access.marshalReadRequest());
-  adu.setDataChecker(modbus::DataChecker({modbus::bytesRequired<4>}));
+  adu.setData(data);
+  adu.setDataChecker(modbus::DataChecker({func}));
   return adu;
 }
 
