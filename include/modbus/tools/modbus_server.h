@@ -19,7 +19,10 @@ using BytesBufferPtr = std::shared_ptr<pp::bytes::Buffer>;
 class AbstractConnection : public QObject {
   Q_OBJECT
 public:
-  AbstractConnection(QObject *parent = nullptr) : QObject(parent) {}
+  AbstractConnection(QObject *parent = nullptr) : QObject(parent) {
+    qRegisterMetaType<modbus::BytesBufferPtr>("modbus::BytesBufferPtr");
+    qRegisterMetaType<quintptr>("quintptr");
+  }
   virtual ~AbstractConnection() {}
   virtual quintptr fd() const = 0;
   virtual void write(const char *data, size_t size) = 0;
@@ -82,6 +85,4 @@ QModbusServer *createQModbusTcpServer(uint16_t port = 502,
                                       QObject *parent = nullptr);
 } // namespace modbus
 
-Q_DECLARE_METATYPE(modbus::BytesBufferPtr);
-Q_DECLARE_METATYPE(quintptr);
 #endif // __MODBUS_SERVER_H_
