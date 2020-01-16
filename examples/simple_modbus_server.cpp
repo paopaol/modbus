@@ -18,7 +18,10 @@ int main(int argc, char *argv[]) {
 
   modbusServer->handleFunc(modbus::FunctionCode::kReadCoils, access);
 
-  modbusServer->listenAndServe();
+  bool success = modbusServer->listenAndServe();
+  if (!success) {
+    return 1;
+  }
 
   return app.exec();
 }

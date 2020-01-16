@@ -101,7 +101,7 @@ public:
   }
 
   void setServer(AbstractServer *server) { server_ = server; }
-  void listenAndServe() { server_->listenAndServe(); }
+  bool listenAndServe() { return server_->listenAndServe(); }
 
   void setEnv() {
     assert(server_ && "not set ConnectionServer");
@@ -216,6 +216,9 @@ public:
      */
     if (!handleFuncRouter_.contains(functionCode)) {
       buffer->Reset();
+      responseFrame = createModebusFrame(transferMode_);
+      responseFrame->setAdu(
+          createErrorReponse(functionCode, Error::kIllegalFunctionCode));
       return ProcessResult::kBadFunctionCode;
     }
 

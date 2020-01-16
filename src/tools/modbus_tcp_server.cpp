@@ -81,14 +81,15 @@ public:
             &TcpServer::incomingConnection);
   }
   void setListenPort(uint16_t port) { port_ = port; }
-  void listenAndServe() override {
+  bool listenAndServe() override {
     bool success = tcpServer_.listen(QHostAddress::Any, port_);
     if (!success) {
       log(LogLevel::kError, "tcp server listen(:{}) failed. {}", port_,
           tcpServer_.errorString().toStdString());
-      return;
+      return false;
     }
     log(LogLevel::kInfo, "tcp server listened at 0.0.0.0:{}", port_);
+    return true;
   }
 
 protected:

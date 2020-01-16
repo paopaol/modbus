@@ -70,9 +70,9 @@ void QModbusServer::handleFunc(FunctionCode functionCode,
   d->handleFunc(functionCode, access, requestDataChecker);
 }
 
-void QModbusServer::listenAndServe() {
+bool QModbusServer::listenAndServe() {
   Q_D(QModbusServer);
-  d->listenAndServe();
+  return d->listenAndServe();
 }
 
 } // namespace modbus

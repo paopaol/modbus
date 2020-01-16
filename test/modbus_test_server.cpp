@@ -36,7 +36,7 @@ class TestServer : public modbus::AbstractServer {
 public:
   TestServer(QObject *parent = nullptr) : modbus::AbstractServer(parent) {}
   ~TestServer() {}
-  MOCK_METHOD0(listenAndServe, void());
+  MOCK_METHOD0(listenAndServe, bool());
 };
 
 TEST(QModbusServer, constructor) {
