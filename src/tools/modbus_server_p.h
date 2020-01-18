@@ -249,6 +249,9 @@ public:
       return ProcessResult::kStorageParityError;
     }
 
+    /*
+     *discard the already parsed data
+     */
     char *unused;
     buffer->ZeroCopyRead(unused, requestFrame->marshalSize());
 
@@ -275,10 +278,14 @@ public:
     case kWriteSingleCoil: {
       return processWriteSingleBitRequest(request, kWriteSingleCoil);
     } break;
+    case kWriteMultipleCoils: {
+      return processWriteMultipleSingleBitRequest(request);
+    } break;
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
       break;
     }
+    return Response();
   }
 
   void writeFrame(ClientSession &session, const std::shared_ptr<Frame> &frame,
@@ -304,6 +311,41 @@ public:
     return response;
   }
 
+  Response processWriteMultipleSingleBitRequest(const Request &request) {
+    FunctionCode functionCode = FunctionCode::kWriteMultipleCoils;
+
+    SingleBitAccess access;
+    bool ok = access.unmarshalMultipleWriteRequest(request.data());
+    if (!ok) {
+      log(LogLevel::kError, "invalid request");
+      return createErrorReponse(functionCode, Error::kStorageParityError);
+    }
+    auto &entry = handleFuncRouter_[functionCode];
+    Address myStartAddress = entry.singleBitAccess.startAddress();
+    Quantity myMaxQuantity = entry.singleBitAccess.quantity();
+    Address reqStartAddress = access.startAddress();
+    Quantity reqQuantity = access.quantity();
+    if (reqStartAddress < myStartAddress ||
+        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestAddress({})",
+          functionCode, myStartAddress, myMaxQuantity, reqStartAddress);
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    }
+    for (size_t i = 0; i < access.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = access.value(address);
+      entry.singleBitAccess.setValue(address, value);
+    }
+    Response response;
+    response.setError(Error::kNoError);
+    response.setFunctionCode(functionCode);
+    response.setServerAddress(serverAddress_);
+    response.setData(access.marshalAddressQuantity());
+    return response;
+  }
+
   Response processWriteSingleBitRequest(const Request &request,
                                         FunctionCode functionCode) {
     SingleBitAccess access;
@@ -320,7 +362,8 @@ public:
       log(LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestAddress({})",
-          functionCode, myStartAddress, access.quantity(), startAddress);
+          functionCode, myStartAddress, entry.singleBitAccess.quantity(),
+          startAddress);
       return createErrorReponse(functionCode, Error::kIllegalDataAddress);
     }
     auto value = access.value(startAddress);

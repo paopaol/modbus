@@ -280,6 +280,49 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
   EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
 }
 
+TEST(QModbusServer, processWriteMultipleCoils_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  modbus::SingleBitAccess access;
+  access.setStartAddress(0x00);
+  access.setQuantity(0x10);
+  d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
+
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kWriteMultipleCoils,
+      modbus::ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}),
+      modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.isException(), false);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x00, 0x00, 0x09}));
+}
+
+TEST(QModbusServer, processWriteMultipleCoils_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  modbus::SingleBitAccess access;
+  access.setStartAddress(0x00);
+  access.setQuantity(0x10);
+  d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
+
+  modbus::Request request(createSingleBitAdu(
+      0x01, modbus::FunctionCode::kWriteMultipleCoils,
+      modbus::ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}),
+      modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.data(),
+            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+}
+
 static modbus::Adu
 createSingleBitAdu(modbus::ServerAddress serverAddress,
                    modbus::FunctionCode functionCode,
