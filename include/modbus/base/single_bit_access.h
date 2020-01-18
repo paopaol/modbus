@@ -55,7 +55,9 @@ public:
    * Conversion to modbus protocol format
    * function code 0x01,0x02
    */
-  ByteArray marshalReadRequest() const {
+  ByteArray marshalReadRequest() const { return marshalAddressQuantity(); }
+
+  ByteArray marshalAddressQuantity() const {
     ByteArray array;
 
     array.push_back(startAddress_ / 256);
@@ -174,6 +176,57 @@ public:
   }
 
   bool unmarshalReadResponse(const ByteArray &array) {
+    return unmarshalValueArray(array);
+  }
+
+  bool unmarshalSingleWriteRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequired<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = 1;
+    if (data[2] == 0xff && data[3] == 0x00) {
+      setValue(BitValue::kOn);
+    } else if (data[2] == 0x00 && data[3] == 0x00) {
+      setValue(BitValue::kOff);
+    } else {
+      setValue(BitValue::kBadValue);
+    }
+    return true;
+  }
+
+  bool unmarshalMultipleWriteRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequiredStoreInArrayIndex<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = data[2] * 256 + data[3];
+    auto valueArray = tool::subArray(data, 4);
+    return unmarshalValueArray(valueArray);
+  }
+
+  BitValue value(Address address) const {
+    auto value = valueEx(address);
+    return value.value;
+  }
+
+  BitValueEx valueEx(Address address) const {
+    BitValueEx value;
+
+    auto it = valueMap_.find(address);
+    if (it != valueMap_.end()) {
+      value = it->second;
+    }
+
+    return value;
+  }
+
+private:
+  bool unmarshalValueArray(const ByteArray &array) {
     size_t size = 0;
     auto result = bytesRequiredStoreInArrayIndex<0>(size, array);
     if (result != DataChecker::Result::kSizeOk) {
@@ -203,41 +256,6 @@ public:
     return true;
   }
 
-  bool unmarshalSingleWriteRequest(const ByteArray &data) {
-    size_t size;
-    auto result = bytesRequired<4>(size, data);
-    if (result != DataChecker::Result::kSizeOk) {
-      return false;
-    }
-    startAddress_ = data[0] * 256 + data[1];
-    quantity_ = 1;
-    if (data[2] == 0xff && data[3] == 0x00) {
-      setValue(BitValue::kOn);
-    } else if (data[2] == 0x00 && data[3] == 0x00) {
-      setValue(BitValue::kOff);
-    } else {
-      setValue(BitValue::kBadValue);
-    }
-    return true;
-  }
-
-  BitValue value(Address address) const {
-    auto value = valueEx(address);
-    return value.value;
-  }
-
-  BitValueEx valueEx(Address address) const {
-    BitValueEx value;
-
-    auto it = valueMap_.find(address);
-    if (it != valueMap_.end()) {
-      value = it->second;
-    }
-
-    return value;
-  }
-
-private:
   Address startAddress_;
   Quantity quantity_ = 0;
   std::string deviceName_;
