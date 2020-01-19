@@ -171,6 +171,7 @@ public:
       }
       data.push_back(byte);
       remainingNumber -= numbers;
+      address += numbers;
     }
     return data;
   }
