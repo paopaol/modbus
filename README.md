@@ -11,7 +11,9 @@ a modbus library for c++11,using qt
 ## features
    [x] modbus master serial client
 
-   [x] rtu mode
+   [x] modbus master tcp client
+
+   [x] modbus master udp client
 
    [x] disconnection and reconnection
 
@@ -22,8 +24,27 @@ a modbus library for c++11,using qt
    [x] sixteen bit access
 
    [x] custom functions
+   
+## function support
 
-   [x] requests are not lost, all requests will be sent at least once
+   [x] 0x01 Read coils
+   
+   [x] 0x02 Read input discrete
+   
+   [x] 0x03 Read multiple registers
+   
+   [x] 0x04 Read input register
+   
+   [x] 0x05 Write single coil
+   
+   [x] 0x06 Write single register
+   
+   [x] 0x0f Write multiple coils
+   
+   [x] 0x10 Write multiple registers
+   
+   [x] 0x17 Read/Write multiple registers
+
 
 ## build from source
 
@@ -52,90 +73,49 @@ a modbus library for c++11,using qt
 
 ```cpp
 #include <QCoreApplication>
-#include <QDebug>
-#include <modbus/base/single_bit_access.h>
 #include <modbus/tools/modbus_client.h>
 
-static QString modbusBitValueToString(modbus::BitValue value);
+static void processFunctionCode3(
+    modbus::ServerAddress serverAddress, modbus::Address address,
+    const QVector<modbus::SixteenBitValue> &valueList, modbus::Error error) {
+  if (error != modbus::Error::kNoError) {
+    return;
+  }
 
-static modbus::DataChecker newDataChecker() {
-  modbus::DataChecker dataChecker;
-  dataChecker.calculateSize = modbus::bytesRequiredStoreInArrayIndex0;
-  return dataChecker;
+  for (const auto &value : valueList) {
+    qDebug() << "value is:" << value.toUint16();
+  }
+}
+
+static void processFunctionCode6(modbus::ServerAddress serverAddress,
+                                 modbus::Address address, modbus::Error error) {
+  qDebug() << "write signle register:" << (error == modbus::Error::kNoError);
 }
 
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
-  QScopedPointer<modbus::QModbusClient> client(
-      modbus::newQtSerialClient("/dev/ttyS0"));
+  modbus::QModbusClient *client = modbus::newQtSerialClient("COM1");
 
-  client->setOpenRetryTimes(5, 5000);
-
-  QObject::connect(
-      client.data(), &modbus::QModbusClient::errorOccur,
-      [&](const QString &errorString) { qDebug() << errorString; });
-  QObject::connect(client.data(), &modbus::QModbusClient::clientClosed,
-                   [&]() { qDebug() << "client is closed"; });
-  QObject::connect(client.data(), &modbus::QModbusClient::clientOpened, [&]() {
-    qDebug() << "client is opened";
-
-    modbus::Request request;
-
-    modbus::SingleBitAccess access;
-    access.setStartAddress(0);
-    access.setQuantity(5);
-
-    request.setServerAddress(0);
-    request.setFunctionCode(modbus::FunctionCode::kReadCoils);
-    request.setUserData(access);
-    request.setData(access.marshalReadRequest());
-    request.setDataChecker(newDataChecker());
-
-    client->sendRequest(request);
-  });
-
-  QObject::connect(
-      client.data(), &modbus::QModbusClient::requestFinished,
-      [&](const modbus::Request &req, const modbus::Response &resp) {
-        if (resp.error() != modbus::Error::kNoError) {
-          qDebug() << resp.errorString().c_str();
-          return;
-        }
-
-        if (resp.isException()) {
-          qDebug() << resp.errorString().c_str();
-          return;
-        }
-        modbus::SingleBitAccess access =
-            modbus::any::any_cast<modbus::SingleBitAccess>(req.userData());
-        bool ok = access.unmarshalReadResponse(resp.data());
-        if (!ok) {
-          qDebug() << "data is invalid";
-          return;
-        }
-        modbus::Address address = access.startAddress();
-        for (int offset = 0; offset < access.quantity(); offset++) {
-          modbus::Address currentAddress = address + offset;
-          qDebug() << "address: " << currentAddress << " value: "
-                   << modbusBitValueToString(access.value(currentAddress));
-        }
-      });
-
+  QObject::connect(client, &modbus::QModbusClient::readRegistersFinished, &app,
+                   processFunctionCode3);
+  QObject::connect(client, &modbus::QModbusClient::writeSingleRegisterFinished,
+                   &app, processFunctionCode6);
   client->open();
 
-  return app.exec();
-}
+  /**
+   * function code 0x03
+   */
+  client->readRegisters(modbus::ServerAddress(0x01), modbus::FunctionCode(0x03),
+                        modbus::Address(0x00), modbus::Quantity(0x02));
 
-static QString modbusBitValueToString(modbus::BitValue value) {
-  switch (value) {
-  case modbus::BitValue::kOn:
-    return "true";
-  case modbus::BitValue::kOff:
-    return "false";
-  case modbus::BitValue::kBadValue:
-    return "badValue";
-  }
-  return "";
+  /**
+   * function code 0x06
+   */
+  client->writeSingleRegister(modbus::ServerAddress(0x01),
+                              modbus::Address(0x01),
+                              modbus::SixteenBitValue(0x17));
+
+  return app.exec();
 }
 ```
