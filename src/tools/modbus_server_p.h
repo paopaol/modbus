@@ -106,6 +106,26 @@ public:
     }
   }
 
+  void handleFunc(FunctionCode functionCode,
+                  const std::shared_ptr<SixteenBitAccess> &access,
+                  DataChecker *requestDataChecker = nullptr) {
+    HandleFuncEntry entry;
+
+    entry.functionCode = functionCode;
+    smart_assert(access && "invalid access")(functionCode);
+    entry.sixteenBitAccess = access;
+    entry.requestDataChecker = requestDataChecker
+                                   ? *requestDataChecker
+                                   : defaultRequestDataChecker(functionCode);
+    handleFuncRouter_[functionCode] = entry;
+
+    log(LogLevel::kInfo, "route add Function[{}]", functionCode);
+    if (!entry.requestDataChecker.calculateSize) {
+      log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
+          functionCode);
+    }
+  }
+
   void setServer(AbstractServer *server) { server_ = server; }
   bool listenAndServe() { return server_->listenAndServe(); }
 
@@ -281,6 +301,10 @@ public:
     case kWriteMultipleCoils: {
       return processWriteMultipleSingleBitRequest(request);
     }
+    case kReadWriteMultipleRegisters:
+    case kReadInputRegister: {
+      return processReadMultipleRegisters(request, request.functionCode());
+    }
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
       break;
@@ -430,6 +454,47 @@ public:
     response.setServerAddress(serverAddress_);
     response.setError(Error::kNoError);
     response.setData(responseAccess.marshalReadResponse());
+    return response;
+  }
+
+  Response processReadMultipleRegisters(const Request &request,
+                                        FunctionCode functionCode) {
+    SixteenBitAccess access;
+
+    bool ok = access.unmarshalAddressQuantity(request.data());
+    if (ok == false) {
+      log(LogLevel::kError, "invalid request");
+      return createErrorReponse(functionCode, Error::kStorageParityError);
+    }
+    auto entry = handleFuncRouter_[functionCode];
+    Address myStartAddress = entry.sixteenBitAccess->startAddress();
+    Quantity myMaxQuantity = entry.sixteenBitAccess->quantity();
+    Address reqStartAddress = access.startAddress();
+    Quantity reqQuantity = access.quantity();
+
+    if (reqStartAddress < myStartAddress ||
+        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
+          reqQuantity);
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    }
+    SixteenBitAccess responseAccess;
+    responseAccess.setStartAddress(reqStartAddress);
+    responseAccess.setQuantity(reqQuantity);
+    for (size_t i = 0; i < reqQuantity; i++) {
+      Address address = reqStartAddress + i;
+      auto value = entry.sixteenBitAccess->value(address);
+      responseAccess.setValue(address, value.toUint16());
+    }
+
+    Response response;
+    response.setFunctionCode(functionCode);
+    response.setServerAddress(serverAddress_);
+    response.setError(Error::kNoError);
+    response.setData(responseAccess.marshalMultipleReadResponse());
     return response;
   }
 

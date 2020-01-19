@@ -70,6 +70,13 @@ void QModbusServer::handleFunc(FunctionCode functionCode,
   d->handleFunc(functionCode, access, requestDataChecker);
 }
 
+void QModbusServer::handleFunc(FunctionCode functionCode,
+                               const std::shared_ptr<SixteenBitAccess> &access,
+                               DataChecker *requestDataChecker) {
+  Q_D(QModbusServer);
+  d->handleFunc(functionCode, access, requestDataChecker);
+}
+
 bool QModbusServer::listenAndServe() {
   Q_D(QModbusServer);
   return d->listenAndServe();
