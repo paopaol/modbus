@@ -69,7 +69,8 @@ public:
   void addBlacklist(const QString &clientIp);
   void setServerAddress(ServerAddress serverAddress);
 
-  void handleFunc(FunctionCode functionCode, const SingleBitAccess &access,
+  void handleFunc(FunctionCode functionCode,
+                  const std::shared_ptr<SingleBitAccess> &access,
                   DataChecker *requestDataChecker = nullptr);
   bool listenAndServe();
 

@@ -15,7 +15,8 @@ set(src-files
   "./tools/modbus_qt_serialport.cpp"
   "./tools/modbus_server.cpp"
   "${CMAKE_SOURCE_DIR}/include/modbus/tools/modbus_server.h"
-  "./tools/modbus_tcp_server.cpp")
+  "./tools/modbus_tcp_server.cpp"
+  "./tools/modbus_server_p.h")
 
 add_library(modbus ${src-files})
 target_include_directories(modbus PRIVATE ".")
