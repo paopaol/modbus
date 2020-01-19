@@ -271,18 +271,16 @@ public:
   Response processRequest(const Request &request) {
     using modbus::FunctionCode;
     switch (request.functionCode()) {
-    case kReadCoils: {
-      return processReadSingleBitRequest(request, kReadCoils);
-    } break;
+    case kReadCoils:
     case kReadInputDiscrete: {
-      return processReadSingleBitRequest(request, kReadInputDiscrete);
-    } break;
+      return processReadSingleBitRequest(request, request.functionCode());
+    }
     case kWriteSingleCoil: {
-      return processWriteSingleBitRequest(request, kWriteSingleCoil);
-    } break;
+      return processWriteSingleBitRequest(request);
+    }
     case kWriteMultipleCoils: {
       return processWriteMultipleSingleBitRequest(request);
-    } break;
+    }
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
       break;
@@ -348,8 +346,8 @@ public:
     return response;
   }
 
-  Response processWriteSingleBitRequest(const Request &request,
-                                        FunctionCode functionCode) {
+  Response processWriteSingleBitRequest(const Request &request) {
+    FunctionCode functionCode = FunctionCode::kWriteSingleCoil;
     SingleBitAccess access;
 
     bool ok = access.unmarshalSingleWriteRequest(request.data());
@@ -389,6 +387,7 @@ public:
     SingleBitAccess access;
     bool ok = access.unmarshalReadRequest(request.data());
     if (!ok) {
+      log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
