@@ -75,6 +75,17 @@ public:
     return array;
   }
 
+  bool unmarshalAddressQuantity(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequired<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = data[2] * 256 + data[3];
+    return true;
+  }
+
   ByteArray marshalSingleWriteRequest() const {
     smart_assert(valueMap_.find(startAddress_) != valueMap_.end() &&
                  "no set value of start address")(startAddress_);
@@ -102,6 +113,22 @@ public:
 
     array.push_back(quantity_ / 256);
     array.push_back(quantity_ % 256);
+
+    array.push_back(quantity_ * 2);
+
+    for (Address nextAddress = startAddress_;
+         nextAddress < startAddress_ + quantity_; nextAddress++) {
+      smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
+                   "no set value of address")(nextAddress);
+      auto valueEx = valueMap_[nextAddress];
+      array.push_back(valueEx.value.toUint16() / 256);
+      array.push_back(valueEx.value.toUint16() % 256);
+    }
+    return array;
+  }
+
+  ByteArray marshalMultipleReadResponse() {
+    ByteArray array;
 
     array.push_back(quantity_ * 2);
 
