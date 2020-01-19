@@ -11,10 +11,9 @@
 
 using namespace testing;
 static modbus::Adu
-createSingleBitAdu(modbus::ServerAddress serverAddress,
-                   modbus::FunctionCode functionCode,
-                   const modbus::ByteArray &data,
-                   const modbus::DataChecker::calculateRequiredSizeFunc &func);
+createAdu(modbus::ServerAddress serverAddress,
+          modbus::FunctionCode functionCode, const modbus::ByteArray &data,
+          const modbus::DataChecker::calculateRequiredSizeFunc &func);
 
 class TestConnection : public modbus::AbstractConnection {
   Q_OBJECT
@@ -166,9 +165,9 @@ TEST(QModbusServer, processReadCoils_success) {
   access.setStartAddress(0x01);
   access.setQuantity(0x3);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kReadCoils, access.marshalReadRequest(),
-      modbus::bytesRequired<4>));
+  modbus::Request request(createAdu(0x01, modbus::FunctionCode::kReadCoils,
+                                    access.marshalReadRequest(),
+                                    modbus::bytesRequiredStoreInArrayIndex<0>));
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kNoError);
@@ -197,9 +196,9 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   access.setStartAddress(0x06);
   access.setQuantity(0x10);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kReadCoils, access.marshalReadRequest(),
-      modbus::bytesRequired<4>));
+  modbus::Request request(createAdu(0x01, modbus::FunctionCode::kReadCoils,
+                                    access.marshalReadRequest(),
+                                    modbus::bytesRequiredStoreInArrayIndex<0>));
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
@@ -225,9 +224,9 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
   access.setQuantity(0x01);
   access.setValue(modbus::BitValue::kOn);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kWriteSingleCoil,
-      access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+  modbus::Request request(
+      createAdu(0x01, modbus::FunctionCode::kWriteSingleCoil,
+                access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kNoError);
@@ -254,9 +253,9 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
   access.setQuantity(0x01);
   access.setValue(modbus::BitValue::kOn);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kWriteSingleCoil,
-      access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+  modbus::Request request(
+      createAdu(0x01, modbus::FunctionCode::kWriteSingleCoil,
+                access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
 
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
@@ -277,7 +276,7 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
   accessServer->setQuantity(10);
   d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
 
-  modbus::Request request(createSingleBitAdu(
+  modbus::Request request(createAdu(
       0x01, modbus::FunctionCode::kWriteSingleCoil,
       modbus::ByteArray({0x00, 0x01, 0xff, 0xff}), modbus::bytesRequired<4>));
 
@@ -299,10 +298,10 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
   access->setQuantity(0x10);
   d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kWriteMultipleCoils,
-      modbus::ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}),
-      modbus::bytesRequired<4>));
+  modbus::Request request(
+      createAdu(0x01, modbus::FunctionCode::kWriteMultipleCoils,
+                modbus::ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}),
+                modbus::bytesRequired<4>));
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kNoError);
   EXPECT_EQ(response.isException(), false);
@@ -320,10 +319,10 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
   access->setQuantity(0x10);
   d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
 
-  modbus::Request request(createSingleBitAdu(
-      0x01, modbus::FunctionCode::kWriteMultipleCoils,
-      modbus::ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}),
-      modbus::bytesRequired<4>));
+  modbus::Request request(
+      createAdu(0x01, modbus::FunctionCode::kWriteMultipleCoils,
+                modbus::ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}),
+                modbus::bytesRequired<4>));
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
@@ -332,10 +331,9 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
 }
 
 static modbus::Adu
-createSingleBitAdu(modbus::ServerAddress serverAddress,
-                   modbus::FunctionCode functionCode,
-                   const modbus::ByteArray &data,
-                   const modbus::DataChecker::calculateRequiredSizeFunc &func) {
+createAdu(modbus::ServerAddress serverAddress,
+          modbus::FunctionCode functionCode, const modbus::ByteArray &data,
+          const modbus::DataChecker::calculateRequiredSizeFunc &func) {
   modbus::Adu adu;
   adu.setServerAddress(serverAddress);
   adu.setFunctionCode(functionCode);
