@@ -146,10 +146,10 @@ TEST(SingleBitAccess, marshalReadResponse_success) {
   access.setValue(access.startAddress() + 5, modbus::BitValue::kOn);
   access.setValue(access.startAddress() + 6, modbus::BitValue::kOn);
   access.setValue(access.startAddress() + 7, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 8, modbus::BitValue::kOn);
+  access.setValue(access.startAddress() + 8, modbus::BitValue::kOff);
 
   auto dataArray = access.marshalReadResponse();
-  EXPECT_EQ(dataArray, modbus::ByteArray({0x02, 0xed, 0x01}));
+  EXPECT_EQ(dataArray, modbus::ByteArray({0x02, 0xed, 0x00}));
 }
 
 TEST(SingleBitAccess, unmarshalReadResponse_dataIsInValid_unmarshalFailed) {
