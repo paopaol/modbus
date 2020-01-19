@@ -42,8 +42,8 @@ struct ClientSession {
 struct HandleFuncEntry {
   FunctionCode functionCode;
   DataChecker requestDataChecker;
-  SingleBitAccess singleBitAccess;
-  SixteenBitAccess sixteenBitAccess;
+  std::shared_ptr<SingleBitAccess> singleBitAccess;
+  std::shared_ptr<SixteenBitAccess> sixteenBitAccess;
 };
 
 class QModbusServerPrivate : public QObject {
@@ -86,11 +86,13 @@ public:
     serverAddress_ = serverAddress;
   }
 
-  void handleFunc(FunctionCode functionCode, const SingleBitAccess &access,
+  void handleFunc(FunctionCode functionCode,
+                  const std::shared_ptr<SingleBitAccess> &access,
                   DataChecker *requestDataChecker = nullptr) {
     HandleFuncEntry entry;
 
     entry.functionCode = functionCode;
+    smart_assert(access && "invalid access")(functionCode);
     entry.singleBitAccess = access;
     entry.requestDataChecker = requestDataChecker
                                    ? *requestDataChecker
@@ -321,8 +323,8 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto &entry = handleFuncRouter_[functionCode];
-    Address myStartAddress = entry.singleBitAccess.startAddress();
-    Quantity myMaxQuantity = entry.singleBitAccess.quantity();
+    Address myStartAddress = entry.singleBitAccess->startAddress();
+    Quantity myMaxQuantity = entry.singleBitAccess->quantity();
     Address reqStartAddress = access.startAddress();
     Quantity reqQuantity = access.quantity();
     if (reqStartAddress < myStartAddress ||
@@ -336,7 +338,7 @@ public:
     for (size_t i = 0; i < access.quantity(); i++) {
       Address address = reqStartAddress + i;
       auto value = access.value(address);
-      entry.singleBitAccess.setValue(address, value);
+      entry.singleBitAccess->setValue(address, value);
     }
     Response response;
     response.setError(Error::kNoError);
@@ -357,13 +359,14 @@ public:
     }
     auto &entry = handleFuncRouter_[functionCode];
     Address startAddress = access.startAddress();
-    Address myStartAddress = entry.singleBitAccess.startAddress();
-    if (startAddress < myStartAddress || startAddress > myStartAddress) {
+    Address myStartAddress = entry.singleBitAccess->startAddress();
+    Quantity myMaxQuantity = entry.singleBitAccess->quantity();
+    if (startAddress < myStartAddress ||
+        startAddress > myStartAddress + myMaxQuantity) {
       log(LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestAddress({})",
-          functionCode, myStartAddress, entry.singleBitAccess.quantity(),
-          startAddress);
+          functionCode, myStartAddress, myMaxQuantity, startAddress);
       return createErrorReponse(functionCode, Error::kIllegalDataAddress);
     }
     auto value = access.value(startAddress);
@@ -372,7 +375,7 @@ public:
           functionCode, dump(transferMode_, request.data()));
       return createErrorReponse(functionCode, Error::kIllegalDataValue);
     }
-    entry.singleBitAccess.setValue(startAddress, access.value(startAddress));
+    entry.singleBitAccess->setValue(startAddress, access.value(startAddress));
     Response response;
     response.setError(Error::kNoError);
     response.setFunctionCode(functionCode);
@@ -392,8 +395,8 @@ public:
     auto requestStartAddress = access.startAddress();
     auto requestQuantity = access.quantity();
     auto &entry = handleFuncRouter_[functionCode];
-    auto myStartAddress = entry.singleBitAccess.startAddress();
-    auto myQuantity = entry.singleBitAccess.quantity();
+    auto myStartAddress = entry.singleBitAccess->startAddress();
+    auto myQuantity = entry.singleBitAccess->quantity();
 
     if (requestStartAddress < myStartAddress ||
         requestStartAddress > myStartAddress + myQuantity) {
@@ -420,7 +423,7 @@ public:
     responseAccess.setQuantity(requestQuantity);
     for (size_t i = 0; i < responseAccess.quantity(); i++) {
       Address address = responseAccess.startAddress() + i;
-      responseAccess.setValue(address, entry.singleBitAccess.value(address));
+      responseAccess.setValue(address, entry.singleBitAccess->value(address));
     }
 
     Response response;

@@ -151,12 +151,14 @@ TEST(QModbusServer, processReadCoils_success) {
 
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  modbus::SingleBitAccess accessServer;
 
-  accessServer.setStartAddress(0x01);
-  accessServer.setQuantity(10);
-  accessServer.setValue(0x01, modbus::BitValue::kOn);
-  accessServer.setValue(0x03, modbus::BitValue::kOn);
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
+
+  accessServer->setStartAddress(0x01);
+  accessServer->setQuantity(10);
+  accessServer->setValue(0x01, modbus::BitValue::kOn);
+  accessServer->setValue(0x03, modbus::BitValue::kOn);
   d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
 
   modbus::SingleBitAccess access;
@@ -180,12 +182,14 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
 
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  modbus::SingleBitAccess accessServer;
 
-  accessServer.setStartAddress(0x01);
-  accessServer.setQuantity(10);
-  accessServer.setValue(0x01, modbus::BitValue::kOn);
-  accessServer.setValue(0x03, modbus::BitValue::kOn);
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
+
+  accessServer->setStartAddress(0x01);
+  accessServer->setQuantity(10);
+  accessServer->setValue(0x01, modbus::BitValue::kOn);
+  accessServer->setValue(0x03, modbus::BitValue::kOn);
   d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
 
   modbus::SingleBitAccess access;
@@ -207,10 +211,12 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
 
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  modbus::SingleBitAccess accessServer;
 
-  accessServer.setStartAddress(0x01);
-  accessServer.setQuantity(10);
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
+
+  accessServer->setStartAddress(0x01);
+  accessServer->setQuantity(10);
   d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
 
   modbus::SingleBitAccess access;
@@ -235,10 +241,11 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  modbus::SingleBitAccess accessServer;
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
 
-  accessServer.setStartAddress(0x99);
-  accessServer.setQuantity(10);
+  accessServer->setStartAddress(0x99);
+  accessServer->setQuantity(10);
   d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
 
   modbus::SingleBitAccess access;
@@ -263,10 +270,11 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
 
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
-  modbus::SingleBitAccess accessServer;
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
 
-  accessServer.setStartAddress(0x01);
-  accessServer.setQuantity(10);
+  accessServer->setStartAddress(0x01);
+  accessServer->setQuantity(10);
   d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
 
   modbus::Request request(createSingleBitAdu(
@@ -286,9 +294,9 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  modbus::SingleBitAccess access;
-  access.setStartAddress(0x00);
-  access.setQuantity(0x10);
+  std::shared_ptr<modbus::SingleBitAccess> access(new modbus::SingleBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
   d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
 
   modbus::Request request(createSingleBitAdu(
@@ -307,9 +315,9 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
   d.setServerAddress(1);
   d.setTransferMode(modbus::TransferMode::kRtu);
 
-  modbus::SingleBitAccess access;
-  access.setStartAddress(0x00);
-  access.setQuantity(0x10);
+  std::shared_ptr<modbus::SingleBitAccess> access(new modbus::SingleBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
   d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
 
   modbus::Request request(createSingleBitAdu(

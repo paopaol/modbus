@@ -64,7 +64,7 @@ void QModbusServer::processBrocastRequest(const Request &request) {
 }
 
 void QModbusServer::handleFunc(FunctionCode functionCode,
-                               const SingleBitAccess &access,
+                               const std::shared_ptr<SingleBitAccess> &access,
                                DataChecker *requestDataChecker) {
   Q_D(QModbusServer);
   d->handleFunc(functionCode, access, requestDataChecker);
