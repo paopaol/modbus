@@ -7,6 +7,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <modbus/base/single_bit_access.h>
+#include <modbus/base/sixteen_bit_access.h>
 #include <modbus/tools/modbus_server.h>
 
 using namespace testing;
@@ -323,6 +324,84 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
       createAdu(0x01, modbus::FunctionCode::kWriteMultipleCoils,
                 modbus::ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}),
                 modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.data(),
+            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+}
+
+TEST(QModbusServer, processReadMultipleRegisters_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+
+  modbus::Request request(createAdu(0x01,
+                                    modbus::FunctionCode::kReadInputRegister,
+                                    modbus::ByteArray({0x00, 0x00, 0x00, 0x03}),
+                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.isException(), false);
+  EXPECT_EQ(response.data(),
+            modbus::ByteArray({0x06, 0x12, 0x34, 0x56, 0x78, 0x98, 0x76}));
+}
+
+TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+
+  modbus::Request request(createAdu(0x01,
+                                    modbus::FunctionCode::kReadInputRegister,
+                                    modbus::ByteArray({0x00, 0x99, 0x00, 0x03}),
+                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.data(),
+            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+}
+
+TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+
+  modbus::Request request(createAdu(0x01,
+                                    modbus::FunctionCode::kReadInputRegister,
+                                    modbus::ByteArray({0x00, 0x08, 0x00, 0x09}),
+                                    modbus::bytesRequiredStoreInArrayIndex<0>));
   auto response = d.processRequest(request);
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);

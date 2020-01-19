@@ -72,6 +72,9 @@ public:
   void handleFunc(FunctionCode functionCode,
                   const std::shared_ptr<SingleBitAccess> &access,
                   DataChecker *requestDataChecker = nullptr);
+  void handleFunc(FunctionCode functionCode,
+                  const std::shared_ptr<SixteenBitAccess> &access,
+                  DataChecker *requestDataChecker = nullptr);
   bool listenAndServe();
 
 protected:
