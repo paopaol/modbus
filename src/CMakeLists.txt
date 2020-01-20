@@ -8,6 +8,7 @@ set(src-files
   "./tools/modbus_client.cpp"
   "./tools/modbus_reconnectable_iodevice.cpp"
   "./tools/modbus_client_p.h"
+  "${modbus_root_dir}/include/modbus/tools/modbus_client.h"
   "./tools/modbus_qt_socket.cpp"
   "./tools/modbus_qt_serialport.cpp")
 

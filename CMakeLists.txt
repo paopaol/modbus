@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(modbus)
 
 option(MODBUS_BUILD_TEST "build unit test" OFF)
+option(MODBUS_BUILD_EXAMPLE "build examples" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(modbus_root_dir ${CMAKE_SOURCE_DIR})
@@ -32,4 +33,6 @@ if(MODBUS_BUILD_TEST)
   add_subdirectory(test)
 endif()
 
-add_subdirectory(examples)
+if(MODBUS_BUILD_EXAMPLE)
+  add_subdirectory(examples)
+endif()
