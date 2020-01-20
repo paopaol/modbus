@@ -6,7 +6,7 @@ option(MODBUS_BUILD_TEST "build unit test" OFF)
 option(MODBUS_BUILD_EXAMPLE "build examples" ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
-set(modbus_root_dir ${CMAKE_SOURCE_DIR})
+set(modbus_root_dir ${CMAKE_CURRENT_SOURCE_DIR})
 if(MSVC)
     add_compile_options("/WX-")
     add_compile_options("/EHsc")
