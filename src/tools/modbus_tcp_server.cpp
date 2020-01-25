@@ -1,4 +1,5 @@
 #include <QHostAddress>
+#include <QNetworkInterface>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <base/modbus_frame.h>
@@ -7,6 +8,7 @@
 #include <modbus/tools/modbus_server.h>
 
 namespace modbus {
+static QList<QString> localIpList();
 
 class TcpConnection : public AbstractConnection {
   Q_OBJECT
@@ -88,7 +90,10 @@ public:
           tcpServer_.errorString().toStdString());
       return false;
     }
-    log(LogLevel::kInfo, "tcp server listened at 0.0.0.0:{}", port_);
+
+    auto ipList = localIpList();
+    log(LogLevel::kInfo, "tcp server listened at [{}]:{}",
+        ipList.join(",").toStdString(), port_);
     return true;
   }
 
@@ -117,6 +122,23 @@ QModbusServer *createQModbusTcpServer(uint16_t port, QObject *parent) {
   auto modbusServer = new QModbusServer(tcpServer, parent);
   modbusServer->setTransferMode(TransferMode::kMbap);
   return modbusServer;
+}
+
+static QList<QString> localIpList() {
+  QList<QString> ipList;
+  auto interfaceList = QNetworkInterface::allInterfaces();
+  for (auto &networkInterface : interfaceList) {
+    auto addressEntrys = networkInterface.addressEntries();
+    for (auto &addessEntry : addressEntrys) {
+      auto ip = addessEntry.ip();
+      if (ip.protocol() !=
+          QAbstractSocket::NetworkLayerProtocol::IPv4Protocol) {
+        continue;
+      }
+      ipList.push_back(ip.toString());
+    }
+  }
+  return ipList;
 }
 
 } // namespace modbus
