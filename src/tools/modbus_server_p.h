@@ -348,19 +348,13 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto &entry = handleFuncRouter_[functionCode];
-    Address myStartAddress = entry.singleBitAccess->startAddress();
-    Quantity myMaxQuantity = entry.singleBitAccess->quantity();
-    Address reqStartAddress = access.startAddress();
-    Quantity reqQuantity = access.quantity();
-    if (reqStartAddress < myStartAddress ||
-        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestAddress({})",
-          functionCode, myStartAddress, myMaxQuantity, reqStartAddress);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    auto error =
+        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
     }
 
+    Address reqStartAddress = access.startAddress();
     for (size_t i = 0; i < access.quantity(); i++) {
       Address address = reqStartAddress + i;
       auto value = access.value(address);
@@ -393,17 +387,12 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto &entry = handleFuncRouter_[functionCode];
-    Address startAddress = access.startAddress();
-    Address myStartAddress = entry.singleBitAccess->startAddress();
-    Quantity myMaxQuantity = entry.singleBitAccess->quantity();
-    if (startAddress < myStartAddress ||
-        startAddress > myStartAddress + myMaxQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestAddress({})",
-          functionCode, myStartAddress, myMaxQuantity, startAddress);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    auto error =
+        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
     }
+    Address startAddress = access.startAddress();
     auto value = access.value(startAddress);
     if (value == BitValue::kBadValue) {
       log(LogLevel::kError, "invalid request code({}): bad data {}",
@@ -412,7 +401,7 @@ public:
     }
 
     // Check if it can be written
-    auto error = canWriteSingleBitValue(functionCode, startAddress, value);
+    error = canWriteSingleBitValue(functionCode, startAddress, value);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -459,31 +448,15 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
+    auto &entry = handleFuncRouter_[functionCode];
+    auto error =
+        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
+    }
+
     auto requestStartAddress = access.startAddress();
     auto requestQuantity = access.quantity();
-    auto &entry = handleFuncRouter_[functionCode];
-    auto myStartAddress = entry.singleBitAccess->startAddress();
-    auto myQuantity = entry.singleBitAccess->quantity();
-
-    if (requestStartAddress < myStartAddress ||
-        requestStartAddress > myStartAddress + myQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myQuantity, requestStartAddress,
-          requestQuantity);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
-    }
-
-    if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myQuantity, requestStartAddress,
-          requestQuantity);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
-    }
-
     SingleBitAccess responseAccess;
 
     responseAccess.setStartAddress(requestStartAddress);
@@ -511,20 +484,14 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto entry = handleFuncRouter_[functionCode];
-    Address myStartAddress = entry.sixteenBitAccess->startAddress();
-    Quantity myMaxQuantity = entry.sixteenBitAccess->quantity();
+    auto error =
+        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
+    }
+
     Address reqStartAddress = access.startAddress();
     Quantity reqQuantity = access.quantity();
-
-    if (reqStartAddress < myStartAddress ||
-        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
-          reqQuantity);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
-    }
     SixteenBitAccess responseAccess;
     responseAccess.setStartAddress(reqStartAddress);
     responseAccess.setQuantity(reqQuantity);
@@ -552,22 +519,15 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto entry = handleFuncRouter_[functionCode];
-    Address myStartAddress = entry.sixteenBitAccess->startAddress();
-    Quantity myMaxQuantity = entry.sixteenBitAccess->quantity();
-    Address reqStartAddress = access.startAddress();
-    Quantity reqQuantity = access.quantity();
-
-    if (reqStartAddress < myStartAddress ||
-        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
-          reqQuantity);
-      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    auto error =
+        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
     }
+
+    Address reqStartAddress = access.startAddress();
     auto value = access.value(reqStartAddress);
-    auto error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+    error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -579,6 +539,55 @@ public:
     response.setError(Error::kNoError);
     response.setData(request.data());
     return response;
+  }
+
+  Error validateSixteenAccess(FunctionCode functionCode,
+                              const SixteenBitAccess &access,
+                              const SixteenBitAccess &myAccess) {
+    Address myStartAddress = myAccess.startAddress();
+    Quantity myMaxQuantity = myAccess.quantity();
+    Address reqStartAddress = access.startAddress();
+    Quantity reqQuantity = access.quantity();
+
+    if (reqStartAddress < myStartAddress ||
+        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
+          reqQuantity);
+      return Error::kIllegalDataAddress;
+    }
+    return Error::kNoError;
+  }
+
+  Error validateSingleBitAccess(FunctionCode functionCode,
+                                const SingleBitAccess &access,
+                                const SingleBitAccess &myAccess) {
+    auto requestStartAddress = access.startAddress();
+    auto requestQuantity = access.quantity();
+    auto myStartAddress = myAccess.startAddress();
+    auto myQuantity = myAccess.quantity();
+
+    if (requestStartAddress < myStartAddress ||
+        requestStartAddress > myStartAddress + myQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, myStartAddress, myQuantity, requestStartAddress,
+          requestQuantity);
+      return Error::kIllegalDataAddress;
+    }
+
+    if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, myStartAddress, myQuantity, requestStartAddress,
+          requestQuantity);
+      return Error::kIllegalDataAddress;
+    }
+    return Error::kNoError;
   }
 
   int maxClient_ = 1;
