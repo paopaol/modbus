@@ -86,6 +86,19 @@ public:
     return true;
   }
 
+  bool unmarshalSingleWriteRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequired<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = 1;
+    SixteenBitValue value(data[2], data[3]);
+    setValue(startAddress_, value.toUint16());
+    return true;
+  }
+
   ByteArray marshalSingleWriteRequest() const {
     smart_assert(valueMap_.find(startAddress_) != valueMap_.end() &&
                  "no set value of start address")(startAddress_);
