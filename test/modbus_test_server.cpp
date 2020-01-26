@@ -435,6 +435,31 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
             modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
 }
 
+TEST(QModbusServer, processWriteSingleRegister_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+
+  modbus::Request request(createAdu(
+      0x01, modbus::FunctionCode::kWriteSingleRegister,
+      modbus::ByteArray({0x00, 0x08, 0x00, 0x09}), modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.isException(), false);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x08, 0x00, 0x09}));
+}
+
 static modbus::Adu
 createAdu(modbus::ServerAddress serverAddress,
           modbus::FunctionCode functionCode, const modbus::ByteArray &data,

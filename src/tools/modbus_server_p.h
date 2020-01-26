@@ -305,6 +305,9 @@ public:
     case kReadInputRegister: {
       return processReadMultipleRegisters(request, request.functionCode());
     }
+    case kWriteSingleRegister: {
+      return processWriteSingleRegister(request);
+    }
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
       break;
@@ -536,6 +539,45 @@ public:
     response.setServerAddress(serverAddress_);
     response.setError(Error::kNoError);
     response.setData(responseAccess.marshalMultipleReadResponse());
+    return response;
+  }
+
+  Response processWriteSingleRegister(const Request &request) {
+    SixteenBitAccess access;
+    auto functionCode = kWriteSingleRegister;
+
+    bool ok = access.unmarshalSingleWriteRequest(request.data());
+    if (ok == false) {
+      log(LogLevel::kError, "invalid request");
+      return createErrorReponse(functionCode, Error::kStorageParityError);
+    }
+    auto entry = handleFuncRouter_[functionCode];
+    Address myStartAddress = entry.sixteenBitAccess->startAddress();
+    Quantity myMaxQuantity = entry.sixteenBitAccess->quantity();
+    Address reqStartAddress = access.startAddress();
+    Quantity reqQuantity = access.quantity();
+
+    if (reqStartAddress < myStartAddress ||
+        reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
+          reqQuantity);
+      return createErrorReponse(functionCode, Error::kIllegalDataAddress);
+    }
+    auto value = access.value(reqStartAddress);
+    auto error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
+    }
+    entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+
+    Response response;
+    response.setFunctionCode(functionCode);
+    response.setServerAddress(serverAddress_);
+    response.setError(Error::kNoError);
+    response.setData(request.data());
     return response;
   }
 
