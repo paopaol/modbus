@@ -53,6 +53,18 @@ QList<QString> QModbusServer::blacklist() const {
   return d->blacklist();
 }
 
+void QModbusServer::setCanWriteSingleBitValueFunc(
+    const canWriteSingleBitValueFunc &func) {
+  Q_D(QModbusServer);
+  d->setCanWriteSingleBitValueFunc(func);
+}
+
+void QModbusServer::setCanWriteSixteenBitValueFunc(
+    const canWriteSixteenBitValueFunc &func) {
+  Q_D(QModbusServer);
+  d->setCanWriteSixteenBitValueFunc(func);
+}
+
 Response QModbusServer::processRequest(const Request &request) {
   Q_D(QModbusServer);
   return d->processRequest(request);

@@ -357,6 +357,16 @@ public:
           functionCode, myStartAddress, myMaxQuantity, reqStartAddress);
       return createErrorReponse(functionCode, Error::kIllegalDataAddress);
     }
+
+    for (size_t i = 0; i < access.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = access.value(address);
+      auto error = canWriteSingleBitValue(functionCode, address, value);
+      if (error != Error::kNoError) {
+        return createErrorReponse(functionCode, error);
+      }
+    }
+
     for (size_t i = 0; i < access.quantity(); i++) {
       Address address = reqStartAddress + i;
       auto value = access.value(address);
@@ -397,13 +407,44 @@ public:
           functionCode, dump(transferMode_, request.data()));
       return createErrorReponse(functionCode, Error::kIllegalDataValue);
     }
-    entry.singleBitAccess->setValue(startAddress, access.value(startAddress));
+
+    // Check if it can be written
+    auto error = canWriteSingleBitValue(functionCode, startAddress, value);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
+    }
+
+    entry.singleBitAccess->setValue(startAddress, value);
     Response response;
     response.setError(Error::kNoError);
     response.setFunctionCode(functionCode);
     response.setServerAddress(serverAddress_);
     response.setData(access.marshalSingleWriteRequest());
     return response;
+  }
+
+  void setCanWriteSingleBitValueFunc(const canWriteSingleBitValueFunc &func) {
+    canWriteSingleBitValue_ = func;
+  }
+
+  void setCanWriteSixteenBitValueFunc(const canWriteSixteenBitValueFunc &func) {
+    canWriteSixteenBitValue_ = func;
+  }
+
+  Error canWriteSingleBitValue(FunctionCode functionCode, Address startAddress,
+                               BitValue value) {
+    if (canWriteSingleBitValue_) {
+      return canWriteSingleBitValue_(functionCode, startAddress, value);
+    }
+    return Error::kNoError;
+  }
+
+  Error canWriteSixteenBitValue(FunctionCode functionCode, Address startAddress,
+                                const SixteenBitValue &value) {
+    if (canWriteSixteenBitValue_) {
+      return canWriteSixteenBitValue_(functionCode, startAddress, value);
+    }
+    return Error::kNoError;
   }
 
   Response processReadSingleBitRequest(const Request &request,
@@ -505,6 +546,8 @@ public:
   QMap<qintptr, ClientSession> sessionList_;
   AbstractServer *server_ = nullptr;
   ServerAddress serverAddress_ = 1;
+  canWriteSingleBitValueFunc canWriteSingleBitValue_;
+  canWriteSixteenBitValueFunc canWriteSixteenBitValue_;
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {

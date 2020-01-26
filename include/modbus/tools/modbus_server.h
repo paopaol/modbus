@@ -51,6 +51,12 @@ protected:
   HandleNewConnFunc handleNewConnFunc_;
 };
 
+using canWriteSingleBitValueFunc = std::function<Error(
+    FunctionCode functionCode, Address startAddress, BitValue value)>;
+using canWriteSixteenBitValueFunc =
+    std::function<Error(FunctionCode functionCode, Address startAddress,
+                        const SixteenBitValue &value)>;
+
 class QModbusServerPrivate;
 class QModbusServer : public QObject {
   Q_OBJECT
@@ -69,6 +75,17 @@ public:
   void addBlacklist(const QString &clientIp);
   void setServerAddress(ServerAddress serverAddress);
 
+  /**
+   *for write request, 0x05, 0x0f, 0x06,0x16,0x23
+   *Before writing, check whether it can be written. If writing is allowed, the
+   *mosbus server will update the value. Otherwise, it will not write, so the
+   *caller can re-implement these two functions to check whether the client
+   *request is valid.
+   *
+   */
+  void setCanWriteSingleBitValueFunc(const canWriteSingleBitValueFunc &func);
+  void setCanWriteSixteenBitValueFunc(const canWriteSixteenBitValueFunc &func);
+
   void handleFunc(FunctionCode functionCode,
                   const std::shared_ptr<SingleBitAccess> &access,
                   DataChecker *requestDataChecker = nullptr);
@@ -79,6 +96,7 @@ public:
 
 protected:
   virtual Response processRequest(const Request &request);
+
   virtual void processBrocastRequest(const Request &request);
 
 private:

@@ -288,6 +288,32 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
   EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
 }
 
+TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setCanWriteSingleBitValueFunc(
+      [&](modbus::FunctionCode functionCode, modbus::Address address,
+          modbus::BitValue value) { return modbus::Error::kSlaveDeviceBusy; });
+  std::shared_ptr<modbus::SingleBitAccess> accessServer(
+      new modbus::SingleBitAccess);
+
+  accessServer->setStartAddress(0x01);
+  accessServer->setQuantity(10);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+
+  modbus::Request request(createAdu(
+      0x01, modbus::FunctionCode::kWriteSingleCoil,
+      modbus::ByteArray({0x00, 0x01, 0x00, 0x00}), modbus::bytesRequired<4>));
+
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kSlaveDeviceBusy);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x06}));
+}
+
 TEST(QModbusServer, processWriteMultipleCoils_success) {
   modbus::QModbusServerPrivate d;
 
