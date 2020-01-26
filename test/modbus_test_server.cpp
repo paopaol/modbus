@@ -460,6 +460,61 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x08, 0x00, 0x09}));
 }
 
+TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+
+  modbus::Request request(createAdu(
+      0x01, modbus::FunctionCode::kWriteSingleRegister,
+      modbus::ByteArray({0x00, 0x88, 0x00, 0x09}), modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x02}));
+}
+
+TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setCanWriteSixteenBitValueFunc([&](modbus::FunctionCode functionCode,
+                                       modbus::Address address,
+                                       const modbus::SixteenBitValue &value) {
+    return modbus::Error::kIllegalDataValue;
+  });
+
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+
+  modbus::Request request(createAdu(
+      0x01, modbus::FunctionCode::kWriteSingleRegister,
+      modbus::ByteArray({0x00, 0x08, 0x00, 0x09}), modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataValue);
+  EXPECT_EQ(response.isException(), true);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
+}
+
 static modbus::Adu
 createAdu(modbus::ServerAddress serverAddress,
           modbus::FunctionCode functionCode, const modbus::ByteArray &data,
