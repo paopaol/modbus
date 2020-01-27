@@ -99,7 +99,8 @@ public:
                                    : defaultRequestDataChecker(functionCode);
     handleFuncRouter_[functionCode] = entry;
 
-    log(LogLevel::kInfo, "route add Function[{}]", functionCode);
+    log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
+        functionCode, access->startAddress(), access->quantity());
     if (!entry.requestDataChecker.calculateSize) {
       log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
           functionCode);
@@ -119,7 +120,8 @@ public:
                                    : defaultRequestDataChecker(functionCode);
     handleFuncRouter_[functionCode] = entry;
 
-    log(LogLevel::kInfo, "route add Function[{}]", functionCode);
+    log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
+        functionCode, access->startAddress(), access->quantity());
     if (!entry.requestDataChecker.calculateSize) {
       log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
           functionCode);
