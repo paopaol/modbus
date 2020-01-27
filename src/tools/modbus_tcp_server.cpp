@@ -30,17 +30,17 @@ public:
     socket_.write(data, size);
   }
   std::string name() const override {
-    return socket_.localAddress().toString().toStdString();
+    return socket_.peerAddress().toString().toStdString();
   }
   std::string fullName() const override {
     QString address;
-    auto localAddress = socket_.localAddress();
+    auto peerAddress = socket_.peerAddress();
     bool ok = true;
-    QHostAddress ipv4(localAddress.toIPv4Address(&ok));
+    QHostAddress ipv4(peerAddress.toIPv4Address(&ok));
     if (ok) {
       address = ipv4.toString();
     } else {
-      QHostAddress ipv6(localAddress.toIPv6Address());
+      QHostAddress ipv6(peerAddress.toIPv6Address());
       address = ipv6.toString();
     }
     return QString("%1:%2").arg(address).arg(socket_.localPort()).toStdString();
