@@ -448,7 +448,6 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
   d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
 
   modbus::Request request(createAdu(
@@ -473,7 +472,6 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
   d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
 
   modbus::Request request(createAdu(
@@ -503,7 +501,6 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
   d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
 
   modbus::Request request(createAdu(
@@ -513,6 +510,31 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
   EXPECT_EQ(response.error(), modbus::Error::kIllegalDataValue);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
+}
+
+TEST(QModbusServer, processWriteMultipleRegisters_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kWriteMultipleRegisters, access);
+
+  modbus::Request request(
+      createAdu(0x01, modbus::FunctionCode::kWriteMultipleRegisters,
+                modbus::ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}),
+                modbus::bytesRequired<4>));
+  auto response = d.processRequest(request);
+
+  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.isException(), false);
+  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x00, 0x00, 0x01}));
 }
 
 static modbus::Adu

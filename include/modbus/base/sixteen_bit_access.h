@@ -99,6 +99,30 @@ public:
     return true;
   }
 
+  bool unmarshalMulitpleWriteRequest(const ByteArray &data) {
+    size_t size;
+    auto result = bytesRequiredStoreInArrayIndex<4>(size, data);
+    if (result != DataChecker::Result::kSizeOk) {
+      return false;
+    }
+    startAddress_ = data[0] * 256 + data[1];
+    quantity_ = data[2] * 256 + data[3];
+    auto lenght = data[4];
+    if (lenght % 2 != 0) {
+      return false;
+    }
+    if (quantity_ != lenght / 2) {
+      return false;
+    }
+    auto valueArray = tool::subArray(data, 5);
+    for (size_t i = 0; i < lenght; i += 2) {
+      SixteenBitValue value(valueArray[i], valueArray[i + 1]);
+      Address address = startAddress_ + i / 2;
+      setValue(address, value.toUint16());
+    }
+    return true;
+  }
+
   ByteArray marshalSingleWriteRequest() const {
     smart_assert(valueMap_.find(startAddress_) != valueMap_.end() &&
                  "no set value of start address")(startAddress_);
