@@ -301,7 +301,7 @@ public:
     case kWriteMultipleCoils: {
       return processWriteMultipleSingleBitRequest(request);
     }
-    case kReadWriteMultipleRegisters:
+    case kReadHoldingRegisters:
     case kReadInputRegister: {
       return processReadMultipleRegisters(request, request.functionCode());
     }
