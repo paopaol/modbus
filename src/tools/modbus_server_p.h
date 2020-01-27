@@ -308,6 +308,9 @@ public:
     case kWriteSingleRegister: {
       return processWriteSingleRegister(request);
     }
+    case kWriteMultipleRegisters: {
+      return processWriteMultipleRegisters(request);
+    }
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
       break;
@@ -538,6 +541,47 @@ public:
     response.setServerAddress(serverAddress_);
     response.setError(Error::kNoError);
     response.setData(request.data());
+    return response;
+  }
+
+  Response processWriteMultipleRegisters(const Request &request) {
+    SixteenBitAccess access;
+    auto functionCode = kWriteMultipleRegisters;
+
+    bool ok = access.unmarshalMulitpleWriteRequest(request.data());
+    if (ok == false) {
+      log(LogLevel::kError, "invalid request");
+      return createErrorReponse(functionCode, Error::kStorageParityError);
+    }
+    auto entry = handleFuncRouter_[functionCode];
+    auto error =
+        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
+    }
+
+    Quantity quantity = access.quantity();
+
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+      if (error != Error::kNoError) {
+        return createErrorReponse(functionCode, error);
+      }
+    }
+
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+    }
+
+    Response response;
+    response.setFunctionCode(functionCode);
+    response.setServerAddress(serverAddress_);
+    response.setError(Error::kNoError);
+    response.setData(access.marshalMultipleReadRequest());
     return response;
   }
 
