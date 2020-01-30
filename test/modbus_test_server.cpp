@@ -537,6 +537,30 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x00, 0x00, 0x01}));
 }
 
+TEST(QModbusServer, updateValueSixteenValue_success) {
+  modbus::QModbusServerPrivate d;
+
+  d.setServerAddress(1);
+  d.setTransferMode(modbus::TransferMode::kRtu);
+  std::shared_ptr<modbus::SixteenBitAccess> access(
+      new modbus::SixteenBitAccess);
+  access->setStartAddress(0x00);
+  access->setQuantity(0x10);
+  access->setValue(0x00, 0x1234);
+  access->setValue(0x01, 0x5678);
+  access->setValue(0x02, 0x9876);
+  d.handleFunc(modbus::FunctionCode::kWriteMultipleRegisters, access);
+
+  modbus::SixteenBitValue setValue(0xab, 0xcd);
+  bool ok = d.updateValue(modbus::FunctionCode::kWriteMultipleRegisters,
+                          modbus::Address(0x02), setValue);
+  EXPECT_EQ(ok, true);
+  modbus::SixteenBitValue value;
+  ok = d.value(modbus::FunctionCode::kWriteMultipleRegisters, 0x02, &value);
+  EXPECT_EQ(ok, true);
+  EXPECT_EQ(value.toUint16(), setValue.toUint16());
+}
+
 static modbus::Adu
 createAdu(modbus::ServerAddress serverAddress,
           modbus::FunctionCode functionCode, const modbus::ByteArray &data,
