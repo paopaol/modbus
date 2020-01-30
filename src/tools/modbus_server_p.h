@@ -130,6 +130,12 @@ public:
 
   bool updateValue(FunctionCode functionCode, Address address,
                    const SixteenBitValue &newValue) {
+    smart_assert(functionCode == FunctionCode::kWriteSingleRegister ||
+                 functionCode == FunctionCode::kWriteMultipleRegisters ||
+                 functionCode == FunctionCode::kReadInputRegister ||
+                 functionCode == FunctionCode::kReadHoldingRegisters &&
+                     "invalud function code")(functionCode);
+
     auto entry = handleFuncRouter_.find(functionCode);
     if (entry == handleFuncRouter_.end()) {
       log(LogLevel::kWarning,
@@ -137,29 +143,17 @@ public:
       return false;
     }
 
-    SixteenBitAccess access;
-    access.setStartAddress(address);
-    access.setQuantity(1);
-    access.setValue(address, newValue.toUint16());
-
-    Request request;
-    request.setServerAddress(serverAddress_);
-    request.setFunctionCode(functionCode);
-    request.setDataChecker(entry->requestDataChecker);
-    ByteArray data;
-    if (functionCode == FunctionCode::kWriteMultipleRegisters) {
-      data = access.marshalMultipleWriteRequest();
-    } else if (functionCode == FunctionCode::kWriteSingleRegister) {
-      data = access.marshalSingleWriteRequest();
-    } else {
-      smart_assert("invalid function code")(functionCode);
-    }
-    request.setData(data);
-    request.setUserData(access);
-    auto response = processWriteMultipleRegisters(request);
-    if (response.isException()) {
+    bool ok = true;
+    entry->sixteenBitAccess->value(address, &ok);
+    if (!ok) {
+      log(LogLevel::kWarning,
+          "update register, address out of range.function "
+          "code:{} address:{} [start {} quantity {}]",
+          functionCode, address, entry->sixteenBitAccess->startAddress(),
+          entry->sixteenBitAccess->quantity());
       return false;
     }
+    entry->sixteenBitAccess->setValue(address, newValue.toUint16());
     return true;
   }
 
