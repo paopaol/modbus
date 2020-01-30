@@ -15,10 +15,23 @@ TEST(SixteenBitAccess, setgetQuantity) {
   EXPECT_EQ(3, access.quantity());
 }
 
+TEST(SixteenBitAccess, setValue_outOfRange) {
+  modbus::SixteenBitAccess access;
+
+  access.setStartAddress(0x00);
+  access.setQuantity(0x01);
+
+  access.setValue(0x02, 4);
+  bool ok;
+  access.value(0x1000, &ok);
+  EXPECT_EQ(false, ok);
+}
+
 TEST(SixteenBitAccess, setgetValue) {
   modbus::SixteenBitAccess access;
 
   access.setStartAddress(0x00);
+  access.setQuantity(0x10);
   access.setValue(0x05);
   EXPECT_EQ(0x05, access.value(0x00).toUint16());
 
