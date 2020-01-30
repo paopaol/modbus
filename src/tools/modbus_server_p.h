@@ -147,7 +147,7 @@ public:
     entry->sixteenBitAccess->value(address, &ok);
     if (!ok) {
       log(LogLevel::kWarning,
-          "update register, address out of range.function "
+          "address out of range.function "
           "code:{} address:{} [start {} quantity {}]",
           functionCode, address, entry->sixteenBitAccess->startAddress(),
           entry->sixteenBitAccess->quantity());
@@ -174,25 +174,17 @@ public:
           fmt::format("function code[{}] not supported", functionCode));
       return false;
     }
-
-    SixteenBitAccess access;
-    access.setStartAddress(address);
-    access.setQuantity(1);
-
-    Request request;
-    request.setServerAddress(serverAddress_);
-    request.setFunctionCode(functionCode);
-    request.setDataChecker(entry->requestDataChecker);
-    request.setData(access.marshalMultipleReadRequest());
-    request.setUserData(access);
-
-    auto response = processReadMultipleRegisters(request, functionCode);
-    if (response.isException()) {
+    bool ok = true;
+    auto v = entry->sixteenBitAccess->value(address, &ok);
+    if (!ok) {
+      log(LogLevel::kWarning,
+          "address out of range.function "
+          "code:{} address:{} [start {} quantity {}]",
+          functionCode, address, entry->sixteenBitAccess->startAddress(),
+          entry->sixteenBitAccess->quantity());
       return false;
     }
-    bool ok = access.unmarshalReadResponse(response.data());
-    assert(ok);
-    *value = access.value(address);
+    *value = v;
     return true;
   }
 
