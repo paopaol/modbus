@@ -128,6 +128,80 @@ public:
     }
   }
 
+  bool updateValue(FunctionCode functionCode, Address address,
+                   const SixteenBitValue &newValue) {
+    auto entry = handleFuncRouter_.find(functionCode);
+    if (entry == handleFuncRouter_.end()) {
+      log(LogLevel::kWarning,
+          fmt::format("function code[{}] not supported", functionCode));
+      return false;
+    }
+
+    SixteenBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+    access.setValue(address, newValue.toUint16());
+
+    Request request;
+    request.setServerAddress(serverAddress_);
+    request.setFunctionCode(functionCode);
+    request.setDataChecker(entry->requestDataChecker);
+    ByteArray data;
+    if (functionCode == FunctionCode::kWriteMultipleRegisters) {
+      data = access.marshalMultipleWriteRequest();
+    } else if (functionCode == FunctionCode::kWriteSingleRegister) {
+      data = access.marshalSingleWriteRequest();
+    } else {
+      smart_assert("invalid function code")(functionCode);
+    }
+    request.setData(data);
+    request.setUserData(access);
+    auto response = processWriteMultipleRegisters(request);
+    if (response.isException()) {
+      return false;
+    }
+    return true;
+  }
+
+  bool value(FunctionCode functionCode, Address address,
+             SixteenBitValue *value) {
+    smart_assert(functionCode == FunctionCode::kWriteSingleRegister ||
+                 functionCode == FunctionCode::kWriteMultipleRegisters ||
+                 functionCode == FunctionCode::kReadInputRegister ||
+                 functionCode == FunctionCode::kReadHoldingRegisters &&
+                     "invalud function code")(functionCode);
+
+    if (!value) {
+      return false;
+    }
+    auto entry = handleFuncRouter_.find(functionCode);
+    if (entry == handleFuncRouter_.end()) {
+      log(LogLevel::kWarning,
+          fmt::format("function code[{}] not supported", functionCode));
+      return false;
+    }
+
+    SixteenBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+
+    Request request;
+    request.setServerAddress(serverAddress_);
+    request.setFunctionCode(functionCode);
+    request.setDataChecker(entry->requestDataChecker);
+    request.setData(access.marshalMultipleReadRequest());
+    request.setUserData(access);
+
+    auto response = processReadMultipleRegisters(request, functionCode);
+    if (response.isException()) {
+      return false;
+    }
+    bool ok = access.unmarshalReadResponse(response.data());
+    assert(ok);
+    *value = access.value(address);
+    return true;
+  }
+
   void setServer(AbstractServer *server) { server_ = server; }
   bool listenAndServe() { return server_->listenAndServe(); }
 
