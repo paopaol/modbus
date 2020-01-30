@@ -31,6 +31,10 @@ public:
 
   void setValue(uint16_t value) { setValue(startAddress_, value); }
   void setValue(Address address, uint16_t value) {
+    if (address > startAddress_ + quantity_ || address < startAddress_) {
+      /// out of range
+      return;
+    }
     if (valueMap_.find(address) != valueMap_.end()) {
       auto &valueEx = valueMap_[address];
       valueEx.value = value;
