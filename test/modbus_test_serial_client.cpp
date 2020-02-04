@@ -937,11 +937,11 @@ TEST(ModbusSerialClient, readRegisters_success) {
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(4));
     EXPECT_EQ(error, modbus::Error::kNoError);
 
     QVector<modbus::SixteenBitValue> valueList =
-        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(3));
     EXPECT_EQ(valueList.size(), 4);
     EXPECT_EQ(valueList[0].toUint16(), 0x01);
     EXPECT_EQ(valueList[1].toUint16(), 0x02);
@@ -983,11 +983,11 @@ TEST(ModbusSerialClient, readRegisters_failed) {
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(4));
     EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
 
     QVector<modbus::SixteenBitValue> valueList =
-        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(3));
     EXPECT_EQ(valueList.size(), 0);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });

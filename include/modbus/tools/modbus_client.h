@@ -183,7 +183,8 @@ signals:
                               const QVector<BitValue> &valueList, Error error);
   void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
                                Error error);
-  void readRegistersFinished(ServerAddress serverAddress, Address startAddress,
+  void readRegistersFinished(ServerAddress serverAddress,
+                             FunctionCode functionCode, Address startAddress,
                              const QVector<SixteenBitValue> &valueList,
                              Error error);
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,
