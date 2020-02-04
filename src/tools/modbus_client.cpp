@@ -589,7 +589,8 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadRegisters(request, response, &access);
     }
-    emit readRegistersFinished(request.serverAddress(), access.startAddress(),
+    emit readRegistersFinished(request.serverAddress(), request.functionCode(),
+                               access.startAddress(),
                                toSixteenBitValueList(access), response.error());
     return;
   }
