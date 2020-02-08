@@ -569,8 +569,9 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadSingleBit(request, response, &access);
     }
-    emit readSingleBitsFinished(request.serverAddress(), access.startAddress(),
-                                toBitValueList(access), response.error());
+    emit readSingleBitsFinished(request.serverAddress(), request.functionCode(),
+                                access.startAddress(), toBitValueList(access),
+                                response.error());
     return;
   }
   case FunctionCode::kWriteSingleCoil: {
