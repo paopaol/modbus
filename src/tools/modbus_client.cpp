@@ -330,6 +330,8 @@ void QModbusClient::clearPendingRequest() {
   while (!d->elementQueue_.empty()) {
     d->elementQueue_.pop();
   }
+  d->waitResponseTimer_.stop();
+  d->sessionState_.setState(SessionState::kIdle);
 }
 
 size_t QModbusClient::pendingRequestSize() {
