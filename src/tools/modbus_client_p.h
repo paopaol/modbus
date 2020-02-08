@@ -113,7 +113,9 @@ class ReconnectableIoDevicePrivate : public QObject {
 public:
   ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
                                QObject *parent = nullptr)
-      : ioDevice_(iodevice), QObject(parent) {}
+      : ioDevice_(iodevice), QObject(parent) {
+      ioDevice_->setParent(this);
+  }
   ~ReconnectableIoDevicePrivate() {}
 
   int openRetryTimes_ = 0;
