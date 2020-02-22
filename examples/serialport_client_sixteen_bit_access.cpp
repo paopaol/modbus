@@ -42,7 +42,8 @@ int main(int argc, char *argv[]) {
 
   QObject::connect(
       client.data(), &modbus::QModbusClient::readRegistersFinished,
-      [&](modbus::ServerAddress serverAddress, modbus::Address startAddress,
+      [&](modbus::ServerAddress serverAddress,
+          modbus::FunctionCode functionCode, modbus::Address startAddress,
           const QVector<modbus::SixteenBitValue> &valueList,
           modbus::Error error) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
