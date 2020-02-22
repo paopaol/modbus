@@ -78,8 +78,8 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                    Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadCoils &&
       functionCode != FunctionCode::kReadInputDiscrete) {
-    log(LogLevel::kWarning, "single bit access:[read] invalid function code(" +
-                                std::to_string(functionCode) + ")");
+    log(LogLevel::kError, "single bit access:[read] invalid function code(" +
+                              std::to_string(functionCode) + ")");
   }
 
   static const DataChecker dataChecker = {bytesRequired<4>,
@@ -134,8 +134,8 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadHoldingRegisters &&
       functionCode != FunctionCode::kReadInputRegister) {
-    log(LogLevel::kWarning, "invalid function code for read registers" +
-                                std::to_string(functionCode));
+    log(LogLevel::kError, "invalid function code for read registers" +
+                              std::to_string(functionCode));
   }
 
   static const DataChecker dataChecker = {bytesRequired<4>,
