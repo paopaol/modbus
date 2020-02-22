@@ -141,9 +141,8 @@ void ReconnectableIoDevice::onIoDeviceClosed() {
   emit connectionIsLostWillReconnect();
 
   /// do reconnect
-  log(LogLevel::kWarning, d->ioDevice_->name() +
-                              " closed, try reconnect after " +
-                              std::to_string(d->reopenDelay_) + "ms");
+  log(LogLevel::kError, d->ioDevice_->name() + " closed, try reconnect after " +
+                            std::to_string(d->reopenDelay_) + "ms");
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
   QTimer::singleShot(d->reopenDelay_, this, &ReconnectableIoDevice::open);
 }
@@ -172,8 +171,7 @@ void ReconnectableIoDevice::onIoDeviceError(const QString &errorString) {
     return;
   }
 
-  log(LogLevel::kWarning,
-      d->ioDevice_->name() + " " + errorString.toStdString());
+  log(LogLevel::kError, d->ioDevice_->name() + " " + errorString.toStdString());
   if (isOpened()) {
     closeButNotSetForceCloseFlag();
   } else {
