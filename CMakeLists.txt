@@ -36,3 +36,12 @@ endif()
 if(MODBUS_BUILD_EXAMPLE)
   add_subdirectory(examples)
 endif()
+
+install(TARGETS
+  modbus
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin)
+
+install(DIRECTORY
+  include DESTINATION .)
