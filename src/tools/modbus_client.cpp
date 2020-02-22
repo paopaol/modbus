@@ -77,8 +77,8 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                    Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadCoils &&
       functionCode != FunctionCode::kReadInputDiscrete) {
-    log(LogLevel::kWarning,
-        "single bit access:[read] invalid function code({})", functionCode);
+    log(LogLevel::kError, "single bit access:[read] invalid function code(" +
+                              std::to_string(functionCode) + ")");
   }
 
   static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
@@ -131,8 +131,8 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   Address startAddress, Quantity quantity) {
   if (functionCode != FunctionCode::kReadHoldingRegisters &&
       functionCode != FunctionCode::kReadInputRegister) {
-    log(LogLevel::kWarning, "invalid function code for read registers {}",
-        functionCode);
+    log(LogLevel::kError, "invalid function code for read registers" +
+                              std::to_string(functionCode));
   }
 
   static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
@@ -238,6 +238,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Error>("Error");
   qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
   qRegisterMetaType<QVector<BitValue>>("QVector<BitValue>");
+  qRegisterMetaType<FunctionCode>("FunctionCode");
 
   Q_D(QModbusClient);
 
@@ -324,6 +325,8 @@ void QModbusClient::clearPendingRequest() {
   while (!d->elementQueue_.empty()) {
     d->elementQueue_.pop();
   }
+  d->waitResponseTimer_.stop();
+  d->sessionState_.setState(SessionState::kIdle);
 }
 
 size_t QModbusClient::pendingRequestSize() {
@@ -561,8 +564,9 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadSingleBit(request, response, &access);
     }
-    emit readSingleBitsFinished(request.serverAddress(), access.startAddress(),
-                                toBitValueList(access), response.error());
+    emit readSingleBitsFinished(request.serverAddress(), request.functionCode(),
+                                access.startAddress(), toBitValueList(access),
+                                response.error());
     return;
   }
   case FunctionCode::kWriteSingleCoil: {
@@ -583,7 +587,8 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadRegisters(request, response, &access);
     }
-    emit readRegistersFinished(request.serverAddress(), access.startAddress(),
+    emit readRegistersFinished(request.serverAddress(), request.functionCode(),
+                               access.startAddress(),
                                toSixteenBitValueList(access), response.error());
     return;
   }
