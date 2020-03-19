@@ -239,6 +239,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
   qRegisterMetaType<QVector<BitValue>>("QVector<BitValue>");
   qRegisterMetaType<FunctionCode>("FunctionCode");
+  qRegisterMetaType<Quantity>("Quantity");
 
   Q_D(QModbusClient);
 
@@ -588,7 +589,7 @@ void QModbusClient::processFunctionCode(const Request &request,
       processReadRegisters(request, response, &access);
     }
     emit readRegistersFinished(request.serverAddress(), request.functionCode(),
-                               access.startAddress(),
+                               access.startAddress(), access.quantity(),
                                toSixteenBitValueList(access), response.error());
     return;
   }
