@@ -181,6 +181,7 @@ signals:
   void requestFinished(const Request &request, const Response &response);
   void readSingleBitsFinished(ServerAddress serverAddress,
                               FunctionCode functionCode, Address startAddress,
+                              Quantity quantity,
                               const QVector<BitValue> &valueList, Error error);
   void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
                                Error error);

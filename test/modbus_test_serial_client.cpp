@@ -1192,13 +1192,16 @@ TEST(ModbusClient, readSingleBits_success) {
     modbus::Address address = qvariant_cast<int>(arguments.at(2));
     EXPECT_EQ(address, 0x05);
 
+    modbus::Quantity quantity = qvariant_cast<modbus::Quantity>(arguments.at(3));
+    EXPECT_EQ(quantity, 3);
+
     QVector<modbus::BitValue> valueList =
-        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(3));
+        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(4));
     EXPECT_THAT(valueList, testing::ElementsAre(modbus::BitValue::kOn,
                                                 modbus::BitValue::kOff,
                                                 modbus::BitValue::kOn));
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(4));
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
     EXPECT_EQ(error, modbus::Error::kNoError);
   }
 
@@ -1243,11 +1246,14 @@ TEST(ModbusClient, readSingleBits_failed) {
     modbus::Address address = qvariant_cast<int>(arguments.at(2));
     EXPECT_EQ(address, 0x05);
 
+    modbus::Quantity quantity = qvariant_cast<modbus::Quantity>(arguments.at(3));
+    EXPECT_EQ(quantity, 3);
+
     QVector<modbus::BitValue> valueList =
-        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(3));
+        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(4));
     EXPECT_EQ(valueList.size(), 0);
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(4));
+    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
     EXPECT_EQ(error, modbus::Error::kIllegalDataAddress);
   }
 
