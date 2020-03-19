@@ -186,6 +186,7 @@ signals:
                                Error error);
   void readRegistersFinished(ServerAddress serverAddress,
                              FunctionCode functionCode, Address startAddress,
+                             Quantity quantity,
                              const QVector<SixteenBitValue> &valueList,
                              Error error);
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,

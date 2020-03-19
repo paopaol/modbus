@@ -44,6 +44,7 @@ int main(int argc, char *argv[]) {
       client.data(), &modbus::QModbusClient::readRegistersFinished,
       [&](modbus::ServerAddress serverAddress,
           modbus::FunctionCode functionCode, modbus::Address startAddress,
+          modbus::Quantity quantity,
           const QVector<modbus::SixteenBitValue> &valueList,
           modbus::Error error) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
