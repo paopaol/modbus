@@ -18,9 +18,13 @@ set(src-files
   "./tools/modbus_server_p.h")
 
 add_library(modbus ${src-files})
+add_dependencies(modbus fmtlib)
 target_include_directories(modbus PRIVATE ".")
 target_include_directories(modbus PRIVATE "./base")
 target_link_libraries(modbus PUBLIC Qt5::Core)
 target_link_libraries(modbus PUBLIC Qt5::SerialPort)
 target_link_libraries(modbus PUBLIC Qt5::Network)
-target_link_libraries(modbus PUBLIC fmt)
+
+target_include_directories(modbus PUBLIC "${PROJECT_BINARY_DIR}/thrd/fmtlib/include")
+target_link_directories(modbus  PUBLIC ${PROJECT_BINARY_DIR}/thrd/fmtlib/lib)
+target_link_libraries(modbus PUBLIC debug fmtd optimized  fmt)
