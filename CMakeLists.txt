@@ -22,8 +22,7 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 REQUIRED Core SerialPort Network)
 
 
-include_directories("./thrd/fmt/include")
-add_subdirectory("./thrd/fmt")
+add_subdirectory("./thrd")
 
 include_directories(".")
 include_directories(include)

@@ -2,7 +2,6 @@
 
 find_package(Qt5 REQUIRED Test)
 
-add_subdirectory(../thrd  thrd)
 include_directories("../src/tools")
 include_directories("../src")
 include_directories("../src/base")
@@ -30,8 +29,8 @@ set(src-list "./modbus_test_bytearray_dump.cpp"
 add_executable(modbus_test ${src-list})
 add_dependencies(modbus_test  googletest)
 
-target_include_directories(modbus_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/thrd/googletest/include")
-target_link_directories(modbus_test  PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/thrd/googletest/lib)
+target_include_directories(modbus_test PRIVATE "${PROJECT_BINARY_DIR}/thrd/googletest/include")
+target_link_directories(modbus_test  PRIVATE ${PROJECT_BINARY_DIR}/thrd/googletest/lib)
 target_link_libraries(modbus_test modbus)
 target_link_libraries(modbus_test debug gtest_maind optimized  gtest_main)
 target_link_libraries(modbus_test debug gtestd optimized  gtest)
