@@ -2,15 +2,11 @@
 
 find_package(Qt5 REQUIRED Test)
 
-include_directories("../thrd/googletest/googletest/include")
-include_directories("../thrd/googletest/googlemock/include")
+add_subdirectory(../thrd  thrd)
 include_directories("../src/tools")
 include_directories("../src")
 include_directories("../src/base")
 
-cmake_policy(SET CMP0077 OLD)
-set(gtest_force_shared_crt ON)
-add_subdirectory(../thrd/googletest googletest)
 
 
 include(GoogleTest)
@@ -32,10 +28,14 @@ set(src-list "./modbus_test_bytearray_dump.cpp"
   "./modbus_test_server.cpp")
 
 add_executable(modbus_test ${src-list})
+add_dependencies(modbus_test  googletest)
+
+target_include_directories(modbus_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/thrd/googletest/include")
+target_link_directories(modbus_test  PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/thrd/googletest/lib)
 target_link_libraries(modbus_test modbus)
-target_link_libraries(modbus_test gtest_main )
-target_link_libraries(modbus_test gtest)
-target_link_libraries(modbus_test gmock)
+target_link_libraries(modbus_test debug gtest_maind optimized  gtest_main)
+target_link_libraries(modbus_test debug gtestd optimized  gtest)
+target_link_libraries(modbus_test debug gmockd optimized  gmock)
 target_link_libraries(modbus_test Qt5::Core)
 target_link_libraries(modbus_test Qt5::SerialPort)
 target_link_libraries(modbus_test Qt5::Test)
