@@ -251,6 +251,8 @@ void QModbusClient::setupEnvironment() {
           &QModbusClient::clearPendingRequest);
   connect(&d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
           this, &QModbusClient::clearPendingRequest);
+  connect(&d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+          this, &QModbusClient::connectionIsLostWillReconnect);
   connect(&d->device_, &ReconnectableIoDevice::error, this,
           &QModbusClient::onIoDeviceError);
   connect(&d->device_, &ReconnectableIoDevice::bytesWritten, this,
