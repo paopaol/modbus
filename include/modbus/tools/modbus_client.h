@@ -178,6 +178,7 @@ signals:
   void clientOpened();
   void clientClosed();
   void errorOccur(const QString &errorString);
+  void connectionIsLostWillReconnect();
   void requestFinished(const Request &request, const Response &response);
   void readSingleBitsFinished(ServerAddress serverAddress,
                               FunctionCode functionCode, Address startAddress,
