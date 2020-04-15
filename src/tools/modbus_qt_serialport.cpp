@@ -61,7 +61,7 @@ private:
   void setupEnvironment() {
     connect(&serialPort_, &QSerialPort::aboutToClose, this,
             [&]() { emit closed(); });
-#if (QT_VERSION <= QT_VERSION_CHECK(5, 6, 1))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 1))
     connect(&serialPort_,
             static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(
                 &QSerialPort::error),
