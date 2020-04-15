@@ -53,7 +53,7 @@ private:
     connect(socket_, &QAbstractSocket::disconnected, this,
             &QtTcpSocket::closed);
     connect(socket_, &QAbstractSocket::connected, this, &QtTcpSocket::opened);
-#if (QT_VERSION <= QT_VERSION_CHECK(5, 6, 1) || QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 1))
     connect(
         socket_,
         static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
@@ -123,7 +123,7 @@ private:
   void setupEnvironment() {
     socket_->bind(port_);
 
-#if (QT_VERSION <= QT_VERSION_CHECK(5, 6, 1) || QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 1))
     connect(
         socket_,
         static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
