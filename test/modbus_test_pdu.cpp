@@ -36,7 +36,8 @@ TEST(TestPdu, modbusPduExpecptionTest) {
   actual.isException = pdu.isException();
   actual.fcode = pdu.functionCode();
 
-  EXPECT_EQ(actual, expect);
+  EXPECT_EQ(actual.fcode, expect.fcode);
+  EXPECT_EQ(actual.isException, expect.isException);
 }
 
 TEST(TestPdu, modbusPdu_defaultFunctionCode_isInvalid) {

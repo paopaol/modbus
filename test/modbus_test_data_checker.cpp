@@ -1,35 +1,37 @@
 #include <gtest/gtest.h>
 #include <modbus/base/modbus.h>
 
-TEST(DataChecker, bytesRequired_success) {
-  modbus::ByteArray array({0x01, 0x02, 0x03, 0x04});
+using namespace modbus;
 
-  size_t size = 0;
-  auto result = modbus::bytesRequired<4>(size, array);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
-  EXPECT_EQ(size, 4);
+using DCR = DataChecker::Result;
 
-  size = 0;
-  result = modbus::bytesRequired<2>(size, array);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
-  size = 0;
-  result = modbus::bytesRequired<8>(size, array);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
-}
+struct Result {
+  DCR retCode;
+  size_t size;
+};
 
-TEST(DataChecker, bytesRequiredStoreInArrayIndex0_success) {
-  modbus::ByteArray array({0x03, 0x02, 0x03, 0x04});
+struct Tester {
+  DataChecker::calculateRequiredSizeFunc runner;
+  ByteArray data;
+  Result expect;
+};
 
-  size_t size = 0;
-  auto result = modbus::bytesRequiredStoreInArrayIndex<0>(size, array);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
-  EXPECT_EQ(size, 4);
-}
+TEST(DC, bytesRequired) {
+  ByteArray array({0x01, 0x02, 0x03, 0x04});
+  ByteArray enougn({0x03, 0x02, 0x03, 0x04});
+  ByteArray short_({0x03, 0x02});
 
-TEST(DataChecker, bytesRequiredStoreInArrayIndex0_failed) {
-  modbus::ByteArray array({0x03, 0x02});
+  std::vector<Tester> testers = {
+      {bytesRequired<4>, array, {DCR::kSizeOk, 4}},
+      {bytesRequired<2>, array, {DCR::kSizeOk, 4}},
+      {bytesRequired<8>, array, {DCR::kNeedMoreData, 4}},
+      {bytesRequiredStoreInArrayIndex<0>, enougn, {DCR::kSizeOk, 4}},
+      {bytesRequiredStoreInArrayIndex<0>, short_, {DCR::kNeedMoreData, 4}},
+  };
 
-  size_t size = 0;
-  auto result = modbus::bytesRequiredStoreInArrayIndex<0>(size, array);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
+  for (auto &tester : testers) {
+    struct Result actual;
+    actual.retCode = tester.runner(actual.size, tester.data);
+    EXPECT_EQ(actual.retCode, tester.expect.retCode);
+  }
 }

@@ -4,68 +4,41 @@
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/modbus_types.h>
-#include <modbus/base/single_bit_access.h>
 #include <modbus_frame.h>
 
-static modbus::Adu
-createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
-                         modbus::FunctionCode functionCode,
-                         const modbus::SingleBitAccess &access);
-
-static modbus::DataChecker readCoilDataChecker = {
-    modbus::bytesRequiredStoreInArrayIndex<0>};
+using namespace modbus;
 
 TEST(modbusFrame, rtuMarshalFrame) {
-
-  modbus::SingleBitAccess access;
-
-  access.setStartAddress(0x01);
-  access.setQuantity(0x11);
-
-  modbus::Request request;
-
-  request.setServerAddress(0x00);
-  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
-  request.setData(access.marshalReadRequest());
-
-  auto rtuFrame = modbus::marshalRtuFrame(request.marshalAduWithoutCrc());
-  EXPECT_EQ(rtuFrame, modbus::ByteArray({0x00, modbus::FunctionCode::kReadCoils,
-                                         0x00, 0x01, 0x00, 0x11, 0xAC, 0x17}));
+  const ByteArray data({0x00, 0x01, 0x00, 0x01, 0x00, 0x11});
+  const ByteArray expect({0x00, 0x01, 0x00, 0x01, 0x00, 0x11, 0xAC, 0x17});
+  auto actual = marshalRtuFrame(data);
+  EXPECT_EQ(actual, expect);
 }
 
 TEST(modbusFrame, asciiMarshalFrame) {
+  const ByteArray data({0x00, 0x01, 0x00, 0x01, 0x00, 0x11});
+  const ByteArray expect({':', 0x30, 0x30, 0x30, 0x31, 0x30, 0x30, 0x30, 0x31,
+                          0x30, 0x30, 0x31, 0x31, 0x45, 0x44, '\r', '\n'});
 
-  modbus::SingleBitAccess access;
-
-  access.setStartAddress(0x01);
-  access.setQuantity(0x11);
-
-  modbus::Request request;
-
-  request.setServerAddress(0x00);
-  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
-  request.setData(access.marshalReadRequest());
-
-  auto rtuFrame = modbus::marshalAsciiFrame(request.marshalAduWithoutCrc());
-  EXPECT_EQ(rtuFrame, modbus::ByteArray({':', 0x30, 0x30, 0x30, 0x31, 0x30,
-                                         0x30, 0x30, 0x31, 0x30, 0x30, 0x31,
-                                         0x31, 0x45, 0x44, '\r', '\n'}));
+  auto actual = marshalAsciiFrame(data);
+  EXPECT_EQ(actual, expect);
 }
 
 TEST(ModbusFrame, marshalRtuFrame_success) {
-  modbus::SingleBitAccess access;
-  std::unique_ptr<modbus::Frame> rtuFrame(new modbus::RtuFrame);
+  ByteArray expect({0x01, 0x01, 0x00, 0x10, 0x00, 0x0a});
 
-  access.setStartAddress(0x10);
-  access.setQuantity(0x0a);
-  rtuFrame->setAdu(
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
+  Adu adu;
+  adu.setServerAddress(0x01);
+  adu.setFunctionCode(FunctionCode::kReadCoils);
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  adu.setData({0x00, 0x10, 0x00, 0x0a});
 
-  modbus::ByteArray data = rtuFrame->marshal();
-  modbus::ByteArray requestArray(
-      {0x01, modbus::FunctionCode::kReadCoils, 0x00, 0x10, 0x00, 0x0a});
-  requestArray = modbus::tool::appendCrc(requestArray);
-  EXPECT_EQ(data, requestArray);
+  RtuFrame rtuFrame;
+  rtuFrame.setAdu(adu);
+
+  ByteArray data = rtuFrame.marshal();
+  expect = tool::appendCrc(expect);
+  EXPECT_EQ(data, expect);
 }
 
 //      header + adu + tail
@@ -73,111 +46,114 @@ TEST(ModbusFrame, marshalRtuFrame_success) {
 // rtu    --- adu + crc
 // ascii  --- : + ascii(adu)+ lrc + \r\n
 TEST(ModbusFrame, marshalAsciiFrame_success) {
-  modbus::SingleBitAccess access;
-  std::unique_ptr<modbus::Frame> asciiFrame(new modbus::AsciiFrame);
+  ByteArray expect({0x01, 0x01, 0x00, 0x10, 0x00, 0x0a});
 
-  access.setStartAddress(0x10);
-  access.setQuantity(0x0a);
-  asciiFrame->setAdu(
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access));
-  //:0x01 0x01 0x00 0x10 0x00 0x0a lrc \r\n
-  modbus::ByteArray frameArray = asciiFrame->marshal();
+  Adu adu;
+  adu.setServerAddress(0x01);
+  adu.setFunctionCode(FunctionCode::kReadCoils);
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  adu.setData({0x00, 0x10, 0x00, 0x0a});
+
+  AsciiFrame asciiFrame;
+
+  asciiFrame.setAdu(adu);
+  ByteArray frameArray = asciiFrame.marshal();
   EXPECT_THAT(frameArray,
               testing::ElementsAre(':', '0', '1', '0', '1', '0', '0', '1', '0',
                                    '0', '0', '0', 'A', 'E', '4', '\r', '\n'));
 }
 
 TEST(ModbusFrame, unmarshalAsciiFrame_success) {
-
   // rtu   - 0x01 0x01 0x02 0x33 0x33
   // ascii - ":010102333396\r\n"
-  modbus::ByteArray data({':', '0', '1', '0', '1', '0', '2', '3', '3', '3', '3',
-                          '9', '6', '\r', '\n'});
-  modbus::Adu responseAdu;
-  responseAdu.setDataChecker(readCoilDataChecker);
+  ByteArray data({':', '0', '1', '0', '1', '0', '2', '3', '3', '3', '3', '9',
+                  '6', '\r', '\n'});
+  Adu adu;
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
 
-  modbus::AsciiFrame asciiFrame;
-  asciiFrame.setAdu(responseAdu);
-  modbus::Error error = modbus::Error::kNoError;
-  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 2), &error),
-            modbus::DataChecker::Result::kNeedMoreData);
-  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 5), &error),
-            modbus::DataChecker::Result::kNeedMoreData);
-  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 9), &error),
-            modbus::DataChecker::Result::kNeedMoreData);
-  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 11), &error),
-            modbus::DataChecker::Result::kNeedMoreData);
-  EXPECT_EQ(asciiFrame.unmarshal(modbus::tool::subArray(data, 0, 15), &error),
-            modbus::DataChecker::Result::kSizeOk);
+  AsciiFrame asciiFrame;
+  asciiFrame.setAdu(adu);
+
+  struct Result {
+    ByteArray data;
+    DataChecker::Result ret;
+  };
+  std::vector<Result> tests = {
+      {{':', '0'}, DataChecker::Result::kNeedMoreData},
+      {{':', '0', '1', '0', '1'}, DataChecker::Result::kNeedMoreData},
+      {{':', '0', '1', '0', '1', '0', '2', '3', '3'},
+       DataChecker::Result::kNeedMoreData},
+      {{':', '0', '1', '0', '1', '0', '2', '3', '3', '3', '3'},
+       DataChecker::Result::kNeedMoreData},
+      {{':', '0', '1', '0', '1', '0', '2', '3', '3', '3', '3', '9', '6', '\r',
+        '\n'},
+       DataChecker::Result::kSizeOk},
+  };
+  for (const auto &test : tests) {
+    Error error = Error::kNoError;
+    auto ret = asciiFrame.unmarshal(test.data, &error);
+    EXPECT_EQ(ret, test.ret);
+  }
 }
 
 TEST(ModbusFrame, MbapFrame_marshalSize_success) {
-  modbus::SingleBitAccess access;
-  access.setStartAddress(0x00);
-  access.setQuantity(2);
+  Adu adu;
+  adu.setServerAddress(0x01);
+  adu.setFunctionCode(FunctionCode::kReadCoils);
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  adu.setData({0x00, 0x10, 0x00, 0x0a});
 
-  modbus::Adu adu =
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access);
-
-  modbus::MbapFrame frame;
+  MbapFrame frame;
   frame.setAdu(adu);
 
   EXPECT_EQ(frame.marshalSize(), 12);
 }
 
 TEST(ModbusFrame, MbapFrame_marshal_success) {
-  modbus::SingleBitAccess access;
-  access.setStartAddress(0x00);
-  access.setQuantity(2);
+  ByteArray expect(
+      {0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01, 0x01, 0x00, 0x00, 0x00, 0x02});
 
-  modbus::Adu adu =
-      createSingleBitAccessAdu(0x01, modbus::FunctionCode::kReadCoils, access);
+  Adu adu;
+  adu.setServerAddress(0x01);
+  adu.setFunctionCode(FunctionCode::kReadCoils);
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  adu.setData({0x00, 0x00, 0x00, 0x02});
 
-  modbus::MbapFrame frame;
+  MbapFrame frame;
   frame.setAdu(adu);
 
-  EXPECT_THAT(frame.marshal(),
-              testing::ElementsAre(0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
-                                   modbus::FunctionCode::kReadCoils, 0x00, 0x00,
-                                   0x00, 0x02));
+  EXPECT_EQ(frame.marshal(), expect);
 }
 
 TEST(Modbusframe, MbapFrame_unmrshal_success) {
-  modbus::Adu adu;
-  adu.setDataChecker(readCoilDataChecker);
+  struct Test {
+    ByteArray data;
+    DataChecker::Result ret;
+    Error errRet;
+  };
 
-  modbus::Error error = modbus::Error::kNoError;
-  modbus::MbapFrame frame;
+  std::vector<Test> tests = {
+      {{0x00, 0x00, 0x00, 0x00, 0x00},
+       DataChecker::Result::kNeedMoreData,
+       Error::kNoError},
+      {{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01, 0x01},
+       DataChecker::Result::kNeedMoreData,
+       Error::kNoError},
+      {{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01, 0x01, 0x00, 0x00, 0x00, 0x02},
+       DataChecker::Result::kSizeOk,
+       Error::kNoError},
+  };
+
+  Adu adu;
+  adu.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+
+  MbapFrame frame;
   frame.setAdu(adu);
 
-  auto result = frame.unmarshal(
-      modbus::ByteArray({{0x00, 0x00, 0x00, 0x00, 0x00}}), &error);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
-
-  result = frame.unmarshal(
-      modbus::ByteArray({{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
-                          modbus::FunctionCode::kReadCoils}}),
-      &error);
-  EXPECT_EQ(result, modbus::DataChecker::Result::kNeedMoreData);
-
-  result = frame.unmarshal(
-      modbus::ByteArray(
-          {{0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01,
-            modbus::FunctionCode::kReadCoils, 0x00, 0x00, 0x00, 0x02}}),
-      &error);
-
-  EXPECT_EQ(result, modbus::DataChecker::Result::kSizeOk);
-  EXPECT_EQ(error, modbus::Error::kNoError);
-}
-
-static modbus::Adu
-createSingleBitAccessAdu(modbus::ServerAddress serverAddress,
-                         modbus::FunctionCode functionCode,
-                         const modbus::SingleBitAccess &access) {
-  modbus::Adu adu;
-  adu.setServerAddress(0x01);
-  adu.setFunctionCode(modbus::kReadCoils);
-  adu.setData(access.marshalReadRequest());
-  adu.setDataChecker(readCoilDataChecker);
-  return adu;
+  for (const auto &test : tests) {
+    Error error = Error::kNoError;
+    auto result = frame.unmarshal(test.data, &error);
+    EXPECT_EQ(result, test.ret);
+    EXPECT_EQ(error, test.errRet);
+  }
 }
