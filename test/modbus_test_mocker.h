@@ -11,6 +11,8 @@
 #include <modbus/base/modbus_tool.h>
 #include <modbus/tools/modbus_client.h>
 
+using namespace testing;
+
 /**
  * a mock of serial port
  * we use this class for testing of modbus::QModbusClient
@@ -29,68 +31,53 @@ public:
   MOCK_METHOD0(name, std::string());
 
   void setupCallName() {
-    EXPECT_CALL(*this, name).WillRepeatedly(testing::Invoke([&]() {
-      return "COM1";
-    }));
-  }
-
-  void setupDelegate() {
-    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
-      emit opened();
-    }));
-    ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() {
-      emit closed();
-    }));
-  }
-  void setupOpenSuccessWriteFailedDelegate() {
-    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
-      emit opened();
-    }));
-    ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() {
-      emit closed();
-    }));
-    ON_CALL(*this, write)
-        .WillByDefault(testing::Invoke([&](const char *data, size_t size) {
-          emit error("write serial failed");
-        }));
-  }
-  void setupOpenFailed() {
-    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
-      emit error("open serial failed");
-    }));
-  }
-
-  void setupTestForWrite() {
-    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
-      emit opened();
-    }));
-    ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() {
-      emit closed();
-    }));
-    ON_CALL(*this, write)
-        .WillByDefault(testing::Invoke([&](const char *data, size_t size) {
-          sendoutData_.insert(sendoutData_.end(), data, data + size);
+    ON_CALL(*this, open).WillByDefault(Invoke([&]() { emit opened(); }));
+    ON_CALL(*this, close).WillByDefault(Invoke([&]() { emit closed(); }));
+    ON_CALL(*this, write(_, _))
+        .WillByDefault(Invoke([&](const char *data, size_t size) {
           emit bytesWritten(size);
+          emit readyRead();
         }));
+    ON_CALL(*this, clear()).WillByDefault([&]() {});
+
+    EXPECT_CALL(*this, clear()).WillRepeatedly([&]() {});
+    EXPECT_CALL(*this, name).WillRepeatedly(Return("COM1"));
+    EXPECT_CALL(*this, open).WillRepeatedly(Invoke([&]() { emit opened(); }));
+    EXPECT_CALL(*this, close).WillRepeatedly(Invoke([&]() { emit closed(); }));
   }
 
-  void setupTestForWriteRead() {
-    ON_CALL(*this, open).WillByDefault(testing::Invoke([&]() {
-      emit opened();
-    }));
-    ON_CALL(*this, close).WillByDefault(testing::Invoke([&]() {
-      emit closed();
-    }));
-    ON_CALL(*this, write)
-        .WillByDefault(testing::Invoke([&](const char *data, size_t size) {
-          emit bytesWritten(size);
-          QTimer::singleShot(10, [&]() { emit readyRead(); });
-        }));
-  }
-  modbus::ByteArray sendoutData() { return sendoutData_; }
+  /* void setupOpenSuccessWriteFailedDelegate() { */
+  /*   ON_CALL(*this, open).WillByDefault(Invoke([&]() { emit opened(); })); */
+  /*   ON_CALL(*this, close).WillByDefault(Invoke([&]() { emit closed(); })); */
+  /*   ON_CALL(*this, write) */
+  /*       .WillByDefault(Invoke([&](const char *data, size_t size) { */
+  /*         emit error("write serial failed"); */
+  /*       })); */
+  /* } */
+  /* void setupOpenFailed() { */
+  /*   ON_CALL(*this, open).WillByDefault(Invoke([&]() { */
+  /*     emit error("open serial failed"); */
+  /*   })); */
+  /* } */
 
-private:
-  modbus::ByteArray sendoutData_;
+  /* void setupTestForWrite() { */
+  /*   ON_CALL(*this, open).WillByDefault(Invoke([&]() { emit opened(); })); */
+  /*   ON_CALL(*this, close).WillByDefault(Invoke([&]() { emit closed(); })); */
+  /*   ON_CALL(*this, write) */
+  /*       .WillByDefault(Invoke( */
+  /*           [&](const char *data, size_t size) { emit bytesWritten(size);
+   * })); */
+  /* } */
+
+  /* void setupTestForWriteRead() { */
+  /*   ON_CALL(*this, open).WillByDefault(Invoke([&]() { emit opened(); })); */
+  /*   ON_CALL(*this, close).WillByDefault(Invoke([&]() { emit closed(); })); */
+  /*   ON_CALL(*this, write) */
+  /*       .WillByDefault(Invoke([&](const char *data, size_t size) { */
+  /*         emit bytesWritten(size); */
+  /*         QTimer::singleShot(10, [&]() { emit readyRead(); }); */
+  /*       })); */
+  /* } */
 };
 
 class MockReadCoilsDataChecker {

@@ -560,10 +560,14 @@ void QModbusClient::processDiagnosis(const Request &request,
 
 void QModbusClient::processFunctionCode(const Request &request,
                                         const Response &response) {
+  const auto &data = request.userData();
+  if (data.empty()) {
+    return;
+  }
   switch (request.functionCode()) {
   case FunctionCode::kReadCoils:
   case FunctionCode::kReadInputDiscrete: {
-    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
     if (!response.isException()) {
       processReadSingleBit(request, response, &access);
     }
@@ -573,20 +577,20 @@ void QModbusClient::processFunctionCode(const Request &request,
     return;
   }
   case FunctionCode::kWriteSingleCoil: {
-    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
     emit writeSingleCoilFinished(request.serverAddress(), access.startAddress(),
                                  response.error());
     return;
   }
   case FunctionCode::kWriteMultipleCoils: {
-    auto access = modbus::any::any_cast<SingleBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
     emit writeMultipleCoilsFinished(request.serverAddress(),
                                     access.startAddress(), response.error());
     return;
   }
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {
-    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
     if (!response.isException()) {
       processReadRegisters(request, response, &access);
     }
@@ -596,20 +600,19 @@ void QModbusClient::processFunctionCode(const Request &request,
     return;
   }
   case FunctionCode::kWriteSingleRegister: {
-    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
     emit writeSingleRegisterFinished(request.serverAddress(),
                                      access.startAddress(), response.error());
     return;
   }
   case FunctionCode::kWriteMultipleRegisters: {
-    auto access = modbus::any::any_cast<SixteenBitAccess>(request.userData());
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
     emit writeMultipleRegistersFinished(
         request.serverAddress(), access.startAddress(), response.error());
     return;
   }
   case FunctionCode::kReadWriteMultipleRegisters: {
-    auto access =
-        modbus::any::any_cast<ReadWriteRegistersAccess>(request.userData());
+    auto access = modbus::any::any_cast<ReadWriteRegistersAccess>(data);
     auto readAccess = access.readAccess;
     if (!response.isException()) {
       processReadRegisters(request, response, &readAccess);

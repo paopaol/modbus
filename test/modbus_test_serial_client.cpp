@@ -6,11 +6,14 @@
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus_frame.h>
 
+using namespace testing;
+using namespace modbus;
+
 struct Session {
-  modbus::Request request;
-  modbus::ByteArray requestRaw;
-  modbus::Response response;
-  modbus::ByteArray responseRaw;
+  Request request;
+  ByteArray requestRaw;
+  Response response;
+  ByteArray responseRaw;
 };
 
 #define declare_app(name)                                                      \
@@ -18,47 +21,33 @@ struct Session {
   char *argv[] = {(char *)"test"};                                             \
   QCoreApplication name(argc, argv);
 
-static const modbus::Address kStartAddress = 10;
-static const modbus::Quantity kQuantity = 3;
-static const modbus::ServerAddress kServerAddress = 1;
-static const modbus::ServerAddress kBadServerAddress = 0x11;
-static modbus::Request createSingleBitAccessRequest();
-static modbus::Request createBrocastRequest();
-template <modbus::TransferMode mode>
-static void createReadCoils(modbus::ServerAddress serverAddress,
-                            modbus::Address startAddress,
-                            modbus::Quantity quantity, Session &session);
-static void configMockSerialPortWithReponse(MockSerialPort *mocker,
-                                            const modbus::ByteArray &response);
-static QByteArray buildResponseArray(const modbus::ByteArray &response);
+static const Address kStartAddress = 10;
+static const Quantity kQuantity = 3;
+static const ServerAddress kServerAddress = 1;
+static const ServerAddress kBadServerAddress = 0x11;
+static Request createSingleBitAccessRequest();
+static Request createBrocastRequest();
+template <TransferMode mode>
+static void createReadCoils(ServerAddress serverAddress, Address startAddress,
+                            Quantity quantity, Session &session);
 
-static void clientConstruct_defaultIsClosed(modbus::TransferMode transferMode) {
+TEST(ModbusClient, ClientConstruct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
-  modbus::QModbusClient mockSerialClient(serialPort);
-  EXPECT_EQ(mockSerialClient.transferMode(), modbus::TransferMode::kRtu);
-  mockSerialClient.setTransferMode(transferMode);
-  EXPECT_EQ(mockSerialClient.transferMode(), transferMode);
+  QModbusClient mockSerialClient(serialPort);
+  EXPECT_EQ(mockSerialClient.transferMode(), TransferMode::kRtu);
+  mockSerialClient.setTransferMode(TransferMode::kRtu);
+  EXPECT_EQ(mockSerialClient.transferMode(), TransferMode::kRtu);
   EXPECT_EQ(mockSerialClient.isClosed(), true);
 }
 
-TEST(ModbusClient, ClientConstruct_defaultIsClosed) {
-  clientConstruct_defaultIsClosed(modbus::TransferMode::kRtu);
-  clientConstruct_defaultIsClosed(modbus::TransferMode::kAscii);
-}
-
-static void
-clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode transferMode) {
+TEST(ModbusSerialClient, clientIsClosed_openDevice_clientIsOpened) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
-    serialClient.setTransferMode(transferMode);
-    serialPort->setupDelegate();
+    QModbusClient serialClient(serialPort);
+    serialClient.setTransferMode(TransferMode::kRtu);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
-
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, close());
+    QSignalSpy spy(&serialClient, &QModbusClient::clientOpened);
 
     serialClient.open();
     EXPECT_EQ(spy.count(), 1);
@@ -68,24 +57,17 @@ clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode transferMode) {
   app.exec();
 }
 
-TEST(ModbusSerialClient, clientIsClosed_openDevice_clientIsOpened) {
-  clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode::kRtu);
-  clientIsClosed_openDevice_clientIsOpened(modbus::TransferMode::kAscii);
-}
-
 TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
-    serialPort->setupOpenFailed();
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
-
-    EXPECT_CALL(*serialPort, open()).Times(5);
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
+    EXPECT_CALL(*serialPort, open).WillRepeatedly(Invoke([&]() {
+      emit serialPort->error("open serial failed");
     }));
+
+    QSignalSpy spy(&serialClient, &QModbusClient::clientOpened);
 
     serialClient.setOpenRetryTimes(4, 1000);
     serialClient.open();
@@ -100,14 +82,10 @@ TEST(ModbusSerialClient, clientIsClosed_openSerial_retry4TimesFailed) {
 TEST(ModbusSerialClient, clientIsOpened_closeSerial_clientIsClosed) {
   declare_app(app);
   auto serialPort = new MockSerialPort();
-  serialPort->setupDelegate();
   {
-    modbus::QModbusClient serialClient(serialPort);
-    QSignalSpy spyOpen(&serialClient, &modbus::QModbusClient::clientOpened);
-    QSignalSpy spyClose(&serialClient, &modbus::QModbusClient::clientClosed);
-
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, close());
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spyOpen(&serialClient, &QModbusClient::clientOpened);
+    QSignalSpy spyClose(&serialClient, &QModbusClient::clientClosed);
 
     // make sure the client is opened
     serialClient.open();
@@ -124,46 +102,23 @@ TEST(ModbusSerialClient, clientIsOpened_closeSerial_clientIsClosed) {
   app.exec();
 }
 
-TEST(ModbusSerialClient, clientIsClosed_openSerial_clientOpenFailed) {
-  declare_app(app);
-  auto serialPort = new MockSerialPort();
-  serialPort->setupOpenFailed();
-
-  {
-    modbus::QModbusClient serialClient(serialPort);
-    QSignalSpy spyOpen(&serialClient, &modbus::QModbusClient::errorOccur);
-
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
-      serialPort->closed();
-    }));
-
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(spyOpen.count(), 1);
-    EXPECT_EQ(serialClient.isOpened(), false);
-  }
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
 TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
   declare_app(app);
 
   Session session;
-  createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                              kQuantity, session);
+  createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress, kQuantity,
+                                      session);
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
-    serialPort->setupOpenSuccessWriteFailedDelegate();
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::errorOccur);
+    QSignalSpy spy(&serialClient, &QModbusClient::errorOccur);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _))
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          emit serialPort->error("write error");
+        }));
 
     // make sure the client is opened
     serialClient.open();
@@ -187,19 +142,22 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
   declare_app(app);
 
   Session session;
-  createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                              kQuantity, session);
-
+  createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress, kQuantity,
+                                      session);
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
-    serialPort->setupTestForWrite();
+    QModbusClient serialClient(serialPort);
+    ByteArray sentData;
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    ON_CALL(*serialPort, write)
+        .WillByDefault(Invoke([&](const char *data, size_t size) {
+          sentData.insert(sentData.end(), data, data + size);
+          emit serialPort->bytesWritten(size);
+        }));
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
+
+    EXPECT_CALL(*serialPort, write(_, _));
 
     // make sure the client is opened
     serialClient.open();
@@ -210,8 +168,7 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(300);
-    auto sendoutData = serialPort->sendoutData();
-    EXPECT_EQ(sendoutData, session.requestRaw);
+    EXPECT_EQ(sentData, session.requestRaw);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -222,7 +179,7 @@ TEST(ModbusSerialClient, setTimeout) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
     serialClient.setTimeout(2000);
     EXPECT_EQ(2000, serialClient.timeout());
@@ -236,7 +193,7 @@ TEST(ModbusSerialClient, setRetryTimes) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
     serialClient.setRetryTimes(5);
     EXPECT_EQ(5, serialClient.retryTimes());
@@ -251,24 +208,25 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWrite();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
     serialClient.setRetryTimes(2);
     serialClient.setTimeout(500);
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
     /**
      * we set the retry times 2,so write() will be called twice
      */
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_)).Times(3);
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _))
+        .Times(3)
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          serialPort->bytesWritten(size);
+        }));
 
     // make sure the client is opened
     serialClient.open();
@@ -278,12 +236,11 @@ TEST(ModbusSerialClient,
     serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
-    spy.wait(100000);
+    spy.wait(10000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(modbus::Error::kTimeout, response.error());
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(Error::kTimeout, response.error());
     EXPECT_EQ(2, serialClient.retryTimes());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -295,81 +252,52 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
-
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
-
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
-
-    /**
-     *In this test case, we simulate that the data returned by the serial port
-     *is not all over the time. Therefore, it may be necessary to read it many
-     *times before the data can be completely read. Here, we simulate that it
-     *needs to read four times to finish reading.
-     *
-     * first time, only read server address (1 byte) //need more data
-     * second time, read function code(1byte) + data(1 bytes) //need more data
-     * thrd time, read data(1 byte)
-     * fourth time, read crc(2 bytes)
-     */
-    modbus::ByteArray responseWithCrc = session.responseRaw;
-
-    QByteArray firstReadData;
-    firstReadData.append(responseWithCrc[0]); /// server address
-
-    QByteArray secondReadData;
-    secondReadData.append(responseWithCrc[1]); /// function Code
-    secondReadData.append(responseWithCrc[2]); /// bytes number
-    secondReadData.append(responseWithCrc[3]); /// value
-
-    QByteArray thrdReadData;
-    thrdReadData.append(responseWithCrc[4]); /// crc1
-
-    QByteArray fourthReadData;
-    fourthReadData.append(responseWithCrc[5]); /// crc2
-
+    EXPECT_CALL(*serialPort, write)
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          emit serialPort->bytesWritten(size);
+          QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
+        }));
     EXPECT_CALL(*serialPort, readAll())
         .Times(4)
-        .WillOnce(testing::Invoke([&]() {
+        .WillOnce(Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
-          return firstReadData;
+          return QByteArray("\x01", 1);
         }))
-        .WillOnce(testing::Invoke([&]() {
+        .WillOnce(Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
-          return secondReadData;
+          return QByteArray("\x01\x01\x05", 3);
         }))
-        .WillOnce(testing::Invoke([&]() {
+        .WillOnce(Invoke([&]() {
           QTimer::singleShot(10, [&]() { serialPort->readyRead(); });
-          return thrdReadData;
+          return QByteArray("\x91", 1);
         }))
-        .WillOnce(testing::Invoke([&]() { return fourthReadData; }));
+        .WillOnce(Invoke([&]() { return QByteArray("\x8b", 1); }));
 
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.sendRequest(session.request);
+    Request req;
+    req.setServerAddress(0x01);
+    req.setFunctionCode(FunctionCode::kReadCoils);
+    req.setData({0x00, 0x0a, 0x00, 0x03});
+    req.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+    serialClient.sendRequest(req);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(modbus::Error::kNoError, response.error());
-    EXPECT_EQ(modbus::FunctionCode::kReadCoils, response.functionCode());
-    EXPECT_EQ(session.request.serverAddress(), response.serverAddress());
-    EXPECT_EQ(response.data(), session.response.data());
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(Error::kNoError, response.error());
+    EXPECT_EQ(FunctionCode::kReadCoils, response.functionCode());
+    EXPECT_EQ(0x01, response.serverAddress());
+    EXPECT_EQ(response.data(), ByteArray({0x01, 0x05}));
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -381,26 +309,23 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _));
 
     session.responseRaw[session.responseRaw.size() - 1] = 0x00;
     QByteArray qarray((const char *)session.responseRaw.data(),
                       session.responseRaw.size());
 
-    EXPECT_CALL(*serialPort, readAll())
-        .Times(1)
-        .WillOnce(testing::Invoke([&]() { return qarray; }));
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
+      return qarray;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -413,9 +338,8 @@ TEST(ModbusSerialClient,
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(modbus::Error::kStorageParityError, response.error());
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(Error::kStorageParityError, response.error());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -427,43 +351,39 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
-    modbus::FunctionCode functionCode = modbus::FunctionCode(
-        session.response.functionCode() | modbus::Pdu::kExceptionByte);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
+    FunctionCode functionCode =
+        FunctionCode(session.response.functionCode() | Pdu::kExceptionByte);
     session.response.setFunctionCode(functionCode);
-    session.response.setError(modbus::Error::kSlaveDeviceBusy);
+    session.response.setError(Error::kSlaveDeviceBusy);
     session.responseRaw =
-        modbus::marshalRtuFrame(session.response.marshalAduWithoutCrc());
+        marshalRtuFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _));
 
-    modbus::ByteArray responseWithoutCrc = {
+    ByteArray responseWithoutCrc = {
         kServerAddress,
         /**
-         * use modbus::FunctionCode::kReadCoils | modbus::Pdu::kExceptionByte
+         * use FunctionCode::kReadCoils | Pdu::kExceptionByte
          * simulated exception return
          */
-        modbus::FunctionCode::kReadCoils | modbus::Pdu::kExceptionByte,
-        static_cast<uint8_t>(modbus::Error::kSlaveDeviceBusy)};
+        FunctionCode::kReadCoils | Pdu::kExceptionByte,
+        static_cast<uint8_t>(Error::kSlaveDeviceBusy)};
 
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
+    ByteArray responseWithCrc = tool::appendCrc(responseWithoutCrc);
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    EXPECT_CALL(*serialPort, readAll())
-        .Times(1)
-        .WillOnce(testing::Invoke([&]() { return qarray; }));
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
+      return qarray;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -476,9 +396,8 @@ TEST(ModbusSerialClient,
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(modbus::Error::kSlaveDeviceBusy, response.error());
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(Error::kSlaveDeviceBusy, response.error());
     EXPECT_EQ(true, response.isException());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -491,32 +410,33 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
-    modbus::FunctionCode functionCode = modbus::FunctionCode(
-        session.response.functionCode() | modbus::Pdu::kExceptionByte);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
+    FunctionCode functionCode =
+        FunctionCode(session.response.functionCode() | Pdu::kExceptionByte);
     session.response.setServerAddress(0x00);
     session.response.setFunctionCode(functionCode);
-    session.response.setError(modbus::Error::kTimeout);
+    session.response.setError(Error::kTimeout);
     session.responseRaw =
-        modbus::marshalRtuFrame(session.response.marshalAduWithoutCrc());
+        marshalRtuFrame(session.response.marshalAduWithoutCrc());
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write)
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          emit serialPort->bytesWritten(size);
+          QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
+        }));
 
     QByteArray qarray((const char *)session.responseRaw.data(),
                       session.responseRaw.size());
-    EXPECT_CALL(*serialPort, readAll())
-        .Times(1)
-        .WillOnce(testing::Invoke([&]() { return qarray; }));
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
+      return qarray;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -529,9 +449,8 @@ TEST(ModbusSerialClient,
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
-    EXPECT_EQ(modbus::Error::kTimeout, response.error());
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(Error::kTimeout, response.error());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -541,29 +460,13 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
   declare_app(app);
 
   {
-    modbus::Request request = createBrocastRequest();
-
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    modbus::ByteArray responseWithoutCrc = {kServerAddress,
-                                            modbus::FunctionCode::kReadCoils,
-                                            0x01, 0x05 /*b 0000 0101*/};
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
-    QByteArray qarray((const char *)responseWithCrc.data(),
-                      responseWithCrc.size());
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
-
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
-    EXPECT_CALL(*serialPort, clear());
-    EXPECT_CALL(*serialPort, readAll()).WillOnce(testing::Invoke([&]() {
-      return qarray;
+    EXPECT_CALL(*serialPort, write(_, _));
+    EXPECT_CALL(*serialPort, readAll()).WillOnce(Invoke([&]() {
+      return QByteArray("\x01\x01\x01\x05\x91\x8b", 6);
     }));
 
     // make sure the client is opened
@@ -571,6 +474,7 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
+    Request request = createBrocastRequest();
     serialClient.sendRequest(request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
@@ -588,29 +492,28 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write)
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          emit serialPort->bytesWritten(size);
+          QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
+        }));
 
     QByteArray responseData;
     responseData.append(kServerAddress);
 
-    EXPECT_CALL(*serialPort, readAll())
-        .Times(1)
-        .WillOnce(testing::Invoke([&]() {
-          QTimer::singleShot(10, [&]() { serialPort->error("read error"); });
-          return responseData;
-        }));
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
+      QTimer::singleShot(10, [&]() { serialPort->error("read error"); });
+      return responseData;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -632,18 +535,18 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
   declare_app(app);
 
   {
-    modbus::Request request = createBrocastRequest();
+    Request request = createBrocastRequest();
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWrite();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _))
+        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+          emit serialPort->bytesWritten(size);
+        }));
 
     // make sure the client is opened
     serialClient.open();
@@ -668,13 +571,13 @@ TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
   declare_app(app);
 
   {
-    modbus::Request request = createBrocastRequest();
+    Request request = createBrocastRequest();
 
     auto serialPort = new MockSerialPort();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    EXPECT_CALL(*serialPort, open()).WillOnce(testing::Invoke([&]() {
+    EXPECT_CALL(*serialPort, open()).WillOnce(Invoke([&]() {
       /**
        * No open signal is emitted, so you can simulate an unopened scene
        */
@@ -701,24 +604,24 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
     Session session;
-    createReadCoils<modbus::TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                                kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
+                                        kQuantity, session);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open()).WillRepeatedly(testing::Invoke([&]() {
+    EXPECT_CALL(*serialPort, open()).WillRepeatedly(Invoke([&]() {
       serialPort->opened();
     }));
 
-    EXPECT_CALL(*serialPort, close()).WillRepeatedly(testing::Invoke([&]() {
+    EXPECT_CALL(*serialPort, close()).WillRepeatedly(Invoke([&]() {
       serialPort->closed();
     }));
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_))
+    EXPECT_CALL(*serialPort, write(_, _))
         .Times(1)
-        .WillOnce(testing::Invoke([&](const char *data, size_t size) {
+        .WillOnce(Invoke([&](const char *data, size_t size) {
           serialPort->error("write error, just fot test");
         }));
     serialClient.open();
@@ -736,9 +639,9 @@ TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
+    QSignalSpy spy(&serialClient, &QModbusClient::clientOpened);
 
     /**
      * The first time we open, our simulation failed. The second time, we
@@ -746,14 +649,14 @@ TEST(ModbusSerialClient, connect_connectFailed_reconnectSuccess) {
      */
     EXPECT_CALL(*serialPort, open())
         .Times(2)
-        .WillOnce(testing::Invoke([&]() {
+        .WillOnce(Invoke([&]() {
           serialPort->error("connect failed");
           return;
         }))
-        .WillOnce(testing::Invoke([&]() { serialPort->opened(); }));
-    EXPECT_CALL(*serialPort, close())
-        .Times(1)
-        .WillRepeatedly(testing::Invoke([&]() { serialPort->closed(); }));
+        .WillOnce(Invoke([&]() { serialPort->opened(); }));
+    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly(Invoke([&]() {
+      serialPort->closed();
+    }));
 
     /**
      * if open failed, retry 4 times, interval 2s
@@ -774,9 +677,9 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
 
   {
     auto serialPort = new MockSerialPort();
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::clientOpened);
+    QSignalSpy spy(&serialClient, &QModbusClient::clientOpened);
 
     /**
      * The first time we open, our simulation failed. The second time, we
@@ -784,14 +687,14 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
      */
     EXPECT_CALL(*serialPort, open())
         .Times(2)
-        .WillOnce(testing::Invoke([&]() {
+        .WillOnce(Invoke([&]() {
           serialPort->error("connect failed");
           return;
         }))
-        .WillOnce(testing::Invoke([&]() { serialPort->opened(); }));
-    EXPECT_CALL(*serialPort, close())
-        .Times(1)
-        .WillRepeatedly(testing::Invoke([&]() { serialPort->closed(); }));
+        .WillOnce(Invoke([&]() { serialPort->opened(); }));
+    EXPECT_CALL(*serialPort, close()).Times(1).WillRepeatedly(Invoke([&]() {
+      serialPort->closed();
+    }));
 
     /**
      * if open failed, retry 4 times, interval 2s
@@ -803,7 +706,7 @@ TEST(ModbusSerialClient, connectRetryTimesIs4_connectSucces_closeSuccess) {
     EXPECT_EQ(serialClient.isOpened(), true);
     EXPECT_EQ(serialClient.isIdle(), true);
 
-    QSignalSpy spyClose(&serialClient, &modbus::QModbusClient::clientClosed);
+    QSignalSpy spyClose(&serialClient, &QModbusClient::clientClosed);
     serialClient.close();
     spyClose.wait(1000);
     EXPECT_EQ(spyClose.count(), 1);
@@ -817,32 +720,27 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
   declare_app(app);
 
   {
-    modbus::Request request = createSingleBitAccessRequest();
+    Request request = createSingleBitAccessRequest();
 
     auto serialPort = new MockSerialPort();
-    serialPort->setupTestForWriteRead();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
-    EXPECT_CALL(*serialPort, open());
-    EXPECT_CALL(*serialPort, write(testing::_, testing::_));
-    EXPECT_CALL(*serialPort, close());
+    EXPECT_CALL(*serialPort, write(_, _));
 
-    modbus::ByteArray responseWithoutCrc = {kServerAddress,
-                                            modbus::FunctionCode::kReadCoils,
-                                            0x01, 0x05 /*b 0000 0101*/};
+    ByteArray responseWithoutCrc = {kServerAddress, FunctionCode::kReadCoils,
+                                    0x01, 0x05 /*b 0000 0101*/};
 
-    modbus::ByteArray responseWithCrc =
-        modbus::tool::appendCrc(responseWithoutCrc);
+    ByteArray responseWithCrc = tool::appendCrc(responseWithoutCrc);
 
     QByteArray qarray((const char *)responseWithCrc.data(),
                       responseWithCrc.size());
 
-    EXPECT_CALL(*serialPort, readAll())
-        .Times(1)
-        .WillOnce(testing::Invoke([&]() { return qarray; }));
+    EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
+      return qarray;
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -855,18 +753,16 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    request = qvariant_cast<modbus::Request>(arguments.at(0));
-    modbus::Response response =
-        qvariant_cast<modbus::Response>(arguments.at(1));
+    request = qvariant_cast<Request>(arguments.at(0));
+    Response response = qvariant_cast<Response>(arguments.at(1));
 
-    EXPECT_EQ(modbus::Error::kNoError, response.error());
+    EXPECT_EQ(Error::kNoError, response.error());
     EXPECT_EQ(false, response.isException());
-    auto access =
-        modbus::any::any_cast<modbus::SingleBitAccess>(request.userData());
+    auto access = any::any_cast<SingleBitAccess>(request.userData());
     access.unmarshalReadResponse(response.data());
-    EXPECT_EQ(access.value(kStartAddress), modbus::BitValue::kOn);
-    EXPECT_EQ(access.value(kStartAddress + 1), modbus::BitValue::kOff);
-    EXPECT_EQ(access.value(kStartAddress + 2), modbus::BitValue::kOn);
+    EXPECT_EQ(access.value(kStartAddress), BitValue::kOn);
+    EXPECT_EQ(access.value(kStartAddress + 1), BitValue::kOff);
+    EXPECT_EQ(access.value(kStartAddress + 2), BitValue::kOn);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -877,18 +773,13 @@ TEST(ModbusSerialClient,
   declare_app(app);
 
   {
-    modbus::Request request = createSingleBitAccessRequest();
-
     auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient, &modbus::QModbusClient::requestFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress, modbus::FunctionCode::kReadCoils,
-                          0x02, 0x01, 0x05 /*b 0000 0101*/});
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
+    EXPECT_CALL(*serialPort, write).Times(5);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x01\x02\x01\x05\x78\x6f", 7);
+    }));
 
     // make sure the client is opened
     serialClient.open();
@@ -896,7 +787,14 @@ TEST(ModbusSerialClient,
 
     /// send the request
     for (int i = 0; i < 5; i++) {
-      QTimer::singleShot(10, [&]() { serialClient.sendRequest(request); });
+      QTimer::singleShot(10, [&]() {
+        Request request;
+        request.setServerAddress(0x01);
+        request.setFunctionCode(FunctionCode::kReadCoils);
+        request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+        request.setData({0x00, 0x0a, 0x00, 0x03});
+        serialClient.sendRequest(request);
+      });
     }
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
@@ -912,24 +810,25 @@ TEST(ModbusSerialClient, readRegisters_success) {
   {
     auto serialPort = new MockSerialPort();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readRegistersFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::readRegistersFinished);
 
-    configMockSerialPortWithReponse(
-        serialPort, modbus::ByteArray{kServerAddress, 0x03, 0x08, 0x00, 0x01,
-                                      0x00, 0x02, 0x00, 0x03, 0x00, 0x04});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x03\x08\x00\x01\x00\x02\x00\x03\x00\x04\x0d\x14",
+                        13);
+    }));
 
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    modbus::SixteenBitAccess access;
+    SixteenBitAccess access;
 
-    serialClient.readRegisters(kServerAddress, modbus::FunctionCode(0x03),
-                               modbus::Address(0x00), modbus::Quantity(0x04));
+    serialClient.readRegisters(kServerAddress, FunctionCode(0x03),
+                               Address(0x00), Quantity(0x04));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
@@ -937,11 +836,11 @@ TEST(ModbusSerialClient, readRegisters_success) {
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
-    EXPECT_EQ(error, modbus::Error::kNoError);
+    Error error = qvariant_cast<Error>(arguments.at(5));
+    EXPECT_EQ(error, Error::kNoError);
 
-    QVector<modbus::SixteenBitValue> valueList =
-        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(4));
+    QVector<SixteenBitValue> valueList =
+        qvariant_cast<QVector<SixteenBitValue>>(arguments.at(4));
     EXPECT_EQ(valueList.size(), 4);
     EXPECT_EQ(valueList[0].toUint16(), 0x01);
     EXPECT_EQ(valueList[1].toUint16(), 0x02);
@@ -952,121 +851,35 @@ TEST(ModbusSerialClient, readRegisters_success) {
   app.exec();
 }
 
-TEST(ModbusSerialClient, readRegisters_failed) {
-  declare_app(app);
-  {
-    auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readRegistersFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress, 0x03 | 0x80,
-                          uint8_t(modbus::Error::kSlaveDeviceBusy)});
-
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(serialClient.isOpened(), true);
-
-    /// send the request
-    modbus::SixteenBitAccess access;
-
-    serialClient.readRegisters(kServerAddress, modbus::FunctionCode(0x03),
-                               modbus::Address(0x00), modbus::Quantity(0x04));
-
-    /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5
-    QTest::qWait(5000);
-    EXPECT_EQ(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
-    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
-
-    QVector<modbus::SixteenBitValue> valueList =
-        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(4));
-    EXPECT_EQ(valueList.size(), 0);
-  }
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
 TEST(ModbusClient, writeSingleRegister_Success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::writeSingleRegisterFinished);
 
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeSingleRegisterFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          modbus::FunctionCode::kWriteSingleRegister, 0x00,
-                          0x05, 0x00, 0x01});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x06\x00\x05\x00\x01\x58\x0b", 8);
+    }));
 
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.writeSingleRegister(kServerAddress, modbus::Address(0x05),
-                                     modbus::SixteenBitValue(0x00, 0x01));
+    serialClient.writeSingleRegister(0x01, Address(0x05),
+                                     SixteenBitValue(0x00, 0x01));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kNoError);
-  }
-
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
-TEST(ModbusClient, writeSingleRegister_Failed) {
-  declare_app(app);
-  {
-    auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeSingleRegisterFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          modbus::FunctionCode::kWriteSingleRegister |
-                              modbus::Pdu::kExceptionByte,
-                          (uint8_t)modbus::Error::kIllegalFunctionCode});
-
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(serialClient.isOpened(), true);
-
-    /// send the request
-    serialClient.writeSingleRegister(kServerAddress, modbus::Address(0x05),
-                                     modbus::SixteenBitValue(0x00, 0x01));
-
-    /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5
-    QTest::qWait(1000);
-    EXPECT_EQ(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
-    EXPECT_EQ(address, 0x05);
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kIllegalFunctionCode);
+    Error error = qvariant_cast<Error>(arguments.at(2));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1077,27 +890,24 @@ TEST(ModbusClient, writeMultipleRegisters_success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
+    QModbusClient serialClient(serialPort);
     QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeMultipleRegistersFinished);
+                   &QModbusClient::writeMultipleRegistersFinished);
 
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          modbus::FunctionCode::kWriteMultipleRegisters, 0x00,
-                          0x05, 0x00, 0x03});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x10\x00\x05\x00\x03\x90\x09", 8);
+    }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<modbus::SixteenBitValue> valueList;
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x01));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x02));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x03));
-    serialClient.writeMultipleRegisters(kServerAddress, modbus::Address(0x05),
+    QVector<SixteenBitValue> valueList;
+    valueList.push_back(SixteenBitValue(0x00, 0x01));
+    valueList.push_back(SixteenBitValue(0x00, 0x02));
+    valueList.push_back(SixteenBitValue(0x00, 0x03));
+    serialClient.writeMultipleRegisters(kServerAddress, Address(0x05),
                                         valueList);
 
     /// wait for the operation can work done, because
@@ -1105,52 +915,10 @@ TEST(ModbusClient, writeMultipleRegisters_success) {
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kNoError);
-  }
-
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
-TEST(ModbusClient, writeMultipleRegisters_failed) {
-  declare_app(app);
-  {
-    auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeMultipleRegistersFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          modbus::FunctionCode::kWriteMultipleRegisters | 0x80,
-                          uint8_t(modbus::Error::kSlaveDeviceBusy)});
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(serialClient.isOpened(), true);
-
-    /// send the request
-    QVector<modbus::SixteenBitValue> valueList;
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x01));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x02));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x03));
-    serialClient.writeMultipleRegisters(kServerAddress, modbus::Address(0x05),
-                                        valueList);
-
-    /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5
-    QTest::qWait(1000);
-    EXPECT_EQ(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
-    EXPECT_EQ(address, 0x05);
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
+    Error error = qvariant_cast<Error>(arguments.at(2));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1161,100 +929,43 @@ TEST(ModbusClient, readSingleBits_success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::readSingleBitsFinished);
 
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readSingleBitsFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort, modbus::ByteArray{kServerAddress,
-                                      modbus::FunctionCode::kReadInputDiscrete,
-                                      0x01, 0x05 /*b 101*/});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x02\x01\x05\x61\x8b", 6);
+    }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
     serialClient.readSingleBits(kServerAddress,
-                                modbus::FunctionCode::kReadInputDiscrete,
-                                modbus::Address(0x05), modbus::Quantity(3));
+                                FunctionCode::kReadInputDiscrete, Address(0x05),
+                                Quantity(3));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    ServerAddress serverAddress = qvariant_cast<ServerAddress>(arguments.at(0));
     EXPECT_EQ(serverAddress, kServerAddress);
 
-    modbus::Address address = qvariant_cast<int>(arguments.at(2));
+    Address address = qvariant_cast<int>(arguments.at(2));
     EXPECT_EQ(address, 0x05);
 
-    modbus::Quantity quantity = qvariant_cast<modbus::Quantity>(arguments.at(3));
+    Quantity quantity = qvariant_cast<Quantity>(arguments.at(3));
     EXPECT_EQ(quantity, 3);
 
-    QVector<modbus::BitValue> valueList =
-        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(4));
-    EXPECT_THAT(valueList, testing::ElementsAre(modbus::BitValue::kOn,
-                                                modbus::BitValue::kOff,
-                                                modbus::BitValue::kOn));
+    QVector<BitValue> valueList =
+        qvariant_cast<QVector<BitValue>>(arguments.at(4));
+    EXPECT_THAT(valueList,
+                ElementsAre(BitValue::kOn, BitValue::kOff, BitValue::kOn));
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
-    EXPECT_EQ(error, modbus::Error::kNoError);
-  }
-
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
-TEST(ModbusClient, readSingleBits_failed) {
-  declare_app(app);
-  {
-    auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readSingleBitsFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{
-            kServerAddress,
-            uint8_t(modbus::FunctionCode::kReadInputDiscrete | 0x80),
-            uint8_t(modbus::Error::kIllegalDataAddress)});
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(serialClient.isOpened(), true);
-
-    /// send the request
-    serialClient.readSingleBits(kServerAddress,
-                                modbus::FunctionCode::kReadInputDiscrete,
-                                modbus::Address(0x05), modbus::Quantity(3));
-
-    /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5
-    QTest::qWait(1000);
-    EXPECT_EQ(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
-    EXPECT_EQ(serverAddress, kServerAddress);
-
-    modbus::Address address = qvariant_cast<int>(arguments.at(2));
-    EXPECT_EQ(address, 0x05);
-
-    modbus::Quantity quantity = qvariant_cast<modbus::Quantity>(arguments.at(3));
-    EXPECT_EQ(quantity, 3);
-
-    QVector<modbus::BitValue> valueList =
-        qvariant_cast<QVector<modbus::BitValue>>(arguments.at(4));
-    EXPECT_EQ(valueList.size(), 0);
-
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(5));
-    EXPECT_EQ(error, modbus::Error::kIllegalDataAddress);
+    Error error = qvariant_cast<Error>(arguments.at(5));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1265,82 +976,33 @@ TEST(ModbusClient, writeSingleCoil_success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::writeSingleCoilFinished);
 
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeSingleCoilFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          uint8_t(modbus::FunctionCode::kWriteSingleCoil), 0x00,
-                          0x05, 0xff, 0x00});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x05\x00\x05\xff\x00\x9c\x3b", 8);
+    }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.writeSingleCoil(kServerAddress, modbus::Address(0x05),
-                                 modbus::BitValue::kOn);
+    serialClient.writeSingleCoil(kServerAddress, Address(0x05), BitValue::kOn);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    ServerAddress serverAddress = qvariant_cast<ServerAddress>(arguments.at(0));
     EXPECT_EQ(serverAddress, kServerAddress);
 
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kNoError);
-  }
-
-  QTimer::singleShot(1, [&]() { app.quit(); });
-  app.exec();
-}
-
-TEST(ModbusClient, writeSingleCoil_failed) {
-  declare_app(app);
-  {
-    auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeSingleCoilFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort, modbus::ByteArray{
-                        kServerAddress,
-                        uint8_t(modbus::FunctionCode::kWriteSingleCoil | 0x80),
-                        uint8_t(modbus::Error::kSlaveDeviceBusy)});
-    // make sure the client is opened
-    serialClient.open();
-    EXPECT_EQ(serialClient.isOpened(), true);
-
-    /// send the request
-    serialClient.writeSingleCoil(kServerAddress, modbus::Address(0x05),
-                                 modbus::BitValue::kOff);
-
-    /// wait for the operation can work done, because
-    /// in rtu mode, the request must be send after t3.5
-    QTest::qWait(1000);
-    EXPECT_EQ(spy.count(), 1);
-    QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
-    EXPECT_EQ(serverAddress, kServerAddress);
-
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
-    EXPECT_EQ(address, 0x05);
-
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
+    Error error = qvariant_cast<Error>(arguments.at(2));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1352,48 +1014,45 @@ TEST(ModbusClient, writeMultipleCoils_success) {
   {
     auto serialPort = new MockSerialPort();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
 
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeMultipleCoilsFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::writeMultipleCoilsFinished);
 
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{kServerAddress,
-                          uint8_t(modbus::FunctionCode::kWriteMultipleCoils),
-                          0x00, 0x05, 0x00, 0x09});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x0f\x00\x05\x00\x09\x85\xcc", 8);
+    }));
+
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<modbus::BitValue> valueList;
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    serialClient.writeMultipleCoils(kServerAddress, modbus::Address(0x05),
-                                    valueList);
+    QVector<BitValue> valueList;
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    ServerAddress serverAddress = qvariant_cast<ServerAddress>(arguments.at(0));
     EXPECT_EQ(serverAddress, kServerAddress);
 
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kNoError);
+    Error error = qvariant_cast<Error>(arguments.at(2));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1404,50 +1063,43 @@ TEST(ModbusClient, writeMultipleCoils_failed) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
+    QModbusClient serialClient(serialPort);
+    QSignalSpy spy(&serialClient, &QModbusClient::writeMultipleCoilsFinished);
 
-    modbus::QModbusClient serialClient(serialPort);
-
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::writeMultipleCoilsFinished);
-
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{
-            kServerAddress,
-            uint8_t(modbus::FunctionCode::kWriteMultipleCoils | 0x80),
-            uint8_t(modbus::Error::kSlaveDeviceBusy)});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x8f\x06\xc4\x32", 5);
+    }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<modbus::BitValue> valueList;
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    valueList.push_back(modbus::BitValue::kOff);
-    valueList.push_back(modbus::BitValue::kOn);
-    serialClient.writeMultipleCoils(kServerAddress, modbus::Address(0x05),
-                                    valueList);
+    QVector<BitValue> valueList;
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    valueList.push_back(BitValue::kOff);
+    valueList.push_back(BitValue::kOn);
+    serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    ServerAddress serverAddress = qvariant_cast<ServerAddress>(arguments.at(0));
     EXPECT_EQ(serverAddress, kServerAddress);
 
-    modbus::Address address = qvariant_cast<int>(arguments.at(1));
+    Address address = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(address, 0x05);
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(2));
-    EXPECT_EQ(error, modbus::Error::kSlaveDeviceBusy);
+    Error error = qvariant_cast<Error>(arguments.at(2));
+    EXPECT_EQ(error, Error::kSlaveDeviceBusy);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1458,55 +1110,48 @@ TEST(ModbusClient, readWriteMultipleRegisters_success) {
   declare_app(app);
   {
     auto serialPort = new MockSerialPort();
-
-    modbus::QModbusClient serialClient(serialPort);
-
+    QModbusClient serialClient(serialPort);
     QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readWriteMultipleRegistersFinished);
+                   &QModbusClient::readWriteMultipleRegistersFinished);
 
-    configMockSerialPortWithReponse(
-        serialPort,
-        modbus::ByteArray{
-            kServerAddress,
-            uint8_t(modbus::FunctionCode::kReadWriteMultipleRegisters), 0x06,
-            0x00, 0x01, 0x00, 0x02, 0x00, 0x03});
+    EXPECT_CALL(*serialPort, write);
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x17\x06\x00\x01\x00\x02\x00\x03\xfd\x8b", 11);
+    }));
+
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<modbus::SixteenBitValue> valueList;
+    QVector<SixteenBitValue> valueList;
+    valueList.push_back(SixteenBitValue(0x00, 0x0a));
+    valueList.push_back(SixteenBitValue(0x00, 0x0b));
+    valueList.push_back(SixteenBitValue(0x00, 0x0c));
+    valueList.push_back(SixteenBitValue(0x00, 0x0d));
 
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0a));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0b));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0c));
-    valueList.push_back(modbus::SixteenBitValue(0x00, 0x0d));
-
-    serialClient.readWriteMultipleRegisters(
-        kServerAddress, modbus::Address(0x05), modbus::Quantity(0x03),
-        modbus::Address(0x04), valueList);
+    serialClient.readWriteMultipleRegisters(0x01, Address(0x05), Quantity(0x03),
+                                            Address(0x04), valueList);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(1000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    modbus::ServerAddress serverAddress =
-        qvariant_cast<modbus::ServerAddress>(arguments.at(0));
+    ServerAddress serverAddress = qvariant_cast<ServerAddress>(arguments.at(0));
     EXPECT_EQ(serverAddress, kServerAddress);
 
-    modbus::Address readStartAddress = qvariant_cast<int>(arguments.at(1));
+    Address readStartAddress = qvariant_cast<int>(arguments.at(1));
     EXPECT_EQ(readStartAddress, 0x05);
 
-    valueList =
-        qvariant_cast<QVector<modbus::SixteenBitValue>>(arguments.at(2));
+    valueList = qvariant_cast<QVector<SixteenBitValue>>(arguments.at(2));
     EXPECT_EQ(valueList.size(), 3);
     EXPECT_EQ(valueList[0].toUint16(), 0x01);
     EXPECT_EQ(valueList[1].toUint16(), 0x02);
     EXPECT_EQ(valueList[2].toUint16(), 0x03);
 
-    modbus::Error error = qvariant_cast<modbus::Error>(arguments.at(3));
-    EXPECT_EQ(error, modbus::Error::kNoError);
+    Error error = qvariant_cast<Error>(arguments.at(3));
+    EXPECT_EQ(error, Error::kNoError);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -1518,45 +1163,36 @@ TEST(ModbusClient, frame_diagnostics) {
   {
     auto serialPort = new MockSerialPort();
 
-    modbus::QModbusClient serialClient(serialPort);
+    QModbusClient serialClient(serialPort);
     serialClient.setRetryTimes(1);
     serialClient.setTimeout(300);
     serialClient.enableDiagnosis(true);
 
-    QSignalSpy spy(&serialClient,
-                   &modbus::QModbusClient::readRegistersFinished);
+    QSignalSpy spy(&serialClient, &QModbusClient::readRegistersFinished);
 
-    modbus::FunctionCode funcode = modbus::FunctionCode::kReadHoldingRegisters;
-    modbus::ByteArray emptyResponse = {};
-    modbus::ByteArray successReponse = {kServerAddress, uint8_t(funcode), 0x02,
-                                        0x00, 0x01};
-    modbus::ByteArray failedReponse = {
-        kServerAddress, uint8_t(funcode | 0x80),
-        uint8_t(modbus::Error::kSlaveDeviceBusy)};
-
-    configMockSerialPortWithReponse(serialPort, {});
+    EXPECT_CALL(*serialPort, write).Times(3);
     EXPECT_CALL(*serialPort, readAll())
-        .WillOnce(testing::Invoke(
-            [emptyResponse]() { return buildResponseArray(emptyResponse); }))
-        .WillOnce(testing::Invoke(
-            [successReponse]() { return buildResponseArray(successReponse); }))
-        .WillOnce(testing::Invoke(
-            [failedReponse]() { return buildResponseArray(failedReponse); }));
+        .WillOnce(Invoke([]() { return QByteArray(); }))
+        .WillOnce(Invoke(
+            []() { return QByteArray("\x01\x03\x02\x00\x01\x79\x84", 7); }))
+        .WillOnce(
+            Invoke([]() { return QByteArray("\x01\x83\x06\xc1\x32", 5); }));
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.readRegisters(kServerAddress, funcode, modbus::Address(0x05),
-                               modbus::Quantity(0x01));
-    serialClient.readRegisters(kServerAddress, funcode, modbus::Address(0x05),
-                               modbus::Quantity(0x01));
+    serialClient.readRegisters(kServerAddress, kReadHoldingRegisters,
+                               Address(0x05), Quantity(0x01));
+    serialClient.readRegisters(kServerAddress,
+                               FunctionCode::kReadHoldingRegisters,
+                               Address(0x05), Quantity(0x01));
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(5000);
     EXPECT_EQ(spy.count(), 2);
-    modbus::RuntimeDiagnosis diagnosis = serialClient.runtimeDiagnosis();
+    RuntimeDiagnosis diagnosis = serialClient.runtimeDiagnosis();
 
     /// timout(1) + + retry-success(1) + failed(1)
     EXPECT_EQ(diagnosis.totalFrameNumbers(), 3);
@@ -1569,110 +1205,78 @@ TEST(ModbusClient, frame_diagnostics) {
     EXPECT_NE(servers.find(kServerAddress), servers.end());
     const auto &server = servers[kServerAddress];
     EXPECT_EQ(server.errorRecords().size(), 2);
-    EXPECT_EQ(server.errorRecords()[0].error(), modbus::Error::kTimeout);
-    EXPECT_EQ(server.errorRecords()[1].error(),
-              modbus::Error::kSlaveDeviceBusy);
+    EXPECT_EQ(server.errorRecords()[0].error(), Error::kTimeout);
+    EXPECT_EQ(server.errorRecords()[1].error(), Error::kSlaveDeviceBusy);
   }
 
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
 }
 
-template <modbus::TransferMode mode>
-static void createReadCoils(modbus::ServerAddress serverAddress,
-                            modbus::Address startAddress,
-                            modbus::Quantity quantity, Session &session) {
-  modbus::SingleBitAccess access;
+template <TransferMode mode>
+static void createReadCoils(ServerAddress serverAddress, Address startAddress,
+                            Quantity quantity, Session &session) {
+  SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
   for (int i = 0; i < access.quantity(); i++) {
-    access.setValue(access.startAddress() + i, i % 2 == 0
-                                                   ? modbus::BitValue::kOn
-                                                   : modbus::BitValue::kOff);
+    access.setValue(access.startAddress() + i,
+                    i % 2 == 0 ? BitValue::kOn : BitValue::kOff);
   }
 
   session.request.setServerAddress(kServerAddress);
-  session.request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  session.request.setFunctionCode(FunctionCode::kReadCoils);
   session.request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   session.request.setData(access.marshalReadRequest());
   session.request.setUserData(access);
 
   session.response.setServerAddress(kServerAddress);
-  session.response.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  session.response.setFunctionCode(FunctionCode::kReadCoils);
   session.response.setData(access.marshalReadResponse());
   session.response.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
 
-  modbus::ByteArray aduWithoutCrcRequest =
-      session.request.marshalAduWithoutCrc();
-  modbus::ByteArray aduWithoutCrcResponse =
-      session.response.marshalAduWithoutCrc();
-  if (mode == modbus::TransferMode::kRtu) {
-    session.requestRaw = modbus::marshalRtuFrame(aduWithoutCrcRequest);
-    session.responseRaw = modbus::marshalRtuFrame(aduWithoutCrcResponse);
-  } else if (mode == modbus::TransferMode::kAscii) {
-    session.requestRaw = modbus::marshalAsciiFrame(aduWithoutCrcRequest);
-    session.responseRaw = modbus::marshalAsciiFrame(aduWithoutCrcResponse);
+  ByteArray aduWithoutCrcRequest = session.request.marshalAduWithoutCrc();
+  ByteArray aduWithoutCrcResponse = session.response.marshalAduWithoutCrc();
+  if (mode == TransferMode::kRtu) {
+    session.requestRaw = marshalRtuFrame(aduWithoutCrcRequest);
+    session.responseRaw = marshalRtuFrame(aduWithoutCrcResponse);
+  } else if (mode == TransferMode::kAscii) {
+    session.requestRaw = marshalAsciiFrame(aduWithoutCrcRequest);
+    session.responseRaw = marshalAsciiFrame(aduWithoutCrcResponse);
   }
 }
 
-static modbus::Request createSingleBitAccessRequest() {
-  modbus::SingleBitAccess access;
+static Request createSingleBitAccessRequest() {
+  SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
-  modbus::Request request;
+  Request request;
 
   request.setServerAddress(kServerAddress);
-  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setFunctionCode(FunctionCode::kReadCoils);
   request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   request.setData(access.marshalReadRequest());
   request.setUserData(access);
   return request;
 }
 
-static modbus::Request createBrocastRequest() {
-  modbus::SingleBitAccess access;
+static Request createBrocastRequest() {
+  SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
-  modbus::Request request;
+  Request request;
 
-  request.setServerAddress(modbus::Adu::kBrocastAddress);
-  request.setFunctionCode(modbus::FunctionCode::kReadCoils);
+  request.setServerAddress(Adu::kBrocastAddress);
+  request.setFunctionCode(FunctionCode::kReadCoils);
   request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   request.setData(access.marshalReadRequest());
   request.setUserData(access);
   return request;
 }
 
-/**
- *this will append crc to expectResponse
- */
-static void configMockSerialPortWithReponse(MockSerialPort *mocker,
-                                            const modbus::ByteArray &response) {
-  EXPECT_CALL(*mocker, open()).WillRepeatedly(testing::Invoke([mocker]() {
-    mocker->opened();
-  }));
-  EXPECT_CALL(*mocker, write(testing::_, testing::_))
-      .WillRepeatedly(testing::Invoke([mocker](const char *data, size_t size) {
-        mocker->bytesWritten(size);
-        QTimer::singleShot(0, [mocker]() { mocker->readyRead(); });
-      }));
-  EXPECT_CALL(*mocker, close()).WillRepeatedly(testing::Invoke([mocker]() {
-    mocker->closed();
-  }));
-  EXPECT_CALL(*mocker, readAll()).WillRepeatedly(testing::Invoke([response]() {
-    return buildResponseArray(response);
-  }));
-}
-
-static QByteArray buildResponseArray(const modbus::ByteArray &response) {
-  modbus::ByteArray responseWithCrc = modbus::tool::appendCrc(response);
-  QByteArray qarray((const char *)responseWithCrc.data(),
-                    responseWithCrc.size());
-  return qarray;
-}

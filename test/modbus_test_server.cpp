@@ -11,16 +11,16 @@
 #include <modbus/tools/modbus_server.h>
 
 using namespace testing;
-static modbus::Adu
-createAdu(modbus::ServerAddress serverAddress,
-          modbus::FunctionCode functionCode, const modbus::ByteArray &data,
-          const modbus::DataChecker::calculateRequiredSizeFunc &func);
+using namespace modbus;
 
-class TestConnection : public modbus::AbstractConnection {
+static Adu createAdu(ServerAddress serverAddress, FunctionCode functionCode,
+                     const ByteArray &data,
+                     const DataChecker::calculateRequiredSizeFunc &func);
+
+class TestConnection : public AbstractConnection {
   Q_OBJECT
 public:
-  TestConnection(QObject *parent = nullptr)
-      : modbus::AbstractConnection(parent) {
+  TestConnection(QObject *parent = nullptr) : AbstractConnection(parent) {
     EXPECT_CALL(*this, fullName()).WillRepeatedly(Invoke([]() {
       return "COM1";
     }));
@@ -33,17 +33,17 @@ public:
   MOCK_CONST_METHOD0(fullName, std::string());
 };
 
-class TestServer : public modbus::AbstractServer {
+class TestServer : public AbstractServer {
   Q_OBJECT
 public:
-  TestServer(QObject *parent = nullptr) : modbus::AbstractServer(parent) {}
+  TestServer(QObject *parent = nullptr) : AbstractServer(parent) {}
   ~TestServer() {}
   MOCK_METHOD0(listenAndServe, bool());
 };
 
 TEST(QModbusServer, constructor) {
   TestServer testServer;
-  modbus::QModbusServer server(&testServer);
+  QModbusServer server(&testServer);
 
   EXPECT_EQ(server.maxClients(), 1);
   EXPECT_EQ(server.serverAddress(), 0x01);
@@ -52,7 +52,7 @@ TEST(QModbusServer, constructor) {
 
 TEST(QModbusServer, set_get) {
   TestServer testServer;
-  modbus::QModbusServer server(&testServer);
+  QModbusServer server(&testServer);
 
   server.setMaxClients(3);
   EXPECT_EQ(server.maxClients(), 3);
@@ -73,10 +73,10 @@ TEST(QModbusServer, testSignles) {
   QCoreApplication app(argc, argv);
 
   TestConnection testConn;
-  modbus::AbstractConnection *conn = &testConn;
-  QSignalSpy spy(conn, &modbus::AbstractConnection::messageArrived);
+  AbstractConnection *conn = &testConn;
+  QSignalSpy spy(conn, &AbstractConnection::messageArrived);
 
-  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
   testConn.messageArrived(1, requestBuffer);
 
   EXPECT_EQ(spy.count(), 1);
@@ -88,488 +88,464 @@ TEST(QModbusServer, testSignles) {
 TEST(QModbusServer,
      recivedRequest_requestServerAddressIsBadAddress_discardTheRequest) {
   TestServer server;
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
-  modbus::ByteArray raw({0x02, 0x01, 0x00, 0x00, 0x00, 0x01});
-  raw = modbus::tool::appendCrc(raw);
+  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  ByteArray raw({0x02, 0x01, 0x00, 0x00, 0x00, 0x01});
+  raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<modbus::Frame> request;
-  std::shared_ptr<modbus::Frame> response;
+  std::shared_ptr<Frame> request;
+  std::shared_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result,
-            modbus::QModbusServerPrivate::ProcessResult::kBadServerAddress);
+  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadServerAddress);
 }
 
 TEST(QModbusServer, recivedRequest_needMoreData) {
   TestServer server;
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
-  modbus::ByteArray raw({0x01});
+  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  ByteArray raw({0x01});
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<modbus::Frame> request;
-  std::shared_ptr<modbus::Frame> response;
+  std::shared_ptr<Frame> request;
+  std::shared_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result, modbus::QModbusServerPrivate::ProcessResult::kNeedMoreData);
+  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kNeedMoreData);
 }
 
 TEST(
     QModbusServer,
     recivedRequest_theRequestedFunctionCodeIsNotSupported_returnIllegalFunctionCodeError) {
   TestServer server;
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServer(&server);
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  modbus::BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
-  modbus::ByteArray raw({0x01, 0x01, 0x00, 0x00, 0x00, 0x01});
-  raw = modbus::tool::appendCrc(raw);
+  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  ByteArray raw({0x01, 0x01, 0x00, 0x00, 0x00, 0x01});
+  raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<modbus::Frame> request;
-  std::shared_ptr<modbus::Frame> response;
+  std::shared_ptr<Frame> request;
+  std::shared_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result,
-            modbus::QModbusServerPrivate::ProcessResult::kBadFunctionCode);
+  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }
 
 TEST(QModbusServer, processReadCoils_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x01);
   accessServer->setQuantity(10);
-  accessServer->setValue(0x01, modbus::BitValue::kOn);
-  accessServer->setValue(0x03, modbus::BitValue::kOn);
-  d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
+  accessServer->setValue(0x01, BitValue::kOn);
+  accessServer->setValue(0x03, BitValue::kOn);
+  d.handleFunc(FunctionCode::kReadCoils, accessServer);
 
-  modbus::SingleBitAccess access;
+  SingleBitAccess access;
 
   access.setStartAddress(0x01);
   access.setQuantity(0x3);
 
-  modbus::Request request(createAdu(0x01, modbus::FunctionCode::kReadCoils,
-                                    access.marshalReadRequest(),
-                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  Request request;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kReadCoils);
+  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  request.setData({0x00, 0x01, 0x00, 0x03});
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.serverAddress(), 0x01);
-  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kReadCoils);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x01, 0x05}));
+  EXPECT_EQ(response.functionCode(), FunctionCode::kReadCoils);
+  EXPECT_EQ(response.data(), ByteArray({0x01, 0x05}));
 }
 
 TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x01);
   accessServer->setQuantity(10);
-  accessServer->setValue(0x01, modbus::BitValue::kOn);
-  accessServer->setValue(0x03, modbus::BitValue::kOn);
-  d.handleFunc(modbus::FunctionCode::kReadCoils, accessServer);
+  accessServer->setValue(0x01, BitValue::kOn);
+  accessServer->setValue(0x03, BitValue::kOn);
+  d.handleFunc(FunctionCode::kReadCoils, accessServer);
 
-  modbus::SingleBitAccess access;
+  SingleBitAccess access;
 
   access.setStartAddress(0x06);
   access.setQuantity(0x10);
 
-  modbus::Request request(createAdu(0x01, modbus::FunctionCode::kReadCoils,
-                                    access.marshalReadRequest(),
-                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  Request request(createAdu(0x01, FunctionCode::kReadCoils,
+                            access.marshalReadRequest(),
+                            bytesRequiredStoreInArrayIndex<0>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
 }
 
 TEST(QModbusServer, processWriteSingleCoils_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x01);
   accessServer->setQuantity(10);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
 
-  modbus::SingleBitAccess access;
+  SingleBitAccess access;
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(modbus::BitValue::kOn);
+  access.setValue(BitValue::kOn);
 
-  modbus::Request request(
-      createAdu(0x01, modbus::FunctionCode::kWriteSingleCoil,
-                access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
+                            access.marshalSingleWriteRequest(),
+                            bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.serverAddress(), 0x01);
-  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x01, 0xff, 0x00}));
+  EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), ByteArray({0x00, 0x01, 0xff, 0x00}));
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+  d.setTransferMode(TransferMode::kRtu);
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x99);
   accessServer->setQuantity(10);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
 
-  modbus::SingleBitAccess access;
+  SingleBitAccess access;
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(modbus::BitValue::kOn);
+  access.setValue(BitValue::kOn);
 
-  modbus::Request request(
-      createAdu(0x01, modbus::FunctionCode::kWriteSingleCoil,
-                access.marshalSingleWriteRequest(), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
+                            access.marshalSingleWriteRequest(),
+                            bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x02}));
+  EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), ByteArray({0x02}));
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+  d.setTransferMode(TransferMode::kRtu);
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x01);
   accessServer->setQuantity(10);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
 
-  modbus::Request request(createAdu(
-      0x01, modbus::FunctionCode::kWriteSingleCoil,
-      modbus::ByteArray({0x00, 0x01, 0xff, 0xff}), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
+                            ByteArray({0x00, 0x01, 0xff, 0xff}),
+                            bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataValue);
+  EXPECT_EQ(response.error(), Error::kIllegalDataValue);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
+  EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), ByteArray({0x03}));
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
   d.setCanWriteSingleBitValueFunc(
-      [&](modbus::FunctionCode functionCode, modbus::Address address,
-          modbus::BitValue value) { return modbus::Error::kSlaveDeviceBusy; });
-  std::shared_ptr<modbus::SingleBitAccess> accessServer(
-      new modbus::SingleBitAccess);
+      [&](FunctionCode functionCode, Address address, BitValue value) {
+        return Error::kSlaveDeviceBusy;
+      });
+  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
   accessServer->setStartAddress(0x01);
   accessServer->setQuantity(10);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
 
-  modbus::Request request(createAdu(
-      0x01, modbus::FunctionCode::kWriteSingleCoil,
-      modbus::ByteArray({0x00, 0x01, 0x00, 0x00}), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
+                            ByteArray({0x00, 0x01, 0x00, 0x00}),
+                            bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kSlaveDeviceBusy);
+  EXPECT_EQ(response.error(), Error::kSlaveDeviceBusy);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.functionCode(), modbus::FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x06}));
+  EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
+  EXPECT_EQ(response.data(), ByteArray({0x06}));
 }
 
 TEST(QModbusServer, processWriteMultipleCoils_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SingleBitAccess> access(new modbus::SingleBitAccess);
+  std::shared_ptr<SingleBitAccess> access(new SingleBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
-  d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
+  d.handleFunc(FunctionCode::kWriteMultipleCoils, access);
 
-  modbus::Request request(
-      createAdu(0x01, modbus::FunctionCode::kWriteMultipleCoils,
-                modbus::ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}),
-                modbus::bytesRequired<4>));
+  Request request(createAdu(
+      0x01, FunctionCode::kWriteMultipleCoils,
+      ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}), bytesRequired<4>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x00, 0x00, 0x09}));
+  EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x09}));
 }
 
 TEST(QModbusServer, processWriteMultipleCoils_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SingleBitAccess> access(new modbus::SingleBitAccess);
+  std::shared_ptr<SingleBitAccess> access(new SingleBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
-  d.handleFunc(modbus::FunctionCode::kWriteMultipleCoils, access);
+  d.handleFunc(FunctionCode::kWriteMultipleCoils, access);
 
-  modbus::Request request(
-      createAdu(0x01, modbus::FunctionCode::kWriteMultipleCoils,
-                modbus::ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}),
-                modbus::bytesRequired<4>));
+  Request request(createAdu(
+      0x01, FunctionCode::kWriteMultipleCoils,
+      ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}), bytesRequired<4>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.data(),
-            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+  EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(FunctionCode::kReadInputRegister, access);
 
-  modbus::Request request(createAdu(0x01,
-                                    modbus::FunctionCode::kReadInputRegister,
-                                    modbus::ByteArray({0x00, 0x00, 0x00, 0x03}),
-                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
+                            ByteArray({0x00, 0x00, 0x00, 0x03}),
+                            bytesRequiredStoreInArrayIndex<0>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(),
-            modbus::ByteArray({0x06, 0x12, 0x34, 0x56, 0x78, 0x98, 0x76}));
+            ByteArray({0x06, 0x12, 0x34, 0x56, 0x78, 0x98, 0x76}));
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(FunctionCode::kReadInputRegister, access);
 
-  modbus::Request request(createAdu(0x01,
-                                    modbus::FunctionCode::kReadInputRegister,
-                                    modbus::ByteArray({0x00, 0x99, 0x00, 0x03}),
-                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
+                            ByteArray({0x00, 0x99, 0x00, 0x03}),
+                            bytesRequiredStoreInArrayIndex<0>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.data(),
-            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+  EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kReadInputRegister, access);
+  d.handleFunc(FunctionCode::kReadInputRegister, access);
 
-  modbus::Request request(createAdu(0x01,
-                                    modbus::FunctionCode::kReadInputRegister,
-                                    modbus::ByteArray({0x00, 0x08, 0x00, 0x09}),
-                                    modbus::bytesRequiredStoreInArrayIndex<0>));
+  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
+                            ByteArray({0x00, 0x08, 0x00, 0x09}),
+                            bytesRequiredStoreInArrayIndex<0>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.data(),
-            modbus::ByteArray({uint8_t(modbus::Error::kIllegalDataAddress)}));
+  EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
 }
 
 TEST(QModbusServer, processWriteSingleRegister_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
 
-  modbus::Request request(createAdu(
-      0x01, modbus::FunctionCode::kWriteSingleRegister,
-      modbus::ByteArray({0x00, 0x08, 0x00, 0x09}), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
+                            ByteArray({0x00, 0x08, 0x00, 0x09}),
+                            bytesRequired<4>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x08, 0x00, 0x09}));
+  EXPECT_EQ(response.data(), ByteArray({0x00, 0x08, 0x00, 0x09}));
 }
 
 TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
+  d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
 
-  modbus::Request request(createAdu(
-      0x01, modbus::FunctionCode::kWriteSingleRegister,
-      modbus::ByteArray({0x00, 0x88, 0x00, 0x09}), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
+                            ByteArray({0x00, 0x88, 0x00, 0x09}),
+                            bytesRequired<4>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataAddress);
+  EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x02}));
+  EXPECT_EQ(response.data(), ByteArray({0x02}));
 }
 
 TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
-  d.setCanWriteSixteenBitValueFunc([&](modbus::FunctionCode functionCode,
-                                       modbus::Address address,
-                                       const modbus::SixteenBitValue &value) {
-    return modbus::Error::kIllegalDataValue;
-  });
+  d.setTransferMode(TransferMode::kRtu);
+  d.setCanWriteSixteenBitValueFunc(
+      [&](FunctionCode functionCode, Address address,
+          const SixteenBitValue &value) { return Error::kIllegalDataValue; });
 
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kWriteSingleRegister, access);
+  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
 
-  modbus::Request request(createAdu(
-      0x01, modbus::FunctionCode::kWriteSingleRegister,
-      modbus::ByteArray({0x00, 0x08, 0x00, 0x09}), modbus::bytesRequired<4>));
+  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
+                            ByteArray({0x00, 0x08, 0x00, 0x09}),
+                            bytesRequired<4>));
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), modbus::Error::kIllegalDataValue);
+  EXPECT_EQ(response.error(), Error::kIllegalDataValue);
   EXPECT_EQ(response.isException(), true);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x03}));
+  EXPECT_EQ(response.data(), ByteArray({0x03}));
 }
 
 TEST(QModbusServer, processWriteMultipleRegisters_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  d.setTransferMode(TransferMode::kRtu);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kWriteMultipleRegisters, access);
+  d.handleFunc(FunctionCode::kWriteMultipleRegisters, access);
 
-  modbus::Request request(
-      createAdu(0x01, modbus::FunctionCode::kWriteMultipleRegisters,
-                modbus::ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}),
-                modbus::bytesRequired<4>));
+  Request request(createAdu(
+      0x01, FunctionCode::kWriteMultipleRegisters,
+      ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}), bytesRequired<4>));
   auto response = d.processRequest(request);
 
-  EXPECT_EQ(response.error(), modbus::Error::kNoError);
+  EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
-  EXPECT_EQ(response.data(), modbus::ByteArray({0x00, 0x00, 0x00, 0x01}));
+  EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x01}));
 }
 
 TEST(QModbusServer, updateValueSixteenValue_success) {
-  modbus::QModbusServerPrivate d;
+  QModbusServerPrivate d;
 
   d.setServerAddress(1);
-  d.setTransferMode(modbus::TransferMode::kRtu);
-  std::shared_ptr<modbus::SixteenBitAccess> access(
-      new modbus::SixteenBitAccess);
+  d.setTransferMode(TransferMode::kRtu);
+  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
   access->setStartAddress(0x00);
   access->setQuantity(0x10);
   access->setValue(0x00, 0x1234);
   access->setValue(0x01, 0x5678);
   access->setValue(0x02, 0x9876);
-  d.handleFunc(modbus::FunctionCode::kWriteMultipleRegisters, access);
+  d.handleFunc(FunctionCode::kWriteMultipleRegisters, access);
 
-  modbus::SixteenBitValue setValue(0xab, 0xcd);
-  bool ok = d.updateValue(modbus::FunctionCode::kWriteMultipleRegisters,
-                          modbus::Address(0x02), setValue);
+  SixteenBitValue setValue(0xab, 0xcd);
+  bool ok = d.updateValue(FunctionCode::kWriteMultipleRegisters, Address(0x02),
+                          setValue);
   EXPECT_EQ(ok, true);
-  modbus::SixteenBitValue value;
-  ok = d.value(modbus::FunctionCode::kWriteMultipleRegisters, 0x02, &value);
+  SixteenBitValue value;
+  ok = d.value(FunctionCode::kWriteMultipleRegisters, 0x02, &value);
   EXPECT_EQ(ok, true);
   EXPECT_EQ(value.toUint16(), setValue.toUint16());
 }
 
-static modbus::Adu
-createAdu(modbus::ServerAddress serverAddress,
-          modbus::FunctionCode functionCode, const modbus::ByteArray &data,
-          const modbus::DataChecker::calculateRequiredSizeFunc &func) {
-  modbus::Adu adu;
+static Adu createAdu(ServerAddress serverAddress, FunctionCode functionCode,
+                     const ByteArray &data,
+                     const DataChecker::calculateRequiredSizeFunc &func) {
+  Adu adu;
   adu.setServerAddress(serverAddress);
   adu.setFunctionCode(functionCode);
   adu.setData(data);
-  adu.setDataChecker(modbus::DataChecker({func}));
+  adu.setDataChecker(DataChecker({func}));
   return adu;
 }
 
