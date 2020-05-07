@@ -43,7 +43,7 @@ public:
       QHostAddress ipv6(peerAddress.toIPv6Address());
       address = ipv6.toString();
     }
-    return QString("%1:%2").arg(address).arg(socket_.localPort()).toStdString();
+    return QString("%1:%2").arg(address).arg(socket_.peerPort()).toStdString();
   }
 
 private:
