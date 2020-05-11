@@ -5,6 +5,11 @@ project(modbus)
 option(MODBUS_BUILD_TEST "build unit test" OFF)
 option(MODBUS_BUILD_EXAMPLE "build examples" ON)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE})
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(modbus_root_dir ${CMAKE_CURRENT_SOURCE_DIR})
 if(MSVC)
