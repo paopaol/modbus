@@ -4,8 +4,11 @@
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
-  auto modbusServer = modbus::createQModbusTcpServer(33333);
+  // auto modbusServer = modbus::createQModbusTcpServer(33333);
+  auto modbusServer = modbus::createQModbusSerialServer("COM1");
+
   modbusServer->setServerAddress(0x01);
+  modbusServer->setTransferMode(modbus::TransferMode::kAscii);
 
   std::shared_ptr<modbus::SingleBitAccess> access(new modbus::SingleBitAccess);
 

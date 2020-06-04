@@ -4,6 +4,7 @@
 #include <QBuffer>
 #include <QMap>
 #include <QObject>
+#include <QSerialPort>
 #include <assert.h>
 #include <bytes/buffer.h>
 #include <functional>
@@ -102,6 +103,14 @@ protected:
 private:
   QScopedPointer<QModbusServerPrivate> d_ptr;
 };
+
+QModbusServer *createQModbusSerialServer(
+    const QString &serialName,
+    QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,
+    QSerialPort::DataBits dataBits = QSerialPort::Data8,
+    QSerialPort::Parity parity = QSerialPort::NoParity,
+    QSerialPort::StopBits stopBits = QSerialPort::OneStop,
+    QObject *parent = nullptr);
 
 QModbusServer *createQModbusTcpServer(uint16_t port = 502,
                                       QObject *parent = nullptr);
