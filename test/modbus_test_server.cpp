@@ -88,7 +88,8 @@ TEST(QModbusServer, testSignles) {
 TEST(QModbusServer,
      recivedRequest_requestServerAddressIsBadAddress_discardTheRequest) {
   TestServer server;
-  QModbusServerPrivate d;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServer(&server);
   d.setServerAddress(1);
@@ -107,7 +108,8 @@ TEST(QModbusServer,
 
 TEST(QModbusServer, recivedRequest_needMoreData) {
   TestServer server;
-  QModbusServerPrivate d;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServer(&server);
   d.setServerAddress(1);
@@ -127,7 +129,8 @@ TEST(
     QModbusServer,
     recivedRequest_theRequestedFunctionCodeIsNotSupported_returnIllegalFunctionCodeError) {
   TestServer server;
-  QModbusServerPrivate d;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServer(&server);
   d.setServerAddress(1);
@@ -145,7 +148,9 @@ TEST(
 }
 
 TEST(QModbusServer, processReadCoils_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -178,7 +183,9 @@ TEST(QModbusServer, processReadCoils_success) {
 }
 
 TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -206,7 +213,9 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
 }
 
 TEST(QModbusServer, processWriteSingleCoils_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -235,7 +244,9 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -263,7 +274,9 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -285,7 +298,9 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -311,7 +326,9 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
 }
 
 TEST(QModbusServer, processWriteMultipleCoils_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -331,7 +348,9 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
 }
 
 TEST(QModbusServer, processWriteMultipleCoils_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -351,7 +370,9 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -375,7 +396,9 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -398,7 +421,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
 }
 
 TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -421,7 +446,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
 }
 
 TEST(QModbusServer, processWriteSingleRegister_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -444,7 +471,9 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
 }
 
 TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -467,7 +496,9 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
 }
 
 TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -493,7 +524,9 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
 }
 
 TEST(QModbusServer, processWriteMultipleRegisters_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -516,7 +549,9 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
 }
 
 TEST(QModbusServer, updateValueSixteenValue_success) {
-  QModbusServerPrivate d;
+  TestServer server;
+  QModbusServer modbusServer(&server);
+  QModbusServerPrivate d(&modbusServer);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
