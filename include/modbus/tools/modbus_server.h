@@ -95,6 +95,10 @@ public:
                   DataChecker *requestDataChecker = nullptr);
   bool listenAndServe();
 
+signals:
+  void holdingRegisterValueChanged(Address address,
+                                   const SixteenBitValue &value);
+
 protected:
   virtual Response processRequest(const Request &request);
 

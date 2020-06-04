@@ -48,6 +48,7 @@ struct HandleFuncEntry {
 
 class QModbusServerPrivate : public QObject {
   Q_OBJECT
+  Q_DECLARE_PUBLIC(QModbusServer)
 public:
   enum class ProcessResult {
     kSuccess,
@@ -58,7 +59,7 @@ public:
     kStorageParityError
   };
 
-  QModbusServerPrivate(QObject *parent = nullptr) : QObject(parent) {}
+  QModbusServerPrivate(QModbusServer *q) : q_ptr(q) {}
 
   int maxClients() const { return maxClient_; }
   TransferMode transferMode() const { return transferMode_; }
@@ -574,7 +575,53 @@ public:
     return response;
   }
 
+  Error setRegisterValuesInternal(FunctionCode functionCode,
+                                  const SixteenBitAccess &access) {
+    Q_Q(QModbusServer);
+
+    auto entry = handleFuncRouter_[functionCode];
+    auto error =
+        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    if (error != Error::kNoError) {
+      return error;
+    }
+
+    Quantity quantity = access.quantity();
+
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      auto oldValue = entry.sixteenBitAccess->value(reqStartAddress);
+      if (oldValue.toUint16() != value.toUint16()) {
+        entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+        emit q->holdingRegisterValueChanged(reqStartAddress, value);
+      }
+      entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+    }
+
+    return Error::kNoError;
+  }
+
+  Error setRegisterValue(FunctionCode functionCode, Address address,
+                         const SixteenBitValue &setValue) {
+    SixteenBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+    access.setValue(address, setValue.toUint16());
+    return setRegisterValuesInternal(functionCode, access);
+  }
+
   Response processWriteSingleRegister(const Request &request) {
+    Q_Q(QModbusServer);
     SixteenBitAccess access;
     auto functionCode = kWriteSingleRegister;
 
@@ -583,20 +630,11 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
-    if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
-    }
 
-    Address reqStartAddress = access.startAddress();
-    auto value = access.value(reqStartAddress);
-    error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+    auto error = setRegisterValuesInternal(functionCode, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
-    entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
 
     Response response;
     response.setFunctionCode(functionCode);
@@ -615,28 +653,10 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+
+    auto error = setRegisterValuesInternal(functionCode, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
-    }
-
-    Quantity quantity = access.quantity();
-
-    for (size_t i = 0; i < quantity; i++) {
-      Address reqStartAddress = access.startAddress() + i;
-      auto value = access.value(reqStartAddress);
-      error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
-      if (error != Error::kNoError) {
-        return createErrorReponse(functionCode, error);
-      }
-    }
-
-    for (size_t i = 0; i < quantity; i++) {
-      Address reqStartAddress = access.startAddress() + i;
-      auto value = access.value(reqStartAddress);
-      entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
     }
 
     Response response;
@@ -705,6 +725,7 @@ public:
   ServerAddress serverAddress_ = 1;
   canWriteSingleBitValueFunc canWriteSingleBitValue_;
   canWriteSixteenBitValueFunc canWriteSixteenBitValue_;
+  QModbusServer *q_ptr;
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {
