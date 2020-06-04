@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
           const QVector<modbus::SixteenBitValue> &valueList,
           modbus::Error error) {
         std::shared_ptr<void> _(nullptr, std::bind([&]() {
-                                  printf("pending Request size:%ld\n",
+                                  printf("pending Request size:%zu\n",
                                          client->pendingRequestSize());
                                   if (client->pendingRequestSize() == 0) {
                                     sendAfter(3000);
