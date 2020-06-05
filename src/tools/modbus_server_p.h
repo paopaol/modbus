@@ -1,6 +1,7 @@
 #ifndef __MODBUS_SERVER_P_H_
 #define __MODBUS_SERVER_P_H_
 
+#include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
 #include <fmt/core.h>
@@ -42,8 +43,8 @@ struct ClientSession {
 struct HandleFuncEntry {
   FunctionCode functionCode;
   DataChecker requestDataChecker;
-  std::shared_ptr<SingleBitAccess> singleBitAccess;
-  std::shared_ptr<SixteenBitAccess> sixteenBitAccess;
+  SingleBitAccess *singleBitAccess;
+  SixteenBitAccess *sixteenBitAccess;
 };
 
 class QModbusServerPrivate : public QObject {
@@ -87,8 +88,40 @@ public:
     serverAddress_ = serverAddress;
   }
 
-  void handleFunc(FunctionCode functionCode,
-                  const std::shared_ptr<SingleBitAccess> &access,
+  // read write
+  void handleCoils(Address startAddress, Quantity quantity) {
+    coils_.setStartAddress(startAddress);
+    coils_.setQuantity(quantity);
+    handleFunc(kReadCoils, &coils_);
+    handleFunc(kWriteSingleCoil, &coils_);
+    handleFunc(kWriteMultipleCoils, &coils_);
+  }
+
+  // read only
+  void handleDiscreteInputs(Address startAddress, Quantity quantity) {
+    inputDiscrete_.setStartAddress(startAddress);
+    inputDiscrete_.setQuantity(quantity);
+    handleFunc(kReadInputDiscrete, &coils_);
+  }
+
+  // read only
+  void handleInputRegisters(Address startAddress, Quantity quantity) {
+    inputRegister_.setStartAddress(startAddress);
+    inputRegister_.setQuantity(quantity);
+    handleFunc(kReadInputRegister, &inputRegister_);
+  }
+
+  // read write
+  void handleHoldingRegisters(Address startAddress, Quantity quantity) {
+    holdingRegister_.setStartAddress(startAddress);
+    holdingRegister_.setQuantity(quantity);
+    handleFunc(kReadHoldingRegisters, &holdingRegister_);
+    handleFunc(kWriteSingleRegister, &holdingRegister_);
+    handleFunc(kWriteMultipleRegisters, &holdingRegister_);
+    handleFunc(kReadWriteMultipleRegisters, &holdingRegister_);
+  }
+
+  void handleFunc(FunctionCode functionCode, SingleBitAccess *access,
                   DataChecker *requestDataChecker = nullptr) {
     HandleFuncEntry entry;
 
@@ -108,8 +141,7 @@ public:
     }
   }
 
-  void handleFunc(FunctionCode functionCode,
-                  const std::shared_ptr<SixteenBitAccess> &access,
+  void handleFunc(FunctionCode functionCode, SixteenBitAccess *access,
                   DataChecker *requestDataChecker = nullptr) {
     HandleFuncEntry entry;
 
@@ -359,20 +391,20 @@ public:
       return processReadSingleBitRequest(request, request.functionCode());
     }
     case kWriteSingleCoil: {
-      return processWriteSingleBitRequest(request);
+      return processWriteCoilRequest(request);
     }
     case kWriteMultipleCoils: {
-      return processWriteMultipleSingleBitRequest(request);
+      return processWriteCoilsRequest(request);
     }
     case kReadHoldingRegisters:
     case kReadInputRegister: {
       return processReadMultipleRegisters(request, request.functionCode());
     }
     case kWriteSingleRegister: {
-      return processWriteSingleRegister(request);
+      return processWriteHoldingRegisterRequest(request);
     }
     case kWriteMultipleRegisters: {
-      return processWriteMultipleRegisters(request);
+      return processWriteHoldingRegistersRequest(request);
     }
     default:
       smart_assert(0 && "unsuported function")(request.functionCode());
@@ -404,7 +436,7 @@ public:
     return response;
   }
 
-  Response processWriteMultipleSingleBitRequest(const Request &request) {
+  Response processWriteCoilsRequest(const Request &request) {
     FunctionCode functionCode = FunctionCode::kWriteMultipleCoils;
 
     SingleBitAccess access;
@@ -413,28 +445,12 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto &entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
+
+    auto error = dddd(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
 
-    Address reqStartAddress = access.startAddress();
-    for (size_t i = 0; i < access.quantity(); i++) {
-      Address address = reqStartAddress + i;
-      auto value = access.value(address);
-      auto error = canWriteSingleBitValue(functionCode, address, value);
-      if (error != Error::kNoError) {
-        return createErrorReponse(functionCode, error);
-      }
-    }
-
-    for (size_t i = 0; i < access.quantity(); i++) {
-      Address address = reqStartAddress + i;
-      auto value = access.value(address);
-      entry.singleBitAccess->setValue(address, value);
-    }
     Response response;
     response.setError(Error::kNoError);
     response.setFunctionCode(functionCode);
@@ -443,7 +459,53 @@ public:
     return response;
   }
 
-  Response processWriteSingleBitRequest(const Request &request) {
+  Error setCoilsInternal(SingleBitAccess *my, const SingleBitAccess *you) {
+    Address startAddress = you->startAddress();
+    auto value = you->value(startAddress);
+    if (value == BitValue::kBadValue) {
+      return Error::kIllegalDataValue;
+    }
+
+    Address reqStartAddress = you->startAddress();
+    for (size_t i = 0; i < you->quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you->value(address);
+      auto error = canWriteSingleBitValue(address, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+
+    for (size_t i = 0; i < you->quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you->value(address);
+      my->setValue(address, value);
+    }
+    return Error::kNoError;
+  }
+
+  Error dddd(FunctionCode functionCode, const Request &request,
+             SingleBitAccess &my, const SingleBitAccess &you) {
+    auto error = validateSingleBitAccess(you, my);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, my.startAddress(), my.quantity(), you.startAddress(),
+          my.quantity());
+      return error;
+    }
+    error = setCoilsInternal(&coils_, &you);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError, "invalid request ({}): bad data {}", functionCode,
+          dump(transferMode_, request.data()));
+      return error;
+    }
+    return Error::kNoError;
+  }
+
+  // coils
+  Response processWriteCoilRequest(const Request &request) {
     FunctionCode functionCode = FunctionCode::kWriteSingleCoil;
     SingleBitAccess access;
 
@@ -452,27 +514,11 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto &entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
-    if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
-    }
-    Address startAddress = access.startAddress();
-    auto value = access.value(startAddress);
-    if (value == BitValue::kBadValue) {
-      log(LogLevel::kError, "invalid request code({}): bad data {}",
-          functionCode, dump(transferMode_, request.data()));
-      return createErrorReponse(functionCode, Error::kIllegalDataValue);
-    }
-
-    // Check if it can be written
-    error = canWriteSingleBitValue(functionCode, startAddress, value);
+    auto error = dddd(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
 
-    entry.singleBitAccess->setValue(startAddress, value);
     Response response;
     response.setError(Error::kNoError);
     response.setFunctionCode(functionCode);
@@ -489,18 +535,18 @@ public:
     canWriteSixteenBitValue_ = func;
   }
 
-  Error canWriteSingleBitValue(FunctionCode functionCode, Address startAddress,
-                               BitValue value) {
+  Error canWriteSingleBitValue(Address startAddress, BitValue value) {
     if (canWriteSingleBitValue_) {
-      return canWriteSingleBitValue_(functionCode, startAddress, value);
+      return canWriteSingleBitValue_(startAddress, value);
     }
     return Error::kNoError;
   }
 
-  Error canWriteSixteenBitValue(FunctionCode functionCode, Address startAddress,
+  // TODO(jinzhao):how to use it?it's useable?
+  Error canWriteSixteenBitValue(Address startAddress,
                                 const SixteenBitValue &value) {
     if (canWriteSixteenBitValue_) {
-      return canWriteSixteenBitValue_(functionCode, startAddress, value);
+      return canWriteSixteenBitValue_(startAddress, value);
     }
     return Error::kNoError;
   }
@@ -515,9 +561,14 @@ public:
     }
 
     auto &entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSingleBitAccess(functionCode, access, *entry.singleBitAccess);
+    const auto &my = *entry.singleBitAccess;
+    auto error = validateSingleBitAccess(access, my);
     if (error != Error::kNoError) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, my.startAddress(), my.quantity(), access.startAddress(),
+          my.quantity());
       return createErrorReponse(functionCode, error);
     }
 
@@ -550,9 +601,14 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
     auto entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    const auto &my = *entry.sixteenBitAccess;
+    auto error = validateSixteenAccess(access, my);
     if (error != Error::kNoError) {
+      log(LogLevel::kError,
+          "invalid request ({}) :myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, my.startAddress(), my.quantity(), access.startAddress(),
+          access.quantity());
       return createErrorReponse(functionCode, error);
     }
 
@@ -575,13 +631,11 @@ public:
     return response;
   }
 
-  Error setRegisterValuesInternal(FunctionCode functionCode,
+  Error setRegisterValuesInternal(SixteenBitAccess *set,
                                   const SixteenBitAccess &access) {
     Q_Q(QModbusServer);
 
-    auto entry = handleFuncRouter_[functionCode];
-    auto error =
-        validateSixteenAccess(functionCode, access, *entry.sixteenBitAccess);
+    auto error = validateSixteenAccess(access, *set);
     if (error != Error::kNoError) {
       return error;
     }
@@ -591,7 +645,7 @@ public:
     for (size_t i = 0; i < quantity; i++) {
       Address reqStartAddress = access.startAddress() + i;
       auto value = access.value(reqStartAddress);
-      error = canWriteSixteenBitValue(functionCode, reqStartAddress, value);
+      error = canWriteSixteenBitValue(reqStartAddress, value);
       if (error != Error::kNoError) {
         return error;
       }
@@ -600,27 +654,58 @@ public:
     for (size_t i = 0; i < quantity; i++) {
       Address reqStartAddress = access.startAddress() + i;
       auto value = access.value(reqStartAddress);
-      auto oldValue = entry.sixteenBitAccess->value(reqStartAddress);
+      auto oldValue = set->value(reqStartAddress);
       if (oldValue.toUint16() != value.toUint16()) {
-        entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+        set->setValue(reqStartAddress, value.toUint16());
         emit q->holdingRegisterValueChanged(reqStartAddress, value);
       }
-      entry.sixteenBitAccess->setValue(reqStartAddress, value.toUint16());
+      set->setValue(reqStartAddress, value.toUint16());
     }
 
     return Error::kNoError;
   }
 
-  Error setRegisterValue(FunctionCode functionCode, Address address,
-                         const SixteenBitValue &setValue) {
+  Error setHodingRegister(Address address, const SixteenBitValue &setValue) {
     SixteenBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
     access.setValue(address, setValue.toUint16());
-    return setRegisterValuesInternal(functionCode, access);
+    auto error = setRegisterValuesInternal(&holdingRegister_, access);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError, "invalid operation(set holding register): {}",
+          error);
+      return error;
+    }
+    return Error::kNoError;
   }
 
-  Response processWriteSingleRegister(const Request &request) {
+  Error setInputRegister(Address address, const SixteenBitValue &setValue) {
+    SixteenBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+    access.setValue(address, setValue.toUint16());
+    auto error = setRegisterValuesInternal(&inputRegister_, access);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError, "invalid operation(set input register): {}", error);
+      return error;
+    }
+    return Error::kNoError;
+  }
+
+  Error setCoils(Address address, BitValue setValue) {
+    SingleBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+    access.setValue(address, setValue);
+    auto error = setCoilsInternal(&coils_, &access);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError, "invalid operation(set coils): {}", error);
+      return error;
+    }
+    return Error::kNoError;
+  }
+
+  Response processWriteHoldingRegisterRequest(const Request &request) {
     Q_Q(QModbusServer);
     SixteenBitAccess access;
     auto functionCode = kWriteSingleRegister;
@@ -631,7 +716,8 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = setRegisterValuesInternal(functionCode, access);
+    auto error = setHodingRegister(access.startAddress(),
+                                   access.value(access.startAddress()));
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -644,7 +730,7 @@ public:
     return response;
   }
 
-  Response processWriteMultipleRegisters(const Request &request) {
+  Response processWriteHoldingRegistersRequest(const Request &request) {
     SixteenBitAccess access;
     auto functionCode = kWriteMultipleRegisters;
 
@@ -654,9 +740,15 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = setRegisterValuesInternal(functionCode, access);
-    if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
+    for (int i = 0; i < access.quantity(); i++) {
+      Address address = access.startAddress() + i;
+      auto value = access.value(address);
+
+      auto error = setHodingRegister(access.startAddress(),
+                                     access.value(access.startAddress()));
+      if (error != Error::kNoError) {
+        return createErrorReponse(functionCode, error);
+      }
     }
 
     Response response;
@@ -667,8 +759,7 @@ public:
     return response;
   }
 
-  Error validateSixteenAccess(FunctionCode functionCode,
-                              const SixteenBitAccess &access,
+  Error validateSixteenAccess(const SixteenBitAccess &access,
                               const SixteenBitAccess &myAccess) {
     Address myStartAddress = myAccess.startAddress();
     Quantity myMaxQuantity = myAccess.quantity();
@@ -677,18 +768,12 @@ public:
 
     if (reqStartAddress < myStartAddress ||
         reqStartAddress + reqQuantity > myStartAddress + myMaxQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myMaxQuantity, reqStartAddress,
-          reqQuantity);
       return Error::kIllegalDataAddress;
     }
     return Error::kNoError;
   }
 
-  Error validateSingleBitAccess(FunctionCode functionCode,
-                                const SingleBitAccess &access,
+  Error validateSingleBitAccess(const SingleBitAccess &access,
                                 const SingleBitAccess &myAccess) {
     auto requestStartAddress = access.startAddress();
     auto requestQuantity = access.quantity();
@@ -697,20 +782,10 @@ public:
 
     if (requestStartAddress < myStartAddress ||
         requestStartAddress > myStartAddress + myQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myQuantity, requestStartAddress,
-          requestQuantity);
       return Error::kIllegalDataAddress;
     }
 
     if (requestStartAddress + requestQuantity > myStartAddress + myQuantity) {
-      log(LogLevel::kError,
-          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
-          "requestStartAddress({}),requestQuantity({})",
-          functionCode, myStartAddress, myQuantity, requestStartAddress,
-          requestQuantity);
       return Error::kIllegalDataAddress;
     }
     return Error::kNoError;
@@ -726,6 +801,11 @@ public:
   canWriteSingleBitValueFunc canWriteSingleBitValue_;
   canWriteSixteenBitValueFunc canWriteSixteenBitValue_;
   QModbusServer *q_ptr;
+
+  SingleBitAccess inputDiscrete_;
+  SingleBitAccess coils_;
+  SixteenBitAccess inputRegister_;
+  SixteenBitAccess holdingRegister_;
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {

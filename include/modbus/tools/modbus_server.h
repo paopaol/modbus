@@ -52,11 +52,10 @@ protected:
   HandleNewConnFunc handleNewConnFunc_;
 };
 
-using canWriteSingleBitValueFunc = std::function<Error(
-    FunctionCode functionCode, Address startAddress, BitValue value)>;
+using canWriteSingleBitValueFunc =
+    std::function<Error(Address startAddress, BitValue value)>;
 using canWriteSixteenBitValueFunc =
-    std::function<Error(FunctionCode functionCode, Address startAddress,
-                        const SixteenBitValue &value)>;
+    std::function<Error(Address startAddress, const SixteenBitValue &value)>;
 
 class QModbusServerPrivate;
 class QModbusServer : public QObject {
@@ -87,12 +86,15 @@ public:
   void setCanWriteSingleBitValueFunc(const canWriteSingleBitValueFunc &func);
   void setCanWriteSixteenBitValueFunc(const canWriteSixteenBitValueFunc &func);
 
-  void handleFunc(FunctionCode functionCode,
-                  const std::shared_ptr<SingleBitAccess> &access,
-                  DataChecker *requestDataChecker = nullptr);
-  void handleFunc(FunctionCode functionCode,
-                  const std::shared_ptr<SixteenBitAccess> &access,
-                  DataChecker *requestDataChecker = nullptr);
+  // read write
+  void handleHoldingRegisters(Address startAddress, Quantity quantity);
+  // read only
+  void handleInputRegisters(Address startAddress, Quantity quantity);
+  // read only
+  void handleDiscreteInputs(Address startAddress, Quantity quantity);
+  // read write
+  void handleCoils(Address startAddress, Quantity quantity);
+
   bool listenAndServe();
 
 signals:
