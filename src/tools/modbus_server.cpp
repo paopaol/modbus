@@ -75,18 +75,29 @@ void QModbusServer::processBrocastRequest(const Request &request) {
   d->processBrocastRequest(request);
 }
 
-void QModbusServer::handleFunc(FunctionCode functionCode,
-                               const std::shared_ptr<SingleBitAccess> &access,
-                               DataChecker *requestDataChecker) {
+// read write
+void QModbusServer::handleHoldingRegisters(Address startAddress,
+                                           Quantity quantity) {
   Q_D(QModbusServer);
-  d->handleFunc(functionCode, access, requestDataChecker);
+  d->handleHoldingRegisters(startAddress, quantity);
 }
-
-void QModbusServer::handleFunc(FunctionCode functionCode,
-                               const std::shared_ptr<SixteenBitAccess> &access,
-                               DataChecker *requestDataChecker) {
+// read only
+void QModbusServer::handleInputRegisters(Address startAddress,
+                                         Quantity quantity) {
   Q_D(QModbusServer);
-  d->handleFunc(functionCode, access, requestDataChecker);
+  d->handleInputRegisters(startAddress, quantity);
+}
+// read only
+void QModbusServer::handleDiscreteInputs(Address startAddress,
+                                         Quantity quantity) {
+  Q_D(QModbusServer);
+  d->handleDiscreteInputs(startAddress, quantity);
+}
+// read write
+void QModbusServer::handleCoils(Address startAddress, Quantity quantity) {
+
+  Q_D(QModbusServer);
+  d->handleCoils(startAddress, quantity);
 }
 
 bool QModbusServer::listenAndServe() {

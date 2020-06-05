@@ -155,13 +155,9 @@ TEST(QModbusServer, processReadCoils_success) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
-
-  accessServer->setStartAddress(0x01);
-  accessServer->setQuantity(10);
-  accessServer->setValue(0x01, BitValue::kOn);
-  accessServer->setValue(0x03, BitValue::kOn);
-  d.handleFunc(FunctionCode::kReadCoils, accessServer);
+  d.handleCoils(0x01, 10);
+  d.setCoils(0x01, BitValue::kOn);
+  d.setCoils(0x03, BitValue::kOn);
 
   SingleBitAccess access;
 
@@ -190,13 +186,9 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
-
-  accessServer->setStartAddress(0x01);
-  accessServer->setQuantity(10);
-  accessServer->setValue(0x01, BitValue::kOn);
-  accessServer->setValue(0x03, BitValue::kOn);
-  d.handleFunc(FunctionCode::kReadCoils, accessServer);
+  d.handleCoils(0x01, 10);
+  d.setCoils(0x01, BitValue::kOn);
+  d.setCoils(0x03, BitValue::kOn);
 
   SingleBitAccess access;
 
@@ -220,11 +212,7 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
-
-  accessServer->setStartAddress(0x01);
-  accessServer->setQuantity(10);
-  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleCoils(0x01, 10);
 
   SingleBitAccess access;
 
@@ -250,11 +238,8 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
-  accessServer->setStartAddress(0x99);
-  accessServer->setQuantity(10);
-  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleCoils(0x99, 10);
 
   SingleBitAccess access;
 
@@ -280,11 +265,8 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
 
-  accessServer->setStartAddress(0x01);
-  accessServer->setQuantity(10);
-  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleCoils(0x01, 10);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             ByteArray({0x00, 0x01, 0xff, 0xff}),
@@ -305,14 +287,9 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
   d.setCanWriteSingleBitValueFunc(
-      [&](FunctionCode functionCode, Address address, BitValue value) {
-        return Error::kSlaveDeviceBusy;
-      });
-  std::shared_ptr<SingleBitAccess> accessServer(new SingleBitAccess);
+      [&](Address address, BitValue value) { return Error::kSlaveDeviceBusy; });
 
-  accessServer->setStartAddress(0x01);
-  accessServer->setQuantity(10);
-  d.handleFunc(FunctionCode::kWriteSingleCoil, accessServer);
+  d.handleCoils(0x01, 10);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             ByteArray({0x00, 0x01, 0x00, 0x00}),
@@ -333,10 +310,7 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SingleBitAccess> access(new SingleBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  d.handleFunc(FunctionCode::kWriteMultipleCoils, access);
+  d.handleCoils(0x00, 0x10);
 
   Request request(createAdu(
       0x01, FunctionCode::kWriteMultipleCoils,
@@ -355,10 +329,7 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SingleBitAccess> access(new SingleBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  d.handleFunc(FunctionCode::kWriteMultipleCoils, access);
+  d.handleCoils(0x00, 0x10);
 
   Request request(createAdu(
       0x01, FunctionCode::kWriteMultipleCoils,
@@ -377,13 +348,10 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kReadInputRegister, access);
+  d.handleInputRegisters(0x00, 0x10);
+  d.setInputRegister(0x00, SixteenBitValue(0x1234));
+  d.setInputRegister(0x01, SixteenBitValue(0x5678));
+  d.setInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x00, 0x00, 0x03}),
@@ -403,13 +371,10 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kReadInputRegister, access);
+  d.handleInputRegisters(0x00, 0x10);
+  d.setInputRegister(0x00, SixteenBitValue(0x1234));
+  d.setInputRegister(0x01, SixteenBitValue(0x5678));
+  d.setInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x99, 0x00, 0x03}),
@@ -428,13 +393,10 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kReadInputRegister, access);
+  d.handleInputRegisters(0x00, 0x10);
+  d.setInputRegister(0x00, SixteenBitValue(0x1234));
+  d.setInputRegister(0x01, SixteenBitValue(0x5678));
+  d.setInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -453,13 +415,10 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
+  d.handleHoldingRegisters(0x00, 0x10);
+  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -478,13 +437,10 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
+  d.handleHoldingRegisters(0x00, 0x10);
+  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x88, 0x00, 0x09}),
@@ -503,16 +459,14 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
   d.setCanWriteSixteenBitValueFunc(
-      [&](FunctionCode functionCode, Address address,
-          const SixteenBitValue &value) { return Error::kIllegalDataValue; });
+      [&](Address address, const SixteenBitValue &value) {
+        return Error::kIllegalDataValue;
+      });
 
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kWriteSingleRegister, access);
+  d.handleHoldingRegisters(0x00, 0x10);
+  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -530,13 +484,11 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kWriteMultipleRegisters, access);
+
+  d.handleHoldingRegisters(0x00, 0x10);
+  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(
       0x01, FunctionCode::kWriteMultipleRegisters,
@@ -555,13 +507,11 @@ TEST(QModbusServer, updateValueSixteenValue_success) {
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
-  std::shared_ptr<SixteenBitAccess> access(new SixteenBitAccess);
-  access->setStartAddress(0x00);
-  access->setQuantity(0x10);
-  access->setValue(0x00, 0x1234);
-  access->setValue(0x01, 0x5678);
-  access->setValue(0x02, 0x9876);
-  d.handleFunc(FunctionCode::kWriteMultipleRegisters, access);
+
+  d.handleHoldingRegisters(0x00, 0x10);
+  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
 
   SixteenBitValue setValue(0xab, 0xcd);
   bool ok = d.updateValue(FunctionCode::kWriteMultipleRegisters, Address(0x02),
