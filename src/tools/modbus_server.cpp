@@ -100,6 +100,48 @@ void QModbusServer::handleCoils(Address startAddress, Quantity quantity) {
   d->handleCoils(startAddress, quantity);
 }
 
+bool QModbusServer::holdingRegisterValue(Address address,
+                                         SixteenBitValue *value) {
+  Q_D(QModbusServer);
+  return d->holdingRegisterValue(address, value);
+}
+
+bool QModbusServer::inputRegisterValue(Address address,
+                                       SixteenBitValue *value) {
+  Q_D(QModbusServer);
+  return d->inputRegisterValue(address, value);
+}
+
+bool QModbusServer::coilsValue(Address address, BitValue *value) {
+  Q_D(QModbusServer);
+  return d->coilsValue(address, value);
+}
+
+bool QModbusServer::inputDiscreteValue(Address address, BitValue *value) {
+  Q_D(QModbusServer);
+  return d->inputDiscreteValue(address, value);
+}
+
+Error QModbusServer::writeCoils(Address address, BitValue setValue) {
+  Q_D(QModbusServer);
+  return d->writeCoils(address, setValue);
+}
+
+Error QModbusServer::writeInputDiscrete(Address address, BitValue setValue) {
+  Q_D(QModbusServer);
+  return d->writeInputDiscrete(address, setValue);
+}
+Error QModbusServer::writeInputRegister(Address address,
+                                        const SixteenBitValue &setValue) {
+  Q_D(QModbusServer);
+  return d->writeInputRegister(address, setValue);
+}
+Error QModbusServer::writeHodingRegister(Address address,
+                                         const SixteenBitValue &setValue) {
+  Q_D(QModbusServer);
+  return d->writeHodingRegister(address, setValue);
+}
+
 bool QModbusServer::listenAndServe() {
   Q_D(QModbusServer);
   return d->listenAndServe();

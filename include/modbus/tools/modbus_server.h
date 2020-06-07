@@ -95,6 +95,18 @@ public:
   // read write
   void handleCoils(Address startAddress, Quantity quantity);
 
+  // read
+  bool holdingRegisterValue(Address address, SixteenBitValue *value);
+  bool inputRegisterValue(Address address, SixteenBitValue *value);
+  bool coilsValue(Address address, BitValue *value);
+  bool inputDiscreteValue(Address address, BitValue *value);
+
+  // write
+  Error writeCoils(Address address, BitValue setValue);
+  Error writeInputDiscrete(Address address, BitValue setValue);
+  Error writeInputRegister(Address address, const SixteenBitValue &setValue);
+  Error writeHodingRegister(Address address, const SixteenBitValue &setValue);
+
   bool listenAndServe();
 
 signals:
