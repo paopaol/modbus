@@ -349,9 +349,9 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.setInputRegister(0x00, SixteenBitValue(0x1234));
-  d.setInputRegister(0x01, SixteenBitValue(0x5678));
-  d.setInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
+  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
+  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x00, 0x00, 0x03}),
@@ -372,9 +372,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.setInputRegister(0x00, SixteenBitValue(0x1234));
-  d.setInputRegister(0x01, SixteenBitValue(0x5678));
-  d.setInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
+  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
+  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x99, 0x00, 0x03}),
@@ -394,9 +394,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.setInputRegister(0x00, SixteenBitValue(0x1234));
-  d.setInputRegister(0x01, SixteenBitValue(0x5678));
-  d.setInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
+  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
+  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -416,9 +416,9 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -438,9 +438,9 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x88, 0x00, 0x09}),
@@ -464,9 +464,9 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
       });
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -486,9 +486,9 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
   Request request(createAdu(
       0x01, FunctionCode::kWriteMultipleRegisters,
@@ -509,9 +509,9 @@ TEST(QModbusServer, updateValueSixteenValue_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.setHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.setHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.setHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
+  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
+  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
   SixteenBitValue setValue(0xab, 0xcd);
   bool ok = d.updateValue(FunctionCode::kWriteMultipleRegisters, Address(0x02),

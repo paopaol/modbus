@@ -9,6 +9,12 @@
 #include <modbus/tools/modbus_server.h>
 
 namespace modbus {
+enum class StorageKind {
+  kCoils,
+  kInputDiscrete,
+  kHoldingRegisters,
+  kInputRegisters
+};
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
 static void appendByteArray(ByteArray &array, const std::vector<char> &carray);
@@ -446,7 +452,7 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = dddd(functionCode, request, coils_, access);
+    auto error = writeCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -459,7 +465,9 @@ public:
     return response;
   }
 
-  Error setCoilsInternal(SingleBitAccess *my, const SingleBitAccess *you) {
+  Error writeCoilsInternal(StorageKind kind, SingleBitAccess *my,
+                           const SingleBitAccess *you) {
+    Q_Q(QModbusServer);
     Address startAddress = you->startAddress();
     auto value = you->value(startAddress);
     if (value == BitValue::kBadValue) {
@@ -479,13 +487,21 @@ public:
     for (size_t i = 0; i < you->quantity(); i++) {
       Address address = reqStartAddress + i;
       auto value = you->value(address);
-      my->setValue(address, value);
+      auto oldValue = my->value(address);
+      if (value != oldValue) {
+        my->setValue(address, value);
+        if (kind == StorageKind::kCoils) {
+          emit q->coilsValueChanged(address, value);
+        } else if (kind == StorageKind::kInputDiscrete) {
+          emit q->inputDiscreteValueChanged(address, value);
+        }
+      }
     }
     return Error::kNoError;
   }
 
-  Error dddd(FunctionCode functionCode, const Request &request,
-             SingleBitAccess &my, const SingleBitAccess &you) {
+  Error writeCoils(FunctionCode functionCode, const Request &request,
+                   SingleBitAccess &my, const SingleBitAccess &you) {
     auto error = validateSingleBitAccess(you, my);
     if (error != Error::kNoError) {
       log(LogLevel::kError,
@@ -495,7 +511,7 @@ public:
           my.quantity());
       return error;
     }
-    error = setCoilsInternal(&coils_, &you);
+    error = writeCoilsInternal(StorageKind::kCoils, &coils_, &you);
     if (error != Error::kNoError) {
       log(LogLevel::kError, "invalid request ({}): bad data {}", functionCode,
           dump(transferMode_, request.data()));
@@ -514,7 +530,7 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto error = dddd(functionCode, request, coils_, access);
+    auto error = writeCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -631,8 +647,8 @@ public:
     return response;
   }
 
-  Error setRegisterValuesInternal(SixteenBitAccess *set,
-                                  const SixteenBitAccess &access) {
+  Error writeRegisterValuesInternal(StorageKind kind, SixteenBitAccess *set,
+                                    const SixteenBitAccess &access) {
     Q_Q(QModbusServer);
 
     auto error = validateSixteenAccess(access, *set);
@@ -657,7 +673,11 @@ public:
       auto oldValue = set->value(reqStartAddress);
       if (oldValue.toUint16() != value.toUint16()) {
         set->setValue(reqStartAddress, value.toUint16());
-        emit q->holdingRegisterValueChanged(reqStartAddress, value);
+        if (kind == StorageKind::kHoldingRegisters) {
+          emit q->holdingRegisterValueChanged(reqStartAddress, value);
+        } else if (kind == StorageKind::kInputRegisters) {
+          emit q->inputRegisterValueChanged(reqStartAddress, value);
+        }
       }
       set->setValue(reqStartAddress, value.toUint16());
     }
@@ -665,12 +685,13 @@ public:
     return Error::kNoError;
   }
 
-  Error setHodingRegister(Address address, const SixteenBitValue &setValue) {
+  Error writeHodingRegister(Address address, const SixteenBitValue &setValue) {
     SixteenBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
     access.setValue(address, setValue.toUint16());
-    auto error = setRegisterValuesInternal(&holdingRegister_, access);
+    auto error = writeRegisterValuesInternal(StorageKind::kHoldingRegisters,
+                                             &holdingRegister_, access);
     if (error != Error::kNoError) {
       log(LogLevel::kError, "invalid operation(set holding register): {}",
           error);
@@ -679,12 +700,13 @@ public:
     return Error::kNoError;
   }
 
-  Error setInputRegister(Address address, const SixteenBitValue &setValue) {
+  Error writeInputRegister(Address address, const SixteenBitValue &setValue) {
     SixteenBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
     access.setValue(address, setValue.toUint16());
-    auto error = setRegisterValuesInternal(&inputRegister_, access);
+    auto error = writeRegisterValuesInternal(StorageKind::kInputRegisters,
+                                             &inputRegister_, access);
     if (error != Error::kNoError) {
       log(LogLevel::kError, "invalid operation(set input register): {}", error);
       return error;
@@ -692,12 +714,12 @@ public:
     return Error::kNoError;
   }
 
-  Error setCoils(Address address, BitValue setValue) {
+  Error writeCoils(Address address, BitValue setValue) {
     SingleBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
     access.setValue(address, setValue);
-    auto error = setCoilsInternal(&coils_, &access);
+    auto error = writeCoilsInternal(StorageKind::kCoils, &coils_, &access);
     if (error != Error::kNoError) {
       log(LogLevel::kError, "invalid operation(set coils): {}", error);
       return error;
@@ -716,8 +738,8 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = setHodingRegister(access.startAddress(),
-                                   access.value(access.startAddress()));
+    auto error = writeHodingRegister(access.startAddress(),
+                                     access.value(access.startAddress()));
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -744,8 +766,8 @@ public:
       Address address = access.startAddress() + i;
       auto value = access.value(address);
 
-      auto error = setHodingRegister(access.startAddress(),
-                                     access.value(access.startAddress()));
+      auto error = writeHodingRegister(access.startAddress(),
+                                       access.value(access.startAddress()));
       if (error != Error::kNoError) {
         return createErrorReponse(functionCode, error);
       }
