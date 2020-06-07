@@ -98,8 +98,14 @@ public:
   bool listenAndServe();
 
 signals:
+  // if register of value changed, these signals will emited
   void holdingRegisterValueChanged(Address address,
                                    const SixteenBitValue &value);
+  void inputRegisterValueChanged(Address address, const SixteenBitValue &value);
+
+  // if coils/input discrete value changed,, these signal will emited
+  void coilsValueChanged(Address address, const BitValue &value);
+  void inputDiscreteValueChanged(Address, const BitValue &value);
 
 protected:
   virtual Response processRequest(const Request &request);
