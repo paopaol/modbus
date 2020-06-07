@@ -793,8 +793,7 @@ public:
       Address address = access.startAddress() + i;
       auto value = access.value(address);
 
-      auto error = writeHodingRegister(access.startAddress(),
-                                       access.value(access.startAddress()));
+      auto error = writeHodingRegister(address, value);
       if (error != Error::kNoError) {
         return createErrorReponse(functionCode, error);
       }
