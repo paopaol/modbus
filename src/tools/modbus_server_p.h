@@ -196,35 +196,48 @@ public:
     return true;
   }
 
-  bool value(FunctionCode functionCode, Address address,
-             SixteenBitValue *value) {
-    smart_assert(functionCode == FunctionCode::kWriteSingleRegister ||
-                 functionCode == FunctionCode::kWriteMultipleRegisters ||
-                 functionCode == FunctionCode::kReadInputRegister ||
-                 functionCode == FunctionCode::kReadHoldingRegisters &&
-                     "invalud function code")(functionCode);
-
+  bool registerValue(const SixteenBitAccess &access, Address address,
+                     SixteenBitValue *value) {
     if (!value) {
       return false;
     }
-    auto entry = handleFuncRouter_.find(functionCode);
-    if (entry == handleFuncRouter_.end()) {
-      log(LogLevel::kWarning,
-          fmt::format("function code[{}] not supported", functionCode));
-      return false;
-    }
     bool ok = true;
-    auto v = entry->sixteenBitAccess->value(address, &ok);
+    auto v = access.value(address, &ok);
     if (!ok) {
       log(LogLevel::kWarning,
           "address out of range.function "
-          "code:{} address:{} [start {} quantity {}]",
-          functionCode, address, entry->sixteenBitAccess->startAddress(),
-          entry->sixteenBitAccess->quantity());
+          "address:{} [start {} quantity {}]",
+          address, access.startAddress(), access.quantity());
       return false;
     }
     *value = v;
     return true;
+  }
+
+  bool coilsValue(const SingleBitAccess &access, Address address,
+                  BitValue *value) {
+    if (!value) {
+      return false;
+    }
+    auto v = access.value(address);
+    *value = v;
+    return true;
+  }
+
+  bool holdingRegisterValue(Address address, SixteenBitValue *value) {
+    return registerValue(holdingRegister_, address, value);
+  }
+
+  bool inputRegisterValue(Address address, SixteenBitValue *value) {
+    return registerValue(inputRegister_, address, value);
+  }
+
+  bool coilsValue(Address address, BitValue *value) {
+    return coilsValue(coils_, address, value);
+  }
+
+  bool inputDiscreteValue(Address address, BitValue *value) {
+    return coilsValue(inputDiscrete_, address, value);
   }
 
   void setServer(AbstractServer *server) { server_ = server; }
@@ -709,6 +722,20 @@ public:
                                              &inputRegister_, access);
     if (error != Error::kNoError) {
       log(LogLevel::kError, "invalid operation(set input register): {}", error);
+      return error;
+    }
+    return Error::kNoError;
+  }
+
+  Error writeInputDiscrete(Address address, BitValue setValue) {
+    SingleBitAccess access;
+    access.setStartAddress(address);
+    access.setQuantity(1);
+    access.setValue(address, setValue);
+    auto error = writeCoilsInternal(StorageKind::kInputDiscrete,
+                                    &inputDiscrete_, &access);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError, "invalid operation(set coils): {}", error);
       return error;
     }
     return Error::kNoError;

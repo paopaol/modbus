@@ -156,8 +156,8 @@ TEST(QModbusServer, processReadCoils_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.setCoils(0x01, BitValue::kOn);
-  d.setCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, BitValue::kOn);
+  d.writeCoils(0x03, BitValue::kOn);
 
   SingleBitAccess access;
 
@@ -187,8 +187,8 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.setCoils(0x01, BitValue::kOn);
-  d.setCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, BitValue::kOn);
+  d.writeCoils(0x03, BitValue::kOn);
 
   SingleBitAccess access;
 
@@ -500,10 +500,12 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x01}));
 }
 
-TEST(QModbusServer, updateValueSixteenValue_success) {
+TEST(QModbusServer, writeValueSixteenValue_success) {
   TestServer server;
   QModbusServer modbusServer(&server);
   QModbusServerPrivate d(&modbusServer);
+
+  QSignalSpy spy(&modbusServer, &QModbusServer::holdingRegisterValueChanged);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
@@ -513,14 +515,12 @@ TEST(QModbusServer, updateValueSixteenValue_success) {
   d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
   d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
 
-  SixteenBitValue setValue(0xab, 0xcd);
-  bool ok = d.updateValue(FunctionCode::kWriteMultipleRegisters, Address(0x02),
-                          setValue);
-  EXPECT_EQ(ok, true);
+  EXPECT_EQ(spy.count(), 3);
+
   SixteenBitValue value;
-  ok = d.value(FunctionCode::kWriteMultipleRegisters, 0x02, &value);
+  bool ok = d.holdingRegisterValue(0x02, &value);
   EXPECT_EQ(ok, true);
-  EXPECT_EQ(value.toUint16(), setValue.toUint16());
+  EXPECT_EQ(value.toUint16(), SixteenBitValue(0x9876).toUint16());
 }
 
 static Adu createAdu(ServerAddress serverAddress, FunctionCode functionCode,
