@@ -482,6 +482,8 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   QModbusServer modbusServer(&server);
   QModbusServerPrivate d(&modbusServer);
 
+  QSignalSpy spy(&modbusServer, &QModbusServer::holdingRegisterValueChanged);
+
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
@@ -498,6 +500,7 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x01}));
+  EXPECT_EQ(spy.count(), 4);
 }
 
 TEST(QModbusServer, writeValueSixteenValue_success) {
