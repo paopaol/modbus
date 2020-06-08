@@ -1,4 +1,6 @@
 #include "modbus_server_p.h"
+#include <QUrl>
+#include <algorithm>
 #include <modbus/base/single_bit_access.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_server.h>
@@ -145,6 +147,69 @@ Error QModbusServer::writeHodingRegister(Address address,
 bool QModbusServer::listenAndServe() {
   Q_D(QModbusServer);
   return d->listenAndServe();
+}
+
+namespace internal {
+struct Config {
+  QString scheme;
+
+  QString serialName;
+  QSerialPort::BaudRate baudRate;
+  QSerialPort::DataBits dataBits;
+  QSerialPort::Parity parity;
+  QSerialPort::StopBits stopBits;
+
+  uint16_t port;
+};
+
+Config parseConfig(const QString &url) {
+  Config config;
+  QUrl qurl(url);
+
+  config.scheme = qurl.scheme();
+  config.port = qurl.port(502);
+  QString host = qurl.host();
+  config.serialName = qurl.path().mid(1);
+
+  QString query = qurl.query();
+  QStringList serialConfig = query.split("-");
+  if (serialConfig.size() != 4) {
+    serialConfig = QString("9600-8-n-1").split("-");
+  }
+  static QMap<QString, QSerialPort::Parity> parties = {
+      {"n", QSerialPort::NoParity},   {"e", QSerialPort::EvenParity},
+      {"o", QSerialPort::OddParity},  {"N", QSerialPort::NoParity},
+      {"E", QSerialPort::EvenParity}, {"O", QSerialPort::OddParity}};
+  config.baudRate = static_cast<QSerialPort::BaudRate>(serialConfig[0].toInt());
+  config.dataBits = static_cast<QSerialPort::DataBits>(serialConfig[1].toInt());
+  config.parity = parties[serialConfig[2]];
+  config.stopBits = static_cast<QSerialPort::StopBits>(serialConfig[3].toInt());
+  return config;
+}
+} // namespace internal
+
+QModbusServer *createServer(const QString &url, QObject *parent) {
+  static const QStringList schemaSupported = {"file", "tcp"};
+  internal::Config config = internal::parseConfig(url);
+
+  bool ok =
+      std::any_of(schemaSupported.begin(), schemaSupported.end(),
+                  [config](const QString &el) { return config.scheme == el; });
+  if (!ok) {
+    log(LogLevel::kError, "unsupported scheme {}, see file:/// or tcp:// ",
+        config.scheme.toStdString());
+    return nullptr;
+  }
+
+  log(LogLevel::kInfo, "instanced modbus server on {}", url.toStdString());
+  if (config.scheme == "file") {
+    return createQModbusSerialServer(config.serialName, config.baudRate,
+                                     config.dataBits, config.parity,
+                                     config.stopBits);
+  } else if (config.scheme == "tcp") {
+    return createQModbusTcpServer(config.port, parent);
+  }
+  return nullptr;
 }
 
 } // namespace modbus
