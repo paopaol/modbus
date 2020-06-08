@@ -4,8 +4,8 @@
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
-  // auto modbusServer = modbus::createQModbusTcpServer(33333);
-  auto modbusServer = modbus::createQModbusSerialServer("COM1");
+  // auto modbusServer = modbus::createServer("tcp://:502");
+  auto modbusServer = modbus::createServer("file:///COM1?9600-8-p-1");
 
   modbusServer->setServerAddress(0x01);
   modbusServer->setTransferMode(modbus::TransferMode::kAscii);

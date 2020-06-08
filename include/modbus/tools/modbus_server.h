@@ -138,19 +138,16 @@ QModbusServer *createQModbusSerialServer(
 QModbusServer *createQModbusTcpServer(uint16_t port = 502,
                                       QObject *parent = nullptr);
 
-class QModbusServerCreater {
-public:
-  // url format:
-  // baud rate:1200/2400/4800/9600/115200
-  // data bits: 5/6/7/8
-  // parity:n(NoParity)/e(EvenParity)
-  // stop bits:1/2
-  //
-  // modbus-serial://COM1/?9600-8-n-1
-  // modbus-serial:///dev/ttyS0/?9600-8-n-1
-  // modbus-tcp://:502/
-  static QModbusServer *create(const QString &url, QObject *parent = nullptr);
-};
+// url format:
+// baud rate:1200/2400/4800/9600/115200
+// data bits: 5/6/7/8
+// parity:n(NoParity)/e(EvenParity)/o(OddParity)
+// stop bits:1/2
+//
+// file:///COM1/?9600-8-n-1
+// file:///dev/ttyS0/?9600-8-n-1
+// tcp://:502/
+QModbusServer *createServer(const QString &url, QObject *parent = nullptr);
 
 } // namespace modbus
 
