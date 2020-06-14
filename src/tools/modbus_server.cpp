@@ -8,6 +8,8 @@
 namespace modbus {
 QModbusServer::QModbusServer(AbstractServer *server, QObject *parent)
     : QObject(parent), d_ptr(new QModbusServerPrivate(this)) {
+  qRegisterMetaType<SixteenBitValue>("SixteenBitValue");
+  qRegisterMetaType<BitValue>("BitValue");
   Q_D(QModbusServer);
   d->setServer(server);
   d->setEnv();
@@ -189,7 +191,7 @@ Config parseConfig(const QString &url) {
 } // namespace internal
 
 QModbusServer *createServer(const QString &url, QObject *parent) {
-  static const QStringList schemaSupported = {"file", "tcp"};
+  static const QStringList schemaSupported = {"modbus.file", "modbus.tcp"};
   internal::Config config = internal::parseConfig(url);
 
   bool ok =
@@ -205,7 +207,7 @@ QModbusServer *createServer(const QString &url, QObject *parent) {
   if (config.scheme == "file") {
     return createQModbusSerialServer(config.serialName, config.baudRate,
                                      config.dataBits, config.parity,
-                                     config.stopBits);
+                                     config.stopBits, parent);
   } else if (config.scheme == "tcp") {
     return createQModbusTcpServer(config.port, parent);
   }

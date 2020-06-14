@@ -5,6 +5,7 @@
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_server.h>
 
@@ -706,7 +707,7 @@ public:
     auto error = writeRegisterValuesInternal(StorageKind::kHoldingRegisters,
                                              &holdingRegister_, access);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid operation(set holding register): {}",
+      log(LogLevel::kError, "invalid operation write holding register {}",
           error);
       return error;
     }

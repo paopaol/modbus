@@ -151,4 +151,5 @@ QModbusServer *createServer(const QString &url, QObject *parent = nullptr);
 
 } // namespace modbus
 
+
 #endif // __MODBUS_SERVER_H_
