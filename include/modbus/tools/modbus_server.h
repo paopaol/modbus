@@ -144,9 +144,9 @@ QModbusServer *createQModbusTcpServer(uint16_t port = 502,
 // parity:n(NoParity)/e(EvenParity)/o(OddParity)
 // stop bits:1/2
 //
-// file:///COM1/?9600-8-n-1
-// file:///dev/ttyS0/?9600-8-n-1
-// tcp://:502/
+// modbus.file:///COM1/?9600-8-n-1
+// modbus.file:///dev/ttyS0/?9600-8-n-1
+// modbus.tcp://:502/
 QModbusServer *createServer(const QString &url, QObject *parent = nullptr);
 
 } // namespace modbus
