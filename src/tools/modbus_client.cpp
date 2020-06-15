@@ -1,4 +1,5 @@
 #include "modbus_client_p.h"
+#include "modbus_url_parser.h"
 #include <QTimer>
 #include <algorithm>
 #include <assert.h>
@@ -677,6 +678,37 @@ Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
   request.setData(data);
 
   return request;
+}
+
+QModbusClient *createClient(const QString &url, QObject *parent) {
+  static const QStringList schemaSupported = {"modbus.file", "modbus.tcp",
+                                              "modbus.udp"};
+  internal::Config config = internal::parseConfig(url);
+
+  bool ok =
+      std::any_of(schemaSupported.begin(), schemaSupported.end(),
+                  [config](const QString &el) { return config.scheme == el; });
+  if (!ok) {
+    log(LogLevel::kError,
+        "unsupported scheme {}, see modbus.file:/// or modbus.tcp:// or "
+        "modbus.udp://",
+        config.scheme.toStdString());
+    return nullptr;
+  }
+
+  log(LogLevel::kInfo, "instanced modbus client on {}", url.toStdString());
+  if (config.scheme == "modbus.file") {
+    return newQtSerialClient(config.serialName, config.baudRate,
+                             config.dataBits, config.parity, config.stopBits,
+                             parent);
+  } else if (config.scheme == "modbus.tcp") {
+    return newSocketClient(QAbstractSocket::TcpSocket, config.host, config.port,
+                           parent);
+  } else if (config.scheme == "modbus.udp") {
+    return newSocketClient(QAbstractSocket::UdpSocket, config.host, config.port,
+                           parent);
+  }
+  return nullptr;
 }
 
 } // namespace modbus

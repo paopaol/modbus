@@ -237,6 +237,17 @@ newQtSerialClient(const QString &serialName,
 QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
                                const QString &hostName, quint16 port,
                                QObject *parent = nullptr);
+// url format:
+// baud rate:1200/2400/4800/9600/115200
+// data bits: 5/6/7/8
+// parity:n(NoParity)/e(EvenParity)/o(OddParity)
+// stop bits:1/2
+//
+// modbus.file:///COM1/?9600-8-n-1
+// modbus.file:///dev/ttyS0/?9600-8-n-1
+// modbus.tcp://192.168.4.66:502/
+// modbus.udp://192.168.4.66:502/
+QModbusClient *createClient(const QString &url, QObject *parent = nullptr);
 
 } // namespace modbus
 Q_DECLARE_METATYPE(modbus::Response);
