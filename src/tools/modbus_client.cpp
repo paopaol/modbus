@@ -63,10 +63,10 @@ void QModbusClient::sendRequest(const Request &request) {
    * out*/
   auto element = createElement(request);
 
-  element.requestFrame = createModebusFrame(d->transferMode_);
+  element.requestFrame = createModbusFrame(d->transferMode_);
   element.requestFrame->setAdu(element.request);
 
-  element.responseFrame = createModebusFrame(d->transferMode_);
+  element.responseFrame = createModbusFrame(d->transferMode_);
   element.responseFrame->setAdu(element.response);
 
   element.retryTimes = d->retryTimes_;

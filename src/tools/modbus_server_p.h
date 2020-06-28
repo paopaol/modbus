@@ -323,7 +323,7 @@ public:
   ProcessResult processModbusRequest(const BytesBufferPtr &buffer,
                                      std::shared_ptr<Frame> &requestFrame,
                                      std::shared_ptr<Frame> &responseFrame) {
-    requestFrame = createModebusFrame(transferMode_);
+    requestFrame = createModbusFrame(transferMode_);
     auto data = byteArrayFromBuffer(*buffer);
 
     /**
@@ -357,7 +357,7 @@ public:
      */
     if (!handleFuncRouter_.contains(functionCode)) {
       buffer->Reset();
-      responseFrame = createModebusFrame(transferMode_);
+      responseFrame = createModbusFrame(transferMode_);
       responseFrame->setAdu(
           createErrorReponse(functionCode, Error::kIllegalFunctionCode));
       return ProcessResult::kBadFunctionCode;
@@ -380,7 +380,7 @@ public:
 
     if (result == DataChecker::Result::kFailed) {
       buffer->Reset();
-      responseFrame = createModebusFrame(transferMode_);
+      responseFrame = createModbusFrame(transferMode_);
       responseFrame->setAdu(
           createErrorReponse(functionCode, Error::kStorageParityError));
       return ProcessResult::kStorageParityError;
@@ -398,7 +398,7 @@ public:
       return ProcessResult::kBroadcast;
     }
 
-    responseFrame = createModebusFrame(transferMode_);
+    responseFrame = createModbusFrame(transferMode_);
     responseFrame->setAdu(processRequest(request));
     return ProcessResult::kSuccess;
   }

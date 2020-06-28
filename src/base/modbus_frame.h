@@ -292,7 +292,7 @@ private:
   static const int kProtocolId = 0;
 };
 
-inline std::shared_ptr<Frame> createModebusFrame(TransferMode mode) {
+inline std::shared_ptr<Frame> createModbusFrame(TransferMode mode) {
   switch (mode) {
   case TransferMode::kRtu:
     return std::make_shared<RtuFrame>();
