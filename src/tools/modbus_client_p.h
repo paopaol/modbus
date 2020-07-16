@@ -35,7 +35,10 @@ class QModbusClientPrivate : public QObject {
   Q_OBJECT
 public:
   QModbusClientPrivate(AbstractIoDevice *serialPort, QObject *parent = nullptr)
-      : device_(serialPort, this), QObject(parent) {}
+      : QObject(parent) {
+    device_ = new ReconnectableIoDevice(serialPort, this);
+    waitResponseTimer_ = new QTimer(this);
+  }
   ~QModbusClientPrivate() {}
 
   void enqueueElement(const Element &element) {
@@ -70,8 +73,8 @@ public:
       auto &ele = elementQueue_.front();
       auto data = ele.requestFrame->marshal();
 
-      log(LogLevel::kDebug, "{} will send: {}", device_.name(), dump(data));
-      device_.write((const char *)data.data(), data.size());
+      log(LogLevel::kDebug, "{} will send: {}", device_->name(), dump(data));
+      device_->write((const char *)data.data(), data.size());
     });
   }
 
@@ -92,12 +95,12 @@ public:
    */
   ElementQueue elementQueue_;
   StateManager<SessionState> sessionState_;
-  ReconnectableIoDevice device_;
+  ReconnectableIoDevice *device_ = nullptr;
   int waitConversionDelay_;
   int t3_5_;
   int waitResponseTimeout_;
   int retryTimes_;
-  QTimer waitResponseTimer_;
+  QTimer *waitResponseTimer_ = nullptr;
   QString errorString_;
 
   /// the default transfer mode must be rtu mode
@@ -114,7 +117,7 @@ public:
   ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
                                QObject *parent = nullptr)
       : ioDevice_(iodevice), QObject(parent) {
-      ioDevice_->setParent(this);
+    ioDevice_->setParent(this);
   }
   ~ReconnectableIoDevicePrivate() {}
 

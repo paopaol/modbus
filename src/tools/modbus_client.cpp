@@ -38,7 +38,7 @@ QModbusClient::~QModbusClient() {}
 void QModbusClient::open() {
   Q_D(QModbusClient);
 
-  d->device_.open();
+  d->device_->open();
   return;
 }
 
@@ -48,14 +48,14 @@ void QModbusClient::open() {
  */
 void QModbusClient::close() {
   Q_D(QModbusClient);
-  d->device_.close();
+  d->device_->close();
 }
 
 void QModbusClient::sendRequest(const Request &request) {
   Q_D(QModbusClient);
 
   if (!isOpened()) {
-    log(LogLevel::kWarning, "{} closed, discard reuqest", d->device_.name());
+    log(LogLevel::kWarning, "{} closed, discard reuqest", d->device_->name());
     return;
   }
 
@@ -222,12 +222,12 @@ bool QModbusClient::isIdle() {
 
 bool QModbusClient::isClosed() {
   Q_D(QModbusClient);
-  return d->device_.isClosed();
+  return d->device_->isClosed();
 }
 
 bool QModbusClient::isOpened() {
   Q_D(QModbusClient);
-  return d->device_.isOpened();
+  return d->device_->isOpened();
 }
 
 void QModbusClient::setupEnvironment() {
@@ -244,23 +244,23 @@ void QModbusClient::setupEnvironment() {
 
   Q_D(QModbusClient);
 
-  connect(&d->device_, &ReconnectableIoDevice::opened, this,
+  connect(d->device_, &ReconnectableIoDevice::opened, this,
           &QModbusClient::clientOpened);
-  connect(&d->device_, &ReconnectableIoDevice::closed, this,
+  connect(d->device_, &ReconnectableIoDevice::closed, this,
           &QModbusClient::clientClosed);
-  connect(&d->device_, &ReconnectableIoDevice::error, this,
+  connect(d->device_, &ReconnectableIoDevice::error, this,
           &QModbusClient::clearPendingRequest);
-  connect(&d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+  connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
           this, &QModbusClient::clearPendingRequest);
-  connect(&d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+  connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
           this, &QModbusClient::connectionIsLostWillReconnect);
-  connect(&d->device_, &ReconnectableIoDevice::error, this,
+  connect(d->device_, &ReconnectableIoDevice::error, this,
           &QModbusClient::onIoDeviceError);
-  connect(&d->device_, &ReconnectableIoDevice::bytesWritten, this,
+  connect(d->device_, &ReconnectableIoDevice::bytesWritten, this,
           &QModbusClient::onIoDeviceBytesWritten);
-  connect(&d->device_, &ReconnectableIoDevice::readyRead, this,
+  connect(d->device_, &ReconnectableIoDevice::readyRead, this,
           &QModbusClient::onIoDeviceReadyRead);
-  connect(&d->waitResponseTimer_, &QTimer::timeout, this,
+  connect(d->waitResponseTimer_, &QTimer::timeout, this,
           &QModbusClient::onIoDeviceResponseTimeout);
   connect(this, &QModbusClient::requestFinished, this,
           &QModbusClient::processResponseAnyFunctionCode);
@@ -303,17 +303,17 @@ int QModbusClient::retryTimes() {
 
 void QModbusClient::setOpenRetryTimes(int retryTimes, int delay) {
   Q_D(QModbusClient);
-  d->device_.setOpenRetryTimes(retryTimes, delay);
+  d->device_->setOpenRetryTimes(retryTimes, delay);
 }
 
 int QModbusClient::openRetryTimes() {
   Q_D(QModbusClient);
-  return d->device_.openRetryTimes();
+  return d->device_->openRetryTimes();
 }
 
 int QModbusClient::openRetryDelay() {
   Q_D(QModbusClient);
-  return d->device_.openRetryDelay();
+  return d->device_->openRetryDelay();
 }
 
 void QModbusClient::setFrameInterval(int frameInterval) {
@@ -329,7 +329,7 @@ void QModbusClient::clearPendingRequest() {
   while (!d->elementQueue_.empty()) {
     d->elementQueue_.pop();
   }
-  d->waitResponseTimer_.stop();
+  d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 }
 
@@ -389,15 +389,15 @@ void QModbusClient::onIoDeviceResponseTimeout() {
 
   if (element.retryTimes-- > 0) {
     log(LogLevel::kWarning,
-        "{} waiting response timeout, retry it, retrytimes ", d->device_.name(),
-        element.retryTimes);
+        "{} waiting response timeout, retry it, retrytimes ",
+        d->device_->name(), element.retryTimes);
 
     response.setFunctionCode(request.functionCode());
     response.setServerAddress(request.serverAddress());
     response.setError(Error::kTimeout);
     processDiagnosis(request, response);
   } else {
-    log(LogLevel::kWarning, "{}: waiting response timeout", d->device_.name());
+    log(LogLevel::kWarning, "{}: waiting response timeout", d->device_->name());
 
     /**
      * if have no retry times, remove this request
@@ -417,7 +417,7 @@ void QModbusClient::onIoDeviceReadyRead() {
    * state. Therefore, if data is received but not in the wait-response state,
    * then this data is not what we want,discard them
    */
-  auto qdata = d->device_.readAll();
+  auto qdata = d->device_->readAll();
   if (d->sessionState_.state() != SessionState::kWaitingResponse) {
     ByteArray data;
     appendQByteArray(data, qdata);
@@ -425,9 +425,9 @@ void QModbusClient::onIoDeviceReadyRead() {
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
         "{} now state is in {}.got unexpected data, discard them.[{}]",
-        d->device_.name(), stream.str(), d->dump(data));
+        d->device_->name(), stream.str(), d->dump(data));
 
-    d->device_.clear();
+    d->device_->clear();
     return;
   }
 
@@ -443,7 +443,7 @@ void QModbusClient::onIoDeviceReadyRead() {
   Error error = Error::kNoError;
   auto result = element.responseFrame->unmarshal(dataRecived, &error);
   if (result != DataChecker::Result::kSizeOk) {
-    log(LogLevel::kWarning, d->device_.name() + ":need more data." + "[" +
+    log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
                                 d->dump(dataRecived) + "]");
     return;
   }
@@ -458,7 +458,7 @@ void QModbusClient::onIoDeviceReadyRead() {
    */
   if (response.serverAddress() != request.serverAddress()) {
     log(LogLevel::kWarning,
-        d->device_.name() +
+        d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
             d->dump(dataRecived) + "]");
 
@@ -466,10 +466,11 @@ void QModbusClient::onIoDeviceReadyRead() {
     return;
   }
 
-  d->waitResponseTimer_.stop();
+  d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  log(LogLevel::kDebug, d->device_.name() + " recived " + d->dump(dataRecived));
+  log(LogLevel::kDebug,
+      d->device_->name() + " recived " + d->dump(dataRecived));
 
   /**
    * Pop at the end
@@ -500,7 +501,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
     d->scheduleNextRequest(d->waitConversionDelay_);
 
     log(LogLevel::kWarning,
-        d->device_.name() + " brocast request, turn into idle status");
+        d->device_->name() + " brocast request, turn into idle status");
     return;
   }
 
@@ -512,9 +513,9 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
    * (return to the user).
    */
   d->sessionState_.setState(SessionState::kWaitingResponse);
-  d->waitResponseTimer_.setSingleShot(true);
-  d->waitResponseTimer_.setInterval(d->waitResponseTimeout_);
-  d->waitResponseTimer_.start();
+  d->waitResponseTimer_->setSingleShot(true);
+  d->waitResponseTimer_->setInterval(d->waitResponseTimeout_);
+  d->waitResponseTimer_->start();
 }
 
 void QModbusClient::onIoDeviceError(const QString &errorString) {
@@ -524,7 +525,7 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
 
   switch (d->sessionState_.state()) {
   case SessionState::kWaitingResponse:
-    d->waitResponseTimer_.stop();
+    d->waitResponseTimer_->stop();
   default:
     break;
   }
