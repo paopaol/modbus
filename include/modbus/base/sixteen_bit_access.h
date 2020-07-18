@@ -1,11 +1,11 @@
 #ifndef SIXTEEN_BIT_ACCESS_H
 #define SIXTEEN_BIT_ACCESS_H
 
-#include <map>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/modbus_types.h>
 #include <modbus/base/smart_assert.h>
+#include <unordered_map>
 
 namespace modbus {
 class SixteenBitAccess {
@@ -219,7 +219,7 @@ private:
   Address startAddress_ = 0;
   Quantity quantity_ = 0;
   std::string deviceName_;
-  mutable std::map<Address, SixteenBitValueEx> valueMap_;
+  mutable std::unordered_map<Address, SixteenBitValueEx> valueMap_;
 };
 
 bool processReadRegisters(const Request &request, const Response &response,
