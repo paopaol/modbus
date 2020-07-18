@@ -204,11 +204,13 @@ public:
       uint16_t v = 0;
       v = valueArray[i] * 256 + valueArray[i + 1];
 
-      if (valueMap_.find(nextAddress) != valueMap_.end()) {
-        auto &vEx = valueMap_[nextAddress];
-        vEx.value = v;
-      } else {
-        valueMap_[nextAddress].value = v;
+      SixteenBitValueEx exv;
+      exv.value = v;
+
+      auto ret = valueMap_.insert(
+          std::pair<Address, SixteenBitValueEx>(nextAddress, exv));
+      if (!ret.second) {
+        ret.first->second.value = v;
       }
       nextAddress++;
     }
