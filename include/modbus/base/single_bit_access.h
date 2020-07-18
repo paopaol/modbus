@@ -5,7 +5,7 @@
 #include "modbus_tool.h"
 #include "smart_assert.h"
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 
 namespace modbus {
 /**
@@ -260,7 +260,7 @@ private:
   Address startAddress_;
   Quantity quantity_ = 0;
   std::string deviceName_;
-  mutable std::map<Address, BitValueEx> valueMap_;
+  mutable std::unordered_map<Address, BitValueEx> valueMap_;
 };
 
 bool processReadSingleBit(const Request &request, const Response &response,

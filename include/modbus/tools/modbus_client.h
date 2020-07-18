@@ -172,6 +172,8 @@ public:
    *default is disabled
    */
   void enableDiagnosis(bool flag);
+  void enableDump(bool enable);
+
   RuntimeDiagnosis runtimeDiagnosis() const;
 
 signals:

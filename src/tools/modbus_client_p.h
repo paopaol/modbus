@@ -72,8 +72,9 @@ public:
        */
       auto &ele = elementQueue_.front();
       auto data = ele.requestFrame->marshal();
-
-      log(LogLevel::kDebug, "{} will send: {}", device_->name(), dump(data));
+      if (enableDump_) {
+        log(LogLevel::kDebug, "{} will send: {}", device_->name(), dump(data));
+      }
       device_->write((const char *)data.data(), data.size());
     });
   }
@@ -109,6 +110,7 @@ public:
   /// defualt is disabled
   bool enableDiagnosis_ = false;
   RuntimeDiagnosis runtimeDiagnosis_;
+  bool enableDump_ = true;
 };
 
 class ReconnectableIoDevicePrivate : public QObject {

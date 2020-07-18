@@ -351,6 +351,14 @@ void QModbusClient::enableDiagnosis(bool enable) {
   d->enableDiagnosis_ = enable;
 }
 
+void QModbusClient::enableDump(bool enable) {
+  Q_D(QModbusClient);
+  if (d->enableDump_ == enable) {
+    return;
+  }
+  d->enableDump_ = enable;
+}
+
 RuntimeDiagnosis QModbusClient::runtimeDiagnosis() const {
   const Q_D(QModbusClient);
   return d->runtimeDiagnosis_;
@@ -469,8 +477,10 @@ void QModbusClient::onIoDeviceReadyRead() {
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 
-  log(LogLevel::kDebug,
-      d->device_->name() + " recived " + d->dump(dataRecived));
+  if (d->enableDump_) {
+    log(LogLevel::kDebug,
+        d->device_->name() + " recived " + d->dump(dataRecived));
+  }
 
   /**
    * Pop at the end
