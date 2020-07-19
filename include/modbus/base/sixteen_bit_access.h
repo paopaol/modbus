@@ -185,8 +185,9 @@ public:
     for (size_t i = 0; i < valueArray.size(); i += 2) {
       v = valueArray[i] * 256 + valueArray[i + 1];
 
-      auto ret =
-          valueMap_.insert(std::pair<Address, SixteenBitValue>(nextAddress, v));
+      auto ret = valueMap_.insert(std::pair<Address, SixteenBitValue>(
+          nextAddress,
+          SixteenBitValue(valueArray[i] * 256, valueArray[i + 1])));
       if (!ret.second) {
         ret.first->second = v;
       }
