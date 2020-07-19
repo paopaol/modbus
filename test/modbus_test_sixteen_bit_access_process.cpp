@@ -9,10 +9,6 @@ TEST(SixteenBitAccessProcess, ProcessReadMultipleRegisters) {
   modbus::SixteenBitAccess access;
   access.setStartAddress(0);
   access.setQuantity(3);
-  access.setDeviceName("device-1");
-  access.setDescription(modbus::Address(0x00), "humidity");
-  access.setDescription(modbus::Address(0x01), "temperature");
-  access.setDescription(modbus::Address(0x02), "CO2 concentration");
 
   modbus::Request request = modbus::createRequest(
       0x01, modbus::FunctionCode::kReadHoldingRegisters, dataChecker, access,

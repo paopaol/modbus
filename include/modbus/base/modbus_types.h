@@ -93,11 +93,6 @@ private:
   uint8_t chSecond_ = 0;
 };
 
-struct SixteenBitValueEx {
-  SixteenBitValue value;
-  std::string description;
-};
-
 enum FunctionCode {
   kInvalidCode = 0x00,
   kReadCoils = 0x01,
