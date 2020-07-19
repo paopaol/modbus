@@ -443,7 +443,6 @@ void QModbusClient::onIoDeviceReadyRead() {
   auto &element = d->elementQueue_.front();
   auto &dataRecived = element.dataRecived;
   auto request = element.request;
-  auto response = element.response;
 
   auto sessionState = d->sessionState_.state();
 
@@ -457,7 +456,7 @@ void QModbusClient::onIoDeviceReadyRead() {
     return;
   }
 
-  response = Response(element.responseFrame->adu());
+  Response response(element.responseFrame->adu());
   response.setError(error);
 
   /**
@@ -573,7 +572,7 @@ void QModbusClient::processDiagnosis(const Request &request,
 
 void QModbusClient::processFunctionCode(const Request &request,
                                         const Response &response) {
-  const auto &data = request.userData();
+  const any &data = request.userData();
   if (data.empty()) {
     return;
   }
