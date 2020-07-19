@@ -215,6 +215,12 @@ protected:
 class Request : public Adu {
 public:
   Request() {}
+  Request(ServerAddress serverAddress, FunctionCode functionCode,
+          const DataChecker &dataChecker, const any &userData,
+          const ByteArray &data)
+      : userData_(userData), Adu(serverAddress, functionCode, dataChecker) {
+    setData(data);
+  }
   Request(const Adu &adu) : Adu(adu) {}
   void setUserData(const any &userData) { userData_ = userData; }
   any userData() const { return userData_; }

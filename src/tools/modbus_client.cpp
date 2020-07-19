@@ -90,8 +90,8 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
-  auto request = createRequest(serverAddress, functionCode, dataChecker, access,
-                               access.marshalReadRequest());
+  Request request(serverAddress, functionCode, dataChecker, access,
+                  access.marshalReadRequest());
   sendRequest(request);
 }
 
@@ -104,9 +104,8 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(1);
   access.setValue(value);
-  auto request =
-      createRequest(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
-                    access, access.marshalSingleWriteRequest());
+  Request request(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
+                  access, access.marshalSingleWriteRequest());
   sendRequest(request);
 }
 
@@ -122,9 +121,8 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
     Address address = startAddress + offset;
     access.setValue(address, valueList[offset]);
   }
-  auto request =
-      createRequest(serverAddress, FunctionCode::kWriteMultipleCoils,
-                    dataChecker, access, access.marshalMultipleWriteRequest());
+  Request request(serverAddress, FunctionCode::kWriteMultipleCoils, dataChecker,
+                  access, access.marshalMultipleWriteRequest());
   sendRequest(request);
 }
 
@@ -144,8 +142,8 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
-  auto request = createRequest(serverAddress, functionCode, dataChecker, access,
-                               access.marshalMultipleReadRequest());
+  Request request(serverAddress, functionCode, dataChecker, access,
+                  access.marshalMultipleReadRequest());
 
   sendRequest(request);
 }
@@ -159,9 +157,9 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
   access.setStartAddress(address);
   access.setValue(value.toUint16());
 
-  auto request =
-      createRequest(serverAddress, FunctionCode::kWriteSingleRegister,
-                    dataChecker, access, access.marshalSingleWriteRequest());
+  Request request(serverAddress, FunctionCode::kWriteSingleRegister,
+                  dataChecker, access, access.marshalSingleWriteRequest());
+
   sendRequest(request);
 }
 
@@ -180,9 +178,9 @@ void QModbusClient::writeMultipleRegisters(
     access.setValue(address, sixValue.toUint16());
     offset++;
   }
-  auto request =
-      createRequest(serverAddress, FunctionCode::kWriteMultipleRegisters,
-                    dataChecker, access, access.marshalMultipleWriteRequest());
+  Request request(serverAddress, FunctionCode::kWriteMultipleRegisters,
+                  dataChecker, access, access.marshalMultipleWriteRequest());
+
   sendRequest(request);
 }
 
@@ -210,9 +208,9 @@ void QModbusClient::readWriteMultipleRegisters(
   ByteArray writeData = access.writeAccess.marshalMultipleWriteRequest();
 
   data.insert(data.end(), writeData.begin(), writeData.end());
-  auto request =
-      createRequest(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
-                    dataChecker, access, data);
+  Request request(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
+                  dataChecker, access, data);
+
   sendRequest(request);
 }
 
@@ -680,15 +678,7 @@ static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
                       const DataChecker &dataChecker, const any &userData,
                       const ByteArray &data) {
-  Request request;
-
-  request.setServerAddress(serverAddress);
-  request.setFunctionCode(functionCode);
-  request.setUserData(userData);
-  request.setDataChecker(dataChecker);
-  request.setData(data);
-
-  return request;
+  return Request(serverAddress, functionCode, dataChecker, userData, data);
 }
 
 QModbusClient *createClient(const QString &url, QObject *parent) {
