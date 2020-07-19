@@ -47,46 +47,6 @@ TEST(SixteenBitAccess, setgetValue) {
   EXPECT_EQ(false, ok);
 }
 
-TEST(SixteenBitAccess, setGetDeviceName) {
-  modbus::SixteenBitAccess access;
-
-  access.setDeviceName("device name");
-  EXPECT_EQ("device name", access.deviceName());
-}
-
-TEST(SixteenBitAccess, setGetValueEx) {
-  modbus::SixteenBitAccess access;
-
-  access.setStartAddress(0x01);
-  access.setQuantity(1);
-  access.setDescription(access.startAddress(), "value-name-1");
-  access.setValue(0x03);
-  auto valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.value.toUint16(), 0x03);
-  EXPECT_EQ(valueEx.description, "value-name-1");
-}
-
-TEST(SixteenBitAccess, setGetValueEx2) {
-  modbus::SixteenBitAccess access;
-
-  access.setStartAddress(0x01);
-  access.setQuantity(2);
-
-  access.setDescription(access.startAddress(), "value-name-1");
-  access.setValue(access.startAddress(), 0x0101);
-
-  access.setDescription(access.startAddress() + 1, "value-name-2");
-  access.setValue(access.startAddress() + 1, 0x0202);
-
-  auto valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.value.toUint16(), 0x0101);
-  EXPECT_EQ(valueEx.description, "value-name-1");
-
-  valueEx = access.valueEx(access.startAddress() + 1);
-  EXPECT_EQ(valueEx.value.toUint16(), 0x0202);
-  EXPECT_EQ(valueEx.description, "value-name-2");
-}
-
 TEST(SixteenBitAccess, marshalMultipleReadRequest_success) {
   modbus::SixteenBitAccess access;
 
@@ -128,8 +88,6 @@ TEST(SixteenBitAccess, unmarshalReadResponse_success) {
 
   access.setStartAddress(0x6b);
   access.setQuantity(0x03);
-
-  access.setDescription(access.startAddress(), "value1");
 
   modbus::ByteArray response({0x06, 0x02, 0x2b, 0x00, 0x00, 0x00, 0x64});
 

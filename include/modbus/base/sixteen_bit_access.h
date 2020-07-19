@@ -13,21 +13,11 @@ public:
   SixteenBitAccess() = default;
   virtual ~SixteenBitAccess() = default;
 
-  void setDeviceName(const std::string &name) { deviceName_ = name; }
-  std::string deviceName() const { return deviceName_; }
-
   void setStartAddress(Address address) { startAddress_ = address; }
   Address startAddress() const { return startAddress_; }
 
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() const { return quantity_; }
-
-  void setDescription(Address address, const std::string &description) {
-    SixteenBitValueEx valueEx;
-
-    valueEx.description = description;
-    valueMap_[address] = valueEx;
-  }
 
   void setValue(uint16_t value) { setValue(startAddress_, value); }
   void setValue(Address address, uint16_t value) {
@@ -37,21 +27,14 @@ public:
     }
     if (valueMap_.find(address) != valueMap_.end()) {
       auto &valueEx = valueMap_[address];
-      valueEx.value = value;
+      valueEx = value;
     } else {
-      SixteenBitValueEx valueEx;
-
-      valueEx.value = value;
-      valueMap_[address] = valueEx;
+      valueMap_[address] = value;
     }
   }
-  SixteenBitValue value(Address address, bool *ok = nullptr) const {
-    auto v = valueEx(address, ok);
-    return v.value;
-  }
 
-  SixteenBitValueEx valueEx(Address address, bool *ok = nullptr) const {
-    SixteenBitValueEx value;
+  SixteenBitValue value(Address address, bool *ok = nullptr) const {
+    SixteenBitValue value;
 
     bool isFound = true;
     auto it = valueMap_.find(address);
@@ -136,8 +119,8 @@ public:
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
-    array.push_back(valueMap_[startAddress_].value.toUint16() / 256);
-    array.push_back(valueMap_[startAddress_].value.toUint16() % 256);
+    array.push_back(valueMap_[startAddress_].toUint16() / 256);
+    array.push_back(valueMap_[startAddress_].toUint16() % 256);
 
     return array;
   }
@@ -161,9 +144,8 @@ public:
          nextAddress < startAddress_ + quantity_; nextAddress++) {
       smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
                    "no set value of address")(nextAddress);
-      auto valueEx = valueMap_[nextAddress];
-      array.push_back(valueEx.value.toUint16() / 256);
-      array.push_back(valueEx.value.toUint16() % 256);
+      array.push_back(valueMap_[nextAddress].toUint16() / 256);
+      array.push_back(valueMap_[nextAddress].toUint16() % 256);
     }
     return array;
   }
@@ -177,9 +159,8 @@ public:
          nextAddress < startAddress_ + quantity_; nextAddress++) {
       smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
                    "no set value of address")(nextAddress);
-      auto valueEx = valueMap_[nextAddress];
-      array.push_back(valueEx.value.toUint16() / 256);
-      array.push_back(valueEx.value.toUint16() % 256);
+      array.push_back(valueMap_[nextAddress].toUint16() / 256);
+      array.push_back(valueMap_[nextAddress].toUint16() % 256);
     }
     return array;
   }
@@ -200,17 +181,14 @@ public:
 
     auto valueArray = tool::subArray(data, 1);
     Address nextAddress = startAddress();
+    uint16_t v = 0;
     for (size_t i = 0; i < valueArray.size(); i += 2) {
-      uint16_t v = 0;
       v = valueArray[i] * 256 + valueArray[i + 1];
 
-      SixteenBitValueEx exv;
-      exv.value = v;
-
-      auto ret = valueMap_.insert(
-          std::pair<Address, SixteenBitValueEx>(nextAddress, exv));
+      auto ret =
+          valueMap_.insert(std::pair<Address, SixteenBitValue>(nextAddress, v));
       if (!ret.second) {
-        ret.first->second.value = v;
+        ret.first->second = v;
       }
       nextAddress++;
     }
@@ -220,8 +198,7 @@ public:
 private:
   Address startAddress_ = 0;
   Quantity quantity_ = 0;
-  std::string deviceName_;
-  mutable std::unordered_map<Address, SixteenBitValueEx> valueMap_;
+  mutable std::unordered_map<Address, SixteenBitValue> valueMap_;
 };
 
 bool processReadRegisters(const Request &request, const Response &response,
