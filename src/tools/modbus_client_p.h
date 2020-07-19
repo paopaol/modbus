@@ -41,9 +41,10 @@ public:
   }
   ~QModbusClientPrivate() {}
 
-  void enqueueElement(const Element &element) {
-    elementQueue_.push(element);
-    scheduleNextRequest(t3_5_);
+  Element &enqueueAndPeekLatElement() {
+    Element e;
+    elementQueue_.push(e);
+    return elementQueue_.back();
   }
 
   void scheduleNextRequest(int delay) {
