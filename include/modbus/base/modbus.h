@@ -218,6 +218,7 @@ public:
   Request(const Adu &adu) : Adu(adu) {}
   void setUserData(const any &userData) { userData_ = userData; }
   any userData() const { return userData_; }
+  const any &userData() { return userData_; }
 
 private:
   any userData_;
