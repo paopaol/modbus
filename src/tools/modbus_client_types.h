@@ -51,12 +51,9 @@ struct Element {
   std::shared_ptr<Frame> responseFrame;
 };
 using ElementQueue = std::queue<Element>;
-inline Element createElement(const Request &request) {
-  Element element;
-
-  element.request = request;
-  element.response.setDataChecker(request.dataChecker());
-  return element;
+inline void createElement(const Request &request, Element *element) {
+  element->request = request;
+  element->response.setDataChecker(request.dataChecker());
 }
 
 } // namespace modbus

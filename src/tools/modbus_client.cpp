@@ -61,7 +61,8 @@ void QModbusClient::sendRequest(const Request &request) {
 
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
-  auto element = createElement(request);
+  auto &element = d->enqueueAndPeekLatElement();
+  createElement(request, &element);
 
   element.requestFrame = createModbusFrame(d->transferMode_);
   element.requestFrame->setAdu(element.request);
@@ -70,7 +71,7 @@ void QModbusClient::sendRequest(const Request &request) {
   element.responseFrame->setAdu(element.response);
 
   element.retryTimes = d->retryTimes_;
-  d->enqueueElement(element);
+  d->scheduleNextRequest(d->t3_5_);
 }
 
 void QModbusClient::readSingleBits(ServerAddress serverAddress,
