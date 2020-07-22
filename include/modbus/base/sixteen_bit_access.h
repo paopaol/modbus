@@ -13,53 +13,55 @@ public:
   SixteenBitAccess() = default;
   virtual ~SixteenBitAccess() = default;
 
-  void setStartAddress(Address address) { startAddress_ = address; }
+  void setStartAddress(Address address) {
+    startAddress_ = address;
+    if (quantity() == 0) {
+      setQuantity(1);
+    }
+  }
   Address startAddress() const { return startAddress_; }
 
-  void setQuantity(Quantity quantity) { quantity_ = quantity; }
+  void setQuantity(Quantity quantity) {
+    quantity_ = quantity;
+    value_array_.resize(quantity_ * 2);
+  }
+
   Quantity quantity() const { return quantity_; }
 
   void setValue(uint16_t value) { setValue(startAddress_, value); }
   void setValue(Address address, uint16_t value) {
-    if (address > startAddress_ + quantity_ || address < startAddress_) {
+    if (address >= startAddress_ + quantity() || address < startAddress_) {
       /// out of range
       return;
     }
-    if (valueMap_.find(address) != valueMap_.end()) {
-      auto &valueEx = valueMap_[address];
-      valueEx = value;
-    } else {
-      valueMap_[address] = value;
-    }
+    SixteenBitValue v(value);
+    size_t i = (address - startAddress_) * 2;
+    value_array_[i] = v.firstByte();
+    value_array_[i + 1] = v.secondByte();
   }
 
   SixteenBitValue value(Address address, bool *ok = nullptr) const {
-    SixteenBitValue value;
+    Address start_address = startAddress();
+    Quantity quan = quantity();
+    for (size_t i = (address - startAddress_) * 2;
+         i >= 0 && address < start_address + quan; i += 2) {
+      if (ok) {
+        *ok = true;
+      }
+      return SixteenBitValue(value_array_[i], value_array_[i + 1]);
+    }
 
-    bool isFound = true;
-    auto it = valueMap_.find(address);
-    if (it == valueMap_.end()) {
-      isFound = false;
-    } else {
-      isFound = true;
-      value = it->second;
-    }
     if (ok) {
-      *ok = isFound;
+      *ok = false;
     }
-    return value;
+    return SixteenBitValue();
   }
 
   ByteArray marshalMultipleReadRequest() const {
-    ByteArray array;
-
-    array.push_back(startAddress_ / 256);
-    array.push_back(startAddress_ % 256);
-
-    array.push_back(quantity_ / 256);
-    array.push_back(quantity_ % 256);
-
-    return array;
+    return ByteArray({static_cast<uint8_t>(startAddress_ / 256),
+                      static_cast<uint8_t>(startAddress_ % 256),
+                      static_cast<uint8_t>(quantity() / 256),
+                      static_cast<uint8_t>(quantity() % 256)});
   }
 
   bool unmarshalAddressQuantity(const ByteArray &data) {
@@ -69,7 +71,7 @@ public:
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
-    quantity_ = data[2] * 256 + data[3];
+    setQuantity(data[2] * 256 + data[3]);
     return true;
   }
 
@@ -80,7 +82,7 @@ public:
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
-    quantity_ = 1;
+    setQuantity(1);
     SixteenBitValue value(data[2], data[3]);
     setValue(startAddress_, value.toUint16());
     return true;
@@ -93,75 +95,50 @@ public:
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
-    quantity_ = data[2] * 256 + data[3];
+    setQuantity(data[2] * 256 + data[3]);
     auto lenght = data[4];
     if (lenght % 2 != 0) {
       return false;
     }
-    if (quantity_ != lenght / 2) {
+    if (quantity() != lenght / 2) {
       return false;
     }
-    auto valueArray = tool::subArray(data, 5);
-    for (size_t i = 0; i < lenght; i += 2) {
-      SixteenBitValue value(valueArray[i], valueArray[i + 1]);
-      Address address = startAddress_ + i / 2;
-      setValue(address, value.toUint16());
-    }
+    value_array_ = tool::subArray(data, 5);
     return true;
   }
 
   ByteArray marshalSingleWriteRequest() const {
-    smart_assert(valueMap_.find(startAddress_) != valueMap_.end() &&
-                 "no set value of start address")(startAddress_);
-
     ByteArray array;
 
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
-    array.push_back(valueMap_[startAddress_].toUint16() / 256);
-    array.push_back(valueMap_[startAddress_].toUint16() % 256);
+    array.push_back(value_array_[0]);
+    array.push_back(value_array_[1]);
 
     return array;
   }
 
   ByteArray marshalMultipleWriteRequest() const {
-    smart_assert(quantity_ == valueMap_.size() &&
-                 "invalid data, no set some value,or more")(quantity_)(
-        valueMap_.size());
-
     ByteArray array;
 
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
-    array.push_back(quantity_ / 256);
-    array.push_back(quantity_ % 256);
+    array.push_back(quantity() / 256);
+    array.push_back(quantity() % 256);
 
-    array.push_back(quantity_ * 2);
+    array.push_back(quantity() * 2);
 
-    for (Address nextAddress = startAddress_;
-         nextAddress < startAddress_ + quantity_; nextAddress++) {
-      smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
-                   "no set value of address")(nextAddress);
-      array.push_back(valueMap_[nextAddress].toUint16() / 256);
-      array.push_back(valueMap_[nextAddress].toUint16() % 256);
-    }
+    array.insert(array.end(), value_array_.begin(), value_array_.end());
     return array;
   }
 
   ByteArray marshalMultipleReadResponse() {
     ByteArray array;
 
-    array.push_back(quantity_ * 2);
-
-    for (Address nextAddress = startAddress_;
-         nextAddress < startAddress_ + quantity_; nextAddress++) {
-      smart_assert(valueMap_.find(nextAddress) != valueMap_.end() &&
-                   "no set value of address")(nextAddress);
-      array.push_back(valueMap_[nextAddress].toUint16() / 256);
-      array.push_back(valueMap_[nextAddress].toUint16() % 256);
-    }
+    array.push_back(quantity() * 2);
+    array.insert(array.end(), value_array_.begin(), value_array_.end());
     return array;
   }
 
@@ -179,21 +156,14 @@ public:
       return false;
     }
 
-    auto valueArray = tool::subArray(data, 1);
-    Address nextAddress = startAddress();
-    uint16_t v = 0;
-    for (size_t i = 0; i < valueArray.size(); i += 2) {
-      valueMap_.insert(std::pair<Address, SixteenBitValue>(
-          nextAddress, SixteenBitValue(valueArray[i], valueArray[i + 1])));
-      nextAddress++;
-    }
+    value_array_ = tool::subArray(data, 1);
     return true;
   }
 
 private:
   Address startAddress_ = 0;
   Quantity quantity_ = 0;
-  mutable std::unordered_map<Address, SixteenBitValue> valueMap_;
+  ByteArray value_array_;
 };
 
 bool processReadRegisters(const Request &request, const Response &response,
