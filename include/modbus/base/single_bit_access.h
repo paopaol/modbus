@@ -58,14 +58,10 @@ public:
   ByteArray marshalReadRequest() const { return marshalAddressQuantity(); }
 
   ByteArray marshalAddressQuantity() const {
-    ByteArray array;
-
-    array.push_back(startAddress_ / 256);
-    array.push_back(startAddress_ % 256);
-
-    array.push_back(quantity_ / 256);
-    array.push_back(quantity_ % 256);
-    return array;
+    return ByteArray({static_cast<uint8_t>(startAddress_ / 256),
+                      static_cast<uint8_t>(startAddress_ % 256),
+                      static_cast<uint8_t>(quantity_ / 256),
+                      static_cast<uint8_t>(quantity_ % 256)});
   }
 
   bool unmarshalReadRequest(const ByteArray &data) {
