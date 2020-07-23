@@ -326,7 +326,7 @@ void QModbusClient::setFrameInterval(int frameInterval) {
 void QModbusClient::clearPendingRequest() {
   Q_D(QModbusClient);
   while (!d->elementQueue_.empty()) {
-    d->elementQueue_.pop();
+    d->elementQueue_.pop_front();
   }
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
@@ -409,7 +409,7 @@ void QModbusClient::onIoDeviceResponseTimeout() {
     /**
      * if have no retry times, remove this request
      */
-    d->elementQueue_.pop();
+    d->elementQueue_.pop_front();
     response.setError(Error::kTimeout);
     emit requestFinished(request, response);
   }
@@ -483,7 +483,7 @@ void QModbusClient::onIoDeviceReadyRead() {
   /**
    * Pop at the end
    */
-  d->elementQueue_.pop();
+  d->elementQueue_.pop_front();
   emit requestFinished(request, response);
   d->scheduleNextRequest(d->t3_5_);
 }
@@ -504,7 +504,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
   }
 
   if (request.isBrocast()) {
-    d->elementQueue_.pop();
+    d->elementQueue_.pop_front();
     d->sessionState_.setState(SessionState::kIdle);
     d->scheduleNextRequest(d->waitConversionDelay_);
 

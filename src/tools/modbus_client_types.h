@@ -1,9 +1,9 @@
 #ifndef MODBUS_CLIENT_TYPES_H
 #define MODBUS_CLIENT_TYPES_H
 
+#include <deque>
 #include <memory>
 #include <modbus/base/modbus.h>
-#include <queue>
 
 namespace modbus {
 
@@ -50,7 +50,7 @@ struct Element {
   std::shared_ptr<Frame> requestFrame;
   std::shared_ptr<Frame> responseFrame;
 };
-using ElementQueue = std::queue<Element>;
+using ElementQueue = std::deque<Element>;
 inline void createElement(const Request &request, Element *element) {
   element->request = request;
   element->response.setDataChecker(request.dataChecker());
