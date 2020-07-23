@@ -49,7 +49,8 @@ public:
 
 private:
   void setupEnvironment() {
-    socket_->socketOption(QAbstractSocket::KeepAliveOption);
+	socket_->socketOption(QAbstractSocket::KeepAliveOption);
+	socket_->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     connect(socket_, &QAbstractSocket::disconnected, this,
             &QtTcpSocket::closed);
     connect(socket_, &QAbstractSocket::connected, this, &QtTcpSocket::opened);
