@@ -3,6 +3,7 @@
 
 #include <QBuffer>
 #include <QMap>
+#include <QVector>
 #include <QObject>
 #include <QSerialPort>
 #include <assert.h>
@@ -112,8 +113,8 @@ public:
 signals:
   // if register of value changed, these signals will emited
   void holdingRegisterValueChanged(Address address,
-                                   const SixteenBitValue &value);
-  void inputRegisterValueChanged(Address address, const SixteenBitValue &value);
+                                   const QVector<SixteenBitValue> &values);
+  void inputRegisterValueChanged(Address address, const QVector<SixteenBitValue> &values);
 
   // if coils/input discrete value changed,, these signal will emited
   void coilsValueChanged(Address address, const BitValue &value);
