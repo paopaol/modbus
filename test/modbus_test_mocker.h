@@ -18,6 +18,7 @@ using namespace testing;
  * we use this class for testing of modbus::QModbusClient
  */
 class MockSerialPort : public modbus::AbstractIoDevice {
+  Q_OBJECT
 public:
   MockSerialPort(QObject *parent = nullptr) : modbus::AbstractIoDevice(parent) {
     setupCallName();
