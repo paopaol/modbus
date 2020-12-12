@@ -61,7 +61,7 @@ void QModbusClient::sendRequest(const Request &request) {
 
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
-  auto &element = d->enqueueAndPeekLatElement();
+  auto &element = d->enqueueAndPeekLastElement();
   createElement(request, &element);
 
   element.requestFrame = createModbusFrame(d->transferMode_);

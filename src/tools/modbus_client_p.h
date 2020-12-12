@@ -41,24 +41,10 @@ public:
   }
   ~QModbusClientPrivate() {}
 
-  Element &enqueueAndPeekLatElement() {
+  Element &enqueueAndPeekLastElement() {
     Element e;
     elementQueue_.push_back(e);
     return elementQueue_.back();
-  }
-
-  Element &enqueueAtSecondAndPeekSecond() {
-    if (elementQueue_.empty()) {
-      Element el;
-      elementQueue_.push_front(el);
-      return elementQueue_.front();
-    }
-    Element &first = elementQueue_.front();
-    Element el;
-    elementQueue_.push_front(el);
-    auto &second = elementQueue_.front();
-    std::swap(first, second);
-    return first;
   }
 
   void scheduleNextRequest(int delay) {

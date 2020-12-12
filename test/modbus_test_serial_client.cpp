@@ -32,31 +32,6 @@ template <TransferMode mode>
 static void createReadCoils(ServerAddress serverAddress, Address startAddress,
                             Quantity quantity, Session &session);
 
-TEST(ModbusClient, enqueueAtSecondAndPeekSecond) {
-  MockSerialPort *port = new MockSerialPort;
-  QModbusClientPrivate d(port);
-  auto &first = d.enqueueAndPeekLatElement();
-  first.bytesWritten = 100;
-  auto &second = d.enqueueAndPeekLatElement();
-  second.bytesWritten = 200;
-  auto &thrd = d.enqueueAtSecondAndPeekSecond();
-  thrd.bytesWritten = 123;
-
-  EXPECT_EQ(d.elementQueue_.size(), 3);
-
-  auto el = d.elementQueue_.front();
-  d.elementQueue_.pop_front();
-  EXPECT_EQ(el.bytesWritten, 100);
-
-  el = d.elementQueue_.front();
-  d.elementQueue_.pop_front();
-  EXPECT_EQ(el.bytesWritten, 123);
-
-  el = d.elementQueue_.front();
-  d.elementQueue_.pop_front();
-  EXPECT_EQ(el.bytesWritten, 200);
-}
-
 TEST(ModbusClient, ClientConstruct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
   QModbusClient mockSerialClient(serialPort);
