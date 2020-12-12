@@ -168,7 +168,9 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
     serialClient.sendRequest(session.request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
-    spy.wait(300);
+    /// because we not mock readAll(),so it will timeout,and so,
+    /// we set 3000ms for waiting
+    spy.wait(3000);
     EXPECT_EQ(sentData, session.requestRaw);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
@@ -758,7 +760,7 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     Response response = qvariant_cast<Response>(arguments.at(1));
 
     EXPECT_EQ(Error::kNoError, response.error());
-    EXPECT_EQ(false, response.isException());
+    EXPECT_FALSE(response.isException());
     auto access = any::any_cast<SingleBitAccess>(request.userData());
     access.unmarshalReadResponse(response.data());
     EXPECT_EQ(access.value(kStartAddress), BitValue::kOn);
