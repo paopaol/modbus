@@ -74,6 +74,7 @@ TEST(QModbusServer, testSignles) {
 
   TestConnection testConn;
   AbstractConnection *conn = &testConn;
+  qRegisterMetaType<BytesBufferPtr>("BytesBufferPtr");
   QSignalSpy spy(conn, &AbstractConnection::messageArrived);
 
   BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
