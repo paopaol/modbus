@@ -244,25 +244,26 @@ void QModbusClient::setupEnvironment() {
   Q_D(QModbusClient);
 
   connect(d->device_, &ReconnectableIoDevice::opened, this,
-          &QModbusClient::clientOpened);
+          &QModbusClient::clientOpened, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::closed, this,
-          &QModbusClient::clientClosed);
+          &QModbusClient::clientClosed, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::error, this,
-          &QModbusClient::clearPendingRequest);
+          &QModbusClient::clearPendingRequest, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
-          this, &QModbusClient::clearPendingRequest);
+          this, &QModbusClient::clearPendingRequest, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
-          this, &QModbusClient::connectionIsLostWillReconnect);
+          this, &QModbusClient::connectionIsLostWillReconnect,
+          Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::error, this,
-          &QModbusClient::onIoDeviceError);
+          &QModbusClient::onIoDeviceError, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::bytesWritten, this,
-          &QModbusClient::onIoDeviceBytesWritten);
+          &QModbusClient::onIoDeviceBytesWritten, Qt::QueuedConnection);
   connect(d->device_, &ReconnectableIoDevice::readyRead, this,
-          &QModbusClient::onIoDeviceReadyRead);
+          &QModbusClient::onIoDeviceReadyRead, Qt::QueuedConnection);
   connect(d->waitResponseTimer_, &QTimer::timeout, this,
-          &QModbusClient::onIoDeviceResponseTimeout);
+          &QModbusClient::onIoDeviceResponseTimeout, Qt::QueuedConnection);
   connect(this, &QModbusClient::requestFinished, this,
-          &QModbusClient::processResponseAnyFunctionCode);
+          &QModbusClient::processResponseAnyFunctionCode, Qt::QueuedConnection);
 }
 
 void QModbusClient::setTimeout(uint64_t timeout) {
@@ -325,9 +326,7 @@ void QModbusClient::setFrameInterval(int frameInterval) {
 
 void QModbusClient::clearPendingRequest() {
   Q_D(QModbusClient);
-  while (!d->elementQueue_.empty()) {
-    d->elementQueue_.pop_front();
-  }
+  d->elementQueue_.clear();
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 }

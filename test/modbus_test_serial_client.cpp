@@ -51,6 +51,7 @@ TEST(ModbusSerialClient, clientIsClosed_openDevice_clientIsOpened) {
     QSignalSpy spy(&serialClient, &QModbusClient::clientOpened);
 
     serialClient.open();
+    spy.wait(300);
     EXPECT_EQ(spy.count(), 1);
     EXPECT_EQ(serialClient.isOpened(), true);
   }
@@ -90,11 +91,13 @@ TEST(ModbusSerialClient, clientIsOpened_closeSerial_clientIsClosed) {
 
     // make sure the client is opened
     serialClient.open();
+    spyOpen.wait(300);
     EXPECT_EQ(spyOpen.count(), 1);
     EXPECT_EQ(serialClient.isOpened(), true);
 
     // now close the client
     serialClient.close();
+    spyClose.wait(300);
     EXPECT_EQ(spyClose.count(), 1);
 
     EXPECT_EQ(serialClient.isClosed(), true);
@@ -170,7 +173,7 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
     /// in rtu mode, the request must be send after t3.5 delay
     /// because we not mock readAll(),so it will timeout,and so,
     /// we set 3000ms for waiting
-    spy.wait(3000);
+    spy.wait(300);
     EXPECT_EQ(sentData, session.requestRaw);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
