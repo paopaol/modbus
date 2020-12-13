@@ -3,9 +3,9 @@
 
 #include <QBuffer>
 #include <QMap>
-#include <QVector>
 #include <QObject>
 #include <QSerialPort>
+#include <QVector>
 #include <assert.h>
 #include <bytes/buffer.h>
 #include <functional>
@@ -114,7 +114,8 @@ signals:
   // if register of value changed, these signals will emited
   void holdingRegisterValueChanged(Address address,
                                    const QVector<SixteenBitValue> &values);
-  void inputRegisterValueChanged(Address address, const QVector<SixteenBitValue> &values);
+  void inputRegisterValueChanged(Address address,
+                                 const QVector<SixteenBitValue> &values);
 
   // if coils/input discrete value changed,, these signal will emited
   void coilsValueChanged(Address address, const BitValue &value);
@@ -151,6 +152,5 @@ QModbusServer *createQModbusTcpServer(uint16_t port = 502,
 QModbusServer *createServer(const QString &url, QObject *parent = nullptr);
 
 } // namespace modbus
-
 
 #endif // __MODBUS_SERVER_H_
