@@ -681,25 +681,24 @@ public:
       }
     }
 
-	QVector<SixteenBitValue> new_values;
-	QVector<SixteenBitValue> old_values;
+    QVector<SixteenBitValue> new_values;
+    QVector<SixteenBitValue> old_values;
     for (size_t i = 0; i < quantity; i++) {
       Address reqStartAddress = access.startAddress() + i;
       auto value = access.value(reqStartAddress);
       auto oldValue = set->value(reqStartAddress);
-	  new_values.push_back(value);
-	  old_values.push_back(oldValue);
+      new_values.push_back(value);
+      old_values.push_back(oldValue);
       set->setValue(reqStartAddress, value.toUint16());
     }
 
-	if (new_values != old_values) {
-		if (kind == StorageKind::kHoldingRegisters) {
-			emit q->holdingRegisterValueChanged(access.startAddress(), new_values);
-		}
-		else if (kind == StorageKind::kInputRegisters) {
-			emit q->inputRegisterValueChanged(access.startAddress(), new_values);
-		}
-	}
+    if (new_values != old_values) {
+      if (kind == StorageKind::kHoldingRegisters) {
+        emit q->holdingRegisterValueChanged(access.startAddress(), new_values);
+      } else if (kind == StorageKind::kInputRegisters) {
+        emit q->inputRegisterValueChanged(access.startAddress(), new_values);
+      }
+    }
     return Error::kNoError;
   }
 
