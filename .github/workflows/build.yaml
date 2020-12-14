@@ -28,7 +28,7 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          cmake -H. -Brelease  -DCMAKE_BUILD_TYPE=Release
+          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Release
         run: |
