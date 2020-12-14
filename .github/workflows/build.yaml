@@ -20,7 +20,7 @@ jobs:
         uses: jurplel/install-qt-action@v2
         with:
           version: "5.6.1"
-          path: "${{ github.workspace }}/buildtools/"
+          dir: "${{ github.workspace }}/buildtools/"
           host: "windows"
           target: "desktop"
           arch: "win64_msvc2015_64"
