@@ -1,0 +1,43 @@
+name: build-and-test
+
+on: push
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    # strategy:
+    #   metrix:
+    #     qt_ver: [5.6.1]
+    #     qt_arch: [win64_msvc2015_64]
+    #     - name: Install Qt
+    #       uses: jurplel/install-qt-action@v2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v2
+        with:
+          version: "5.6.1"
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2015_64"
+          install-deps: "true"
+          cached: "true"
+
+      - name: Create Release Build Binary Directory
+        run: |
+          cmake -H. -Brelease  -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Release
+        run: |
+          cmake --build release
+
+      - name: Run Unit Test
+        run: |
+          ./release/test/modbus_test
+
+      - name: Install
+        run: |
+          cmake --build release --target install
