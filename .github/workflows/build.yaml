@@ -29,7 +29,7 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=./buildtools/Qt/5.9.0/msvc2015_64
+          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=./buildtools/Qt/5.9.0/win64_msvc2015_64
 
       - name: Build Release
         run: |
