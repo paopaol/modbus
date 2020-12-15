@@ -29,11 +29,13 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          dir
+          dir  ${{ github.workspace }}/buildtools/
 
       - name: Create Release Build Binary Directory
         run: |
-          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=./buildtools/Qt/5.12.9/win64_msvc2017_64
+          mkdir release
+          cd release
+          cmake .. -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/buildtools/Qt/5.12.9/win64_msvc2017_64
 
       - name: Build Release
         run: |
