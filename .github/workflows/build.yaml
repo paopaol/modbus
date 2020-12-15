@@ -30,7 +30,7 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          dir  ${{ github.workspace }}/buildtools/
+          dir  "${{ github.workspace }}/buildtools/"
 
       - name: Create Release Build Binary Directory
         run: |
