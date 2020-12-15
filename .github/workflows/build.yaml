@@ -19,17 +19,17 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
         with:
-          version: "5.6.1"
+          version: "5.12.9"
           dir: "${{ github.workspace }}/buildtools/"
           host: "windows"
           target: "desktop"
-          arch: "win64_msvc2015_64"
+          arch: "win64_msvc2017_64"
           install-deps: "true"
           cached: "true"
 
       - name: Create Release Build Binary Directory
         run: |
-          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=./buildtools/Qt/5.6.1/win64_msvc2015_64
+          cmake -H\. -Brelease  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=./buildtools/Qt/5.12.9/win64_msvc2017_64
 
       - name: Build Release
         run: |
