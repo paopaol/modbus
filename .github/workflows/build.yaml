@@ -26,6 +26,7 @@ jobs:
           arch: "win64_msvc2017_64"
           install-deps: "true"
           cached: "true"
+          extra: "--external 7z"
 
       - name: Create Release Build Binary Directory
         run: |
