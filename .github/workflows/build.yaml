@@ -19,19 +19,25 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
         with:
-          version: "5.12.9"
+          version: "5.15.2"
           host: "windows"
           target: "desktop"
           arch: "win64_msvc2017_64"
+          dir: "${{ github.workspace }}/example/"
           install-deps: "true"
-          cached: "true"
-          extra: "--external 7z"
+          modules: "qtcharts qtwebengine"
           mirror: "http://mirrors.ocf.berkeley.edu/qt/"
-          dir: "${{ github.workspace }}/qtinstall/"
+          cached: "false"
+          setup-python: "true"
+          tools: "tools_ifw,4.0,qt.tools.ifw.40 tools_qtcreator,4.13.2-0,qt.tools.qtcreator"
+          tools-only: "false"
+          aqtversion: "==0.10.1"
+          py7zrversion: "==0.11.1"
+          extra: "--external 7z"
 
       - name: Create Release Build Binary Directory
         run: |
-          dir  "${{ github.workspace }}/qtinstall/"
+          dir  "${{ github.workspace }}/example/"
 
       - name: Create Release Build Binary Directory
         run: |
