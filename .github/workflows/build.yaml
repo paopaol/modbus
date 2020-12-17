@@ -27,6 +27,7 @@ jobs:
           cached: "true"
           extra: "--external 7z"
           mirror: "http://mirrors.ocf.berkeley.edu/qt/"
+          dir: "${{ github.workspace }}/qtinstall/"
 
       - name: Create Release Build Binary Directory
         run: |
