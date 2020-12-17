@@ -31,7 +31,7 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          dir  "$RUNNER_WORKSPACE"
+          dir  "${{ github.workspace }}/qtinstall/"
 
       - name: Create Release Build Binary Directory
         run: |
