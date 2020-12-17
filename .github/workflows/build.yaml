@@ -26,6 +26,7 @@ jobs:
           install-deps: "true"
           cached: "true"
           extra: "--external 7z"
+          mirror: "http://mirrors.ocf.berkeley.edu/qt/"
 
       - name: Create Release Build Binary Directory
         run: |
