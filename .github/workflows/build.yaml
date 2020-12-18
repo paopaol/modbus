@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir release
           cd release
-          cmake .. -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/buildtools/Qt/5.12.9/win64_msvc2017_64
+          cmake .. -DMODBUS_BUILD_TEST=ON -DMODBUS_BUILD_EXAMPLE=ON   -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/buildtools/Qt/5.12.9/win64_msvc2017_64
 
       - name: Build Release
         run: |
