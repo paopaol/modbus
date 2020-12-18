@@ -23,7 +23,7 @@ jobs:
           host: "windows"
           target: "desktop"
           arch: "win64_msvc2017_64"
-          dir: "${{ github.workspace }}/example"
+          dir: "${{ github.workspace }}/qtinstall"
           install-deps: "true"
           modules: "qtcharts qtwebengine"
           mirror: "http://mirrors.ocf.berkeley.edu/qt/"
@@ -37,7 +37,7 @@ jobs:
 
       - name: Create Release Build Binary Directory
         run: |
-          dir  "${{ github.workspace }}/example/"
+          dir  "${{ github.workspace }}/qtinstall/"
 
       - name: Create Release Build Binary Directory
         run: |
