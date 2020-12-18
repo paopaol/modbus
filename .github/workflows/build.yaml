@@ -52,8 +52,10 @@ jobs:
           cmake --build release --config release
 
       - name: Run Unit Test
+        env:
+          PATH: "%Qt5_Dir%/lib"
         run: |
-          ./release/test/modbus_test
+          ./release/test/Release/modbus_test
 
       - name: Install
         run: |
