@@ -46,11 +46,11 @@ jobs:
         run: |
           mkdir release
           cd release
-          cmake .. -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/buildtools/Qt/5.12.9/win64_msvc2017_64 -A x64 -G"Visual Studio 16 2019"
+          cmake .. -DCMAKE_BUILD_TYPE=Release  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/buildtools/Qt/5.12.9/win64_msvc2017_64
 
       - name: Build Release
         run: |
-          cmake --build release
+          cmake --build release --config release
 
       - name: Run Unit Test
         run: |
