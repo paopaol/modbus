@@ -35,6 +35,9 @@ jobs:
           py7zrversion: "==0.11.1"
           extra: "--external 7z"
 
+      - name: Setup Vs
+        uses: seanmiddleditch/gha-setup-vsdevenv@master
+
       - name: Create Release Build Binary Directory
         run: |
           dir  "${{ github.workspace }}/qtinstall/"
