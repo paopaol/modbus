@@ -219,6 +219,7 @@ public:
   }
   ByteArray marshal(const uint16_t *frameId = nullptr) override {
     ByteArray output;
+    output.reserve(6 + adu_.marshalSize());
 
     id_ = frameId ? *frameId : nextTransactionId();
 
@@ -236,7 +237,9 @@ public:
     output.push_back(aduSize % 256);
 
     ByteArray aduArray = adu_.marshalAduWithoutCrc();
-    output.insert(output.end(), aduArray.begin(), aduArray.end());
+    for (int i = 0, size = aduArray.size(); i < size; i++) {
+      output.push_back(aduArray[i]);
+    }
 
     return output;
   }

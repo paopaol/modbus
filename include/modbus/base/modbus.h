@@ -82,7 +82,7 @@ public:
   /**
    * @brief this data is only payload, not include function code
    */
-  ByteArray data() const { return data_; }
+  const ByteArray &data() const { return data_; }
   /**
    * @brief return the size of payload
    */
@@ -138,7 +138,10 @@ public:
    * @brief marshalAduWithoutCrc,that is: serveraddress + fuction code + payload
    */
   ByteArray marshalAduWithoutCrc() {
+    const auto &data = pdu_.data();
+
     ByteArray array;
+    array.reserve(2 + data.size());
 
     array.push_back(serverAddress());
     if (isException()) {
@@ -146,8 +149,9 @@ public:
     } else {
       array.push_back(pdu_.functionCode());
     }
-    const auto &data = pdu_.data();
-    array.insert(array.end(), data.begin(), data.end());
+    for (int i = 0, size = data.size(); i < size; i++) {
+      array.push_back(data[i]);
+    }
     return array;
   }
 
