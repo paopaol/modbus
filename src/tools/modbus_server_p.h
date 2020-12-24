@@ -272,7 +272,7 @@ public:
 
   void checkProcessRequestResult(const ClientSession &session,
                                  ProcessResult result,
-                                 const std::shared_ptr<Frame> &requestFrame,
+                                 const std::unique_ptr<Frame> &frame,
                                  const pp::bytes::Buffer &buffer) {
     switch (result) {
     case ProcessResult::kNeedMoreData: {
@@ -309,8 +309,8 @@ public:
     log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
         dump(transferMode_, *buffer));
 
-    std::shared_ptr<Frame> requestFrame;
-    std::shared_ptr<Frame> responseFrame;
+    std::unique_ptr<Frame> requestFrame;
+    std::unique_ptr<Frame> responseFrame;
     auto result = processModbusRequest(buffer, requestFrame, responseFrame);
     checkProcessRequestResult(session, result, requestFrame, *buffer);
     // if requestFrame and responseFrame is not null
@@ -321,8 +321,8 @@ public:
   }
 
   ProcessResult processModbusRequest(const BytesBufferPtr &buffer,
-                                     std::shared_ptr<Frame> &requestFrame,
-                                     std::shared_ptr<Frame> &responseFrame) {
+                                     std::unique_ptr<Frame> &requestFrame,
+                                     std::unique_ptr<Frame> &responseFrame) {
     requestFrame = createModbusFrame(transferMode_);
     auto data = byteArrayFromBuffer(*buffer);
 
@@ -433,7 +433,7 @@ public:
     return Response();
   }
 
-  void writeFrame(ClientSession &session, const std::shared_ptr<Frame> &frame,
+  void writeFrame(ClientSession &session, const std::unique_ptr<Frame> &frame,
                   uint16_t id) {
     auto array = frame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());

@@ -1,0 +1,21 @@
+modbus_client.cpp:67:3:  element->requestFrame = createModbusFrame(d->transferMode_);
+modbus_client.cpp:68:3:  element->requestFrame->setAdu(*element->request);
+modbus_client.cpp:68:34:  element->requestFrame->setAdu(*element->request);
+modbus_client.cpp:70:3:  element->responseFrame = createModbusFrame(d->transferMode_);
+modbus_client.cpp:71:3:  element->responseFrame->setAdu(element->response);
+modbus_client.cpp:71:34:  element->responseFrame->setAdu(element->response);
+modbus_client.cpp:73:3:  element->retryTimes = d->retryTimes_;
+modbus_client.cpp:382:3:  element->bytesWritten = 0;
+modbus_client.cpp:383:3:  element->dataRecived.clear();
+modbus_client.cpp:394:26:  const auto &request = *element->request;
+modbus_client.cpp:395:20:  auto &response = element->response;
+modbus_client.cpp:397:7:  if (element->retryTimes-- > 0) {
+modbus_client.cpp:400:29:        d->device_->name(), element->retryTimes);
+modbus_client.cpp:444:23:  auto &dataRecived = element->dataRecived;
+modbus_client.cpp:445:19:  auto &request = element->request;
+modbus_client.cpp:452:17:  auto result = element->responseFrame->unmarshal(dataRecived, &error);
+modbus_client.cpp:459:21:  Response response(element->responseFrame->adu());
+modbus_client.cpp:504:19:  auto &request = element->request;
+modbus_client.cpp:505:3:  element->bytesWritten += bytes;
+modbus_client.cpp:506:7:  if (element->bytesWritten != element->requestFrame->marshalSize()) {
+modbus_client.cpp:506:32:  if (element->bytesWritten != element->requestFrame->marshalSize()) {

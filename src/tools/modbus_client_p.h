@@ -41,9 +41,8 @@ public:
   }
   ~QModbusClientPrivate() {}
 
-  Element &enqueueAndPeekLastElement() {
-    Element e;
-    elementQueue_.push_back(e);
+  Element *enqueueAndPeekLastElement() {
+    elementQueue_.push_back(new Element());
     return elementQueue_.back();
   }
 
@@ -72,7 +71,7 @@ public:
        * take out the first request,send it out,
        */
       auto &ele = elementQueue_.front();
-      auto data = ele.requestFrame->marshal();
+      auto data = ele->requestFrame->marshal();
       if (enableDump_) {
         log(LogLevel::kDebug, "{} will send: {}", device_->name(), dump(data));
       }

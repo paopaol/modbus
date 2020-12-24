@@ -101,8 +101,8 @@ TEST(QModbusServer,
   raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadServerAddress);
 }
@@ -120,8 +120,8 @@ TEST(QModbusServer, recivedRequest_needMoreData) {
   ByteArray raw({0x01});
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kNeedMoreData);
 }
@@ -142,8 +142,8 @@ TEST(
   raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }

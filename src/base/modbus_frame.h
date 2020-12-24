@@ -295,14 +295,14 @@ private:
   static const int kProtocolId = 0;
 };
 
-inline std::shared_ptr<Frame> createModbusFrame(TransferMode mode) {
+inline std::unique_ptr<Frame> createModbusFrame(TransferMode mode) {
   switch (mode) {
   case TransferMode::kRtu:
-    return std::make_shared<RtuFrame>();
+    return std::unique_ptr<Frame>(new RtuFrame());
   case TransferMode::kAscii:
-    return std::make_shared<AsciiFrame>();
+    return std::unique_ptr<Frame>(new AsciiFrame());
   case TransferMode::kMbap:
-    return std::make_shared<MbapFrame>();
+    return std::unique_ptr<Frame>(new MbapFrame());
   default:
     smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
     return nullptr;
