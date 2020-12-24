@@ -1,13 +1,13 @@
 #ifndef __MODBUS_SERVER_P_H_
 #define __MODBUS_SERVER_P_H_
 
-#include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_server.h>
+#include <algorithm>
 
 namespace modbus {
 enum class StorageKind {
@@ -34,13 +34,13 @@ static std::string dump(TransferMode transferMode,
                                               : tool::dumpHex(array);
 }
 
-#define sessionIteratorOrReturn(it, fd)                                        \
-  auto it = sessionList_.find(fd);                                             \
-  if (it == sessionList_.end()) {                                              \
-    return;                                                                    \
+#define sessionIteratorOrReturn(it, fd) \
+  auto it = sessionList_.find(fd);      \
+  if (it == sessionList_.end()) {       \
+    return;                             \
   }
 
-#define DeferRun(functor)                                                      \
+#define DeferRun(functor) \
   std::shared_ptr<void> _##__LINE__(nullptr, std::bind(functor))
 
 struct ClientSession {
@@ -57,7 +57,7 @@ struct HandleFuncEntry {
 class QModbusServerPrivate : public QObject {
   Q_OBJECT
   Q_DECLARE_PUBLIC(QModbusServer)
-public:
+ public:
   enum class ProcessResult {
     kSuccess,
     kNeedMoreData,
@@ -275,31 +275,31 @@ public:
                                  const std::unique_ptr<Frame> &frame,
                                  const pp::bytes::Buffer &buffer) {
     switch (result) {
-    case ProcessResult::kNeedMoreData: {
-      log(LogLevel::kDebug, "{} need more data R[{}]",
-          session.client->fullName(), dump(transferMode_, buffer));
-      break;
-    }
-    case ProcessResult::kBadServerAddress: {
-      log(LogLevel::kError,
-          "{} unexpected server address,my "
-          "address[{}]",
-          session.client->fullName(), serverAddress_);
-      break;
-    }
-    case ProcessResult::kBadFunctionCode: {
-      log(LogLevel::kError, "{} unsupported function code",
-          session.client->fullName());
-      break;
-    }
-    case ProcessResult::kBroadcast: {
-    }
-    case ProcessResult::kStorageParityError: {
-      log(LogLevel::kError, "{} invalid request", session.client->fullName());
-      break;
-    }
-    case ProcessResult::kSuccess: {
-    }
+      case ProcessResult::kNeedMoreData: {
+        log(LogLevel::kDebug, "{} need more data R[{}]",
+            session.client->fullName(), dump(transferMode_, buffer));
+        break;
+      }
+      case ProcessResult::kBadServerAddress: {
+        log(LogLevel::kError,
+            "{} unexpected server address,my "
+            "address[{}]",
+            session.client->fullName(), serverAddress_);
+        break;
+      }
+      case ProcessResult::kBadFunctionCode: {
+        log(LogLevel::kError, "{} unsupported function code",
+            session.client->fullName());
+        break;
+      }
+      case ProcessResult::kBroadcast: {
+      }
+      case ProcessResult::kStorageParityError: {
+        log(LogLevel::kError, "{} invalid request", session.client->fullName());
+        break;
+      }
+      case ProcessResult::kSuccess: {
+      }
     }
   }
 
@@ -406,29 +406,29 @@ public:
   Response processRequest(const Request &request) {
     using modbus::FunctionCode;
     switch (request.functionCode()) {
-    case kReadCoils:
-    case kReadInputDiscrete: {
-      return processReadSingleBitRequest(request, request.functionCode());
-    }
-    case kWriteSingleCoil: {
-      return processWriteCoilRequest(request);
-    }
-    case kWriteMultipleCoils: {
-      return processWriteCoilsRequest(request);
-    }
-    case kReadHoldingRegisters:
-    case kReadInputRegister: {
-      return processReadMultipleRegisters(request, request.functionCode());
-    }
-    case kWriteSingleRegister: {
-      return processWriteHoldingRegisterRequest(request);
-    }
-    case kWriteMultipleRegisters: {
-      return processWriteHoldingRegistersRequest(request);
-    }
-    default:
-      smart_assert(0 && "unsuported function")(request.functionCode());
-      break;
+      case kReadCoils:
+      case kReadInputDiscrete: {
+        return processReadSingleBitRequest(request, request.functionCode());
+      }
+      case kWriteSingleCoil: {
+        return processWriteCoilRequest(request);
+      }
+      case kWriteMultipleCoils: {
+        return processWriteCoilsRequest(request);
+      }
+      case kReadHoldingRegisters:
+      case kReadInputRegister: {
+        return processReadMultipleRegisters(request, request.functionCode());
+      }
+      case kWriteSingleRegister: {
+        return processWriteHoldingRegisterRequest(request);
+      }
+      case kWriteMultipleRegisters: {
+        return processWriteHoldingRegistersRequest(request);
+      }
+      default:
+        smart_assert(0 && "unsuported function")(request.functionCode());
+        break;
     }
     return Response();
   }
@@ -466,7 +466,7 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = writeCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -514,6 +514,43 @@ public:
     return Error::kNoError;
   }
 
+  Error handleClientwriteCoils(FunctionCode functionCode,
+                               const Request &request, SingleBitAccess &my,
+                               const SingleBitAccess &you) {
+    Q_Q(QModbusServer);
+    auto error = validateSingleBitAccess(you, my);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, my.startAddress(), my.quantity(), you.startAddress(),
+          my.quantity());
+      return error;
+    }
+    Address startAddress = you.startAddress();
+    auto value = you.value(startAddress);
+    if (value == BitValue::kBadValue) {
+      return Error::kIllegalDataValue;
+    }
+
+    Address reqStartAddress = you.startAddress();
+    for (size_t i = 0; i < you.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you.value(address);
+      auto error = canWriteSingleBitValue(address, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+    for (size_t i = 0; i < you.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you.value(address);
+      emit q->writeCoilsRequested(address, value);
+    }
+
+    return Error::kNoError;
+  }
+
   Error writeCoils(FunctionCode functionCode, const Request &request,
                    SingleBitAccess &my, const SingleBitAccess &you) {
     auto error = validateSingleBitAccess(you, my);
@@ -544,7 +581,7 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto error = writeCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -702,11 +739,36 @@ public:
     return Error::kNoError;
   }
 
-  Error writeHodingRegister(Address address, const SixteenBitValue &setValue) {
+  Error handleClientWriteHodingRegisters(const SixteenBitAccess &access,
+                                         const SixteenBitAccess &my) {
+    auto error = validateSixteenAccess(access, my);
+    if (error != Error::kNoError) {
+      return error;
+    }
+    Quantity quantity = access.quantity();
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      auto error = canWriteSixteenBitValue(reqStartAddress, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+    Q_Q(QModbusServer);
+    emit q->writeHodingRegistersRequested(access.startAddress(),
+                                          access.value());
+    return Error::kNoError;
+  }
+
+  Error writeHodingRegisters(Address address,
+                             const QVector<SixteenBitValue> &setValues) {
     SixteenBitAccess access;
     access.setStartAddress(address);
-    access.setQuantity(1);
-    access.setValue(address, setValue.toUint16());
+    access.setQuantity(setValues.size());
+    auto addr = address;
+    for (const auto &value : setValues) {
+      access.setValue(addr++, value.toUint16());
+    }
     auto error = writeRegisterValuesInternal(StorageKind::kHoldingRegisters,
                                              &holdingRegister_, access);
     if (error != Error::kNoError) {
@@ -717,11 +779,15 @@ public:
     return Error::kNoError;
   }
 
-  Error writeInputRegister(Address address, const SixteenBitValue &setValue) {
+  Error writeInputRegisters(Address address,
+                            const QVector<SixteenBitValue> &setValues) {
     SixteenBitAccess access;
     access.setStartAddress(address);
-    access.setQuantity(1);
-    access.setValue(address, setValue.toUint16());
+    access.setQuantity(setValues.size());
+    auto addr = address;
+    for (const auto &value : setValues) {
+      access.setValue(addr++, value.toUint16());
+    }
     auto error = writeRegisterValuesInternal(StorageKind::kInputRegisters,
                                              &inputRegister_, access);
     if (error != Error::kNoError) {
@@ -769,8 +835,7 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = writeHodingRegister(access.startAddress(),
-                                     access.value(access.startAddress()));
+    auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -793,14 +858,9 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    for (int i = 0; i < access.quantity(); i++) {
-      Address address = access.startAddress() + i;
-      auto value = access.value(address);
-
-      auto error = writeHodingRegister(address, value);
-      if (error != Error::kNoError) {
-        return createErrorReponse(functionCode, error);
-      }
+    auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
     }
 
     Response response;
@@ -891,6 +951,6 @@ static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer) {
   return data;
 }
 
-} // namespace modbus
+}  // namespace modbus
 
-#endif // __MODBUS_SERVER_P_H_
+#endif  // __MODBUS_SERVER_P_H_

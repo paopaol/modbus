@@ -105,8 +105,10 @@ public:
   // write
   Error writeCoils(Address address, BitValue setValue);
   Error writeInputDiscrete(Address address, BitValue setValue);
-  Error writeInputRegister(Address address, const SixteenBitValue &setValue);
-  Error writeHodingRegister(Address address, const SixteenBitValue &setValue);
+  Error writeInputRegisters(Address address,
+                            const QVector<SixteenBitValue> &setValues);
+  Error writeHodingRegisters(Address address,
+                             const QVector<SixteenBitValue> &setValues);
 
   bool listenAndServe();
 
@@ -120,6 +122,9 @@ signals:
   // if coils/input discrete value changed,, these signal will emited
   void coilsValueChanged(Address address, const BitValue &value);
   void inputDiscreteValueChanged(Address, const BitValue &value);
+
+  void writeCoilsRequested(Address address, const BitValue &value);
+  void writeHodingRegistersRequested(Address address, const ByteArray &values);
 
 protected:
   virtual Response processRequest(const Request &request);
