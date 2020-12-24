@@ -40,27 +40,21 @@ int main(int argc, char *argv[]) {
     sendAfter(0);
   });
 
-  QObject::connect(
-      client.data(), &modbus::QModbusClient::readRegistersFinished,
-      [&](modbus::ServerAddress serverAddress,
-          modbus::FunctionCode functionCode, modbus::Address startAddress,
-          modbus::Quantity quantity,
-          const QVector<modbus::SixteenBitValue> &valueList,
-          modbus::Error error) {
-        std::shared_ptr<void> _(nullptr, std::bind([&]() {
-                                  printf("pending Request size:%zu\n",
-                                         client->pendingRequestSize());
-                                  if (client->pendingRequestSize() == 0) {
-                                    sendAfter(3000);
-                                  }
-                                }));
-        int offset = 0;
-        for (const auto &value : valueList) {
-          modbus::Address address = startAddress + offset;
-          printf("\taddress: %d value:%d\n", address, value.toUint16());
-        }
-        std::cout << std::endl;
-      });
+  QObject::connect(client.data(), &modbus::QModbusClient::readRegistersFinished,
+                   [&](modbus::ServerAddress serverAddress,
+                       modbus::FunctionCode functionCode,
+                       modbus::Address startAddress, modbus::Quantity quantity,
+                       const uint8_t *data, size_t size, modbus::Error error) {
+                     std::shared_ptr<void> _(
+                         nullptr, std::bind([&]() {
+                           printf("pending Request size:%zu\n",
+                                  client->pendingRequestSize());
+                           if (client->pendingRequestSize() == 0) {
+                             sendAfter(3000);
+                           }
+                         }));
+                     // handle you code
+                   });
 
   client->open();
 

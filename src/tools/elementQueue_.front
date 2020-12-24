@@ -1,0 +1,98 @@
+modbus_client.cpp:41:3:  d->device_->open();
+modbus_client.cpp:51:3:  d->device_->close();
+modbus_client.cpp:58:59:    log(LogLevel::kWarning, "{} closed, discard reuqest", d->device_->name());
+modbus_client.cpp:64:19:  auto *element = d->enqueueAndPeekLastElement();
+modbus_client.cpp:67:45:  element->requestFrame = createModbusFrame(d->transferMode_);
+modbus_client.cpp:70:46:  element->responseFrame = createModbusFrame(d->transferMode_);
+modbus_client.cpp:73:25:  element->retryTimes = d->retryTimes_;
+modbus_client.cpp:74:3:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:74:26:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:214:10:  return d->sessionState_.state() == SessionState::kIdle;
+modbus_client.cpp:219:10:  return d->device_->isClosed();
+modbus_client.cpp:224:10:  return d->device_->isOpened();
+modbus_client.cpp:243:11:  connect(d->device_, &ReconnectableIoDevice::opened, this,
+modbus_client.cpp:245:11:  connect(d->device_, &ReconnectableIoDevice::closed, this,
+modbus_client.cpp:247:11:  connect(d->device_, &ReconnectableIoDevice::error, this,
+modbus_client.cpp:249:11:  connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+modbus_client.cpp:251:11:  connect(d->device_, &ReconnectableIoDevice::connectionIsLostWillReconnect,
+modbus_client.cpp:254:11:  connect(d->device_, &ReconnectableIoDevice::error, this,
+modbus_client.cpp:256:11:  connect(d->device_, &ReconnectableIoDevice::bytesWritten, this,
+modbus_client.cpp:258:11:  connect(d->device_, &ReconnectableIoDevice::readyRead, this,
+modbus_client.cpp:260:11:  connect(d->waitResponseTimer_, &QTimer::timeout, this,
+modbus_client.cpp:269:3:  d->waitResponseTimeout_ = timeout;
+modbus_client.cpp:275:10:  return d->waitResponseTimeout_;
+modbus_client.cpp:281:3:  d->transferMode_ = transferMode;
+modbus_client.cpp:287:10:  return d->transferMode_;
+modbus_client.cpp:293:3:  d->retryTimes_ = std::max(0, times);
+modbus_client.cpp:298:10:  return d->retryTimes_;
+modbus_client.cpp:303:3:  d->device_->setOpenRetryTimes(retryTimes, delay);
+modbus_client.cpp:308:10:  return d->device_->openRetryTimes();
+modbus_client.cpp:313:10:  return d->device_->openRetryDelay();
+modbus_client.cpp:321:3:  d->t3_5_ = frameInterval;
+modbus_client.cpp:326:11:  while (!d->elementQueue_.empty()) {
+modbus_client.cpp:327:14:    auto e = d->elementQueue_.front();
+modbus_client.cpp:328:5:    d->elementQueue_.pop_front();
+modbus_client.cpp:331:3:  d->waitResponseTimer_->stop();
+modbus_client.cpp:332:3:  d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:337:10:  return d->elementQueue_.size();
+modbus_client.cpp:342:10:  return d->errorString_;
+modbus_client.cpp:347:7:  if (d->enableDiagnosis_ == enable) {
+modbus_client.cpp:350:3:  d->enableDiagnosis_ = enable;
+modbus_client.cpp:355:7:  if (d->enableDump_ == enable) {
+modbus_client.cpp:358:3:  d->enableDump_ = enable;
+modbus_client.cpp:363:10:  return d->runtimeDiagnosis_;
+modbus_client.cpp:369:3:  d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:370:3:  d->waitConversionDelay_ = 200;
+modbus_client.cpp:371:3:  d->t3_5_ = 60;
+modbus_client.cpp:372:3:  d->waitResponseTimeout_ = 1000;
+modbus_client.cpp:373:3:  d->retryTimes_ = 0; /// default no retry
+modbus_client.cpp:374:3:  d->transferMode_ = TransferMode::kRtu;
+modbus_client.cpp:379:10:  assert(d->sessionState_.state() == SessionState::kWaitingResponse);
+modbus_client.cpp:381:19:  auto &element = d->elementQueue_.front();
+modbus_client.cpp:392:3:  d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:400:9:        d->device_->name(), element->retryTimes);
+modbus_client.cpp:407:61:    log(LogLevel::kWarning, "{}: waiting response timeout", d->device_->name());
+modbus_client.cpp:413:14:    auto e = d->elementQueue_.front();
+modbus_client.cpp:414:5:    d->elementQueue_.pop_front();
+modbus_client.cpp:418:3:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:418:26:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:429:16:  auto qdata = d->device_->readAll();
+modbus_client.cpp:430:7:  if (d->sessionState_.state() != SessionState::kWaitingResponse) {
+modbus_client.cpp:434:15:    stream << d->sessionState_.state();
+modbus_client.cpp:437:9:        d->device_->name(), stream.str(), d->dump(data));
+modbus_client.cpp:437:43:        d->device_->name(), stream.str(), d->dump(data));
+modbus_client.cpp:439:5:    d->device_->clear();
+modbus_client.cpp:443:19:  auto &element = d->elementQueue_.front();
+modbus_client.cpp:447:23:  auto sessionState = d->sessionState_.state();
+modbus_client.cpp:454:29:    log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
+modbus_client.cpp:455:33:                                d->dump(dataRecived) + "]");
+modbus_client.cpp:469:9:        d->device_->name() +
+modbus_client.cpp:471:13:            d->dump(dataRecived) + "]");
+modbus_client.cpp:477:3:  d->waitResponseTimer_->stop();
+modbus_client.cpp:478:3:  d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:480:7:  if (d->enableDump_) {
+modbus_client.cpp:482:9:        d->device_->name() + " recived " + d->dump(dataRecived));
+modbus_client.cpp:482:44:        d->device_->name() + " recived " + d->dump(dataRecived));
+modbus_client.cpp:488:12:  auto e = d->elementQueue_.front();
+modbus_client.cpp:489:3:  d->elementQueue_.pop_front();
+modbus_client.cpp:492:3:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:492:26:  d->scheduleNextRequest(d->t3_5_);
+modbus_client.cpp:498:10:  assert(d->sessionState_.state() == SessionState::kSendingRequest &&
+modbus_client.cpp:503:19:  auto &element = d->elementQueue_.front();
+modbus_client.cpp:511:14:    auto e = d->elementQueue_.front();
+modbus_client.cpp:512:5:    d->elementQueue_.pop_front();
+modbus_client.cpp:514:5:    d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:515:5:    d->scheduleNextRequest(d->waitConversionDelay_);
+modbus_client.cpp:515:28:    d->scheduleNextRequest(d->waitConversionDelay_);
+modbus_client.cpp:518:9:        d->device_->name() + " brocast request, turn into idle status");
+modbus_client.cpp:529:3:  d->sessionState_.setState(SessionState::kWaitingResponse);
+modbus_client.cpp:530:3:  d->waitResponseTimer_->setSingleShot(true);
+modbus_client.cpp:531:3:  d->waitResponseTimer_->setInterval(d->waitResponseTimeout_);
+modbus_client.cpp:531:38:  d->waitResponseTimer_->setInterval(d->waitResponseTimeout_);
+modbus_client.cpp:532:3:  d->waitResponseTimer_->start();
+modbus_client.cpp:538:3:  d->errorString_ = errorString;
+modbus_client.cpp:540:11:  switch (d->sessionState_.state()) {
+modbus_client.cpp:542:5:    d->waitResponseTimer_->stop();
+modbus_client.cpp:547:3:  d->sessionState_.setState(SessionState::kIdle);
+modbus_client.cpp:564:8:  if (!d->enableDiagnosis_) {
+modbus_client.cpp:567:28:  auto &runtimeDiagnosis = d->runtimeDiagnosis_;

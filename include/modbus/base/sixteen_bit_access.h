@@ -40,18 +40,22 @@ public:
     value_array_[i + 1] = v.secondByte();
   }
 
+  ByteArray value() const {
+    return value_array_;
+  }
+
   SixteenBitValue value(Address address, bool *ok = nullptr) const {
     Address start_address = startAddress();
     Quantity quan = quantity();
-	int size = value_array_.size();
+    int size = value_array_.size();
     for (size_t i = (address - startAddress_) * 2;
          i >= 0 && address < start_address + quan; i += 2) {
       if (ok) {
         *ok = true;
       }
-	  if (i >= size) {
-		  break;
-	  }
+      if (i >= size) {
+        break;
+      }
       return SixteenBitValue(value_array_[i], value_array_[i + 1]);
     }
 
