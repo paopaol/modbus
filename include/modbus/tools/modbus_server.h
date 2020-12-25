@@ -54,7 +54,7 @@ protected:
 };
 
 using canWriteSingleBitValueFunc =
-    std::function<Error(Address startAddress, BitValue value)>;
+    std::function<Error(Address startAddress, bool value)>;
 using canWriteSixteenBitValueFunc =
     std::function<Error(Address startAddress, const SixteenBitValue &value)>;
 
@@ -99,12 +99,12 @@ public:
   // read
   bool holdingRegisterValue(Address address, SixteenBitValue *value);
   bool inputRegisterValue(Address address, SixteenBitValue *value);
-  bool coilsValue(Address address, BitValue *value);
-  bool inputDiscreteValue(Address address, BitValue *value);
+  bool coilsValue(Address address);
+  bool inputDiscreteValue(Address address);
 
   // write
-  Error writeCoils(Address address, BitValue setValue);
-  Error writeInputDiscrete(Address address, BitValue setValue);
+  Error writeCoils(Address address, bool setValue);
+  Error writeInputDiscrete(Address address, bool setValue);
   Error writeInputRegisters(Address address,
                             const QVector<SixteenBitValue> &setValues);
   Error writeHodingRegisters(Address address,
@@ -120,10 +120,10 @@ signals:
                                  const QVector<SixteenBitValue> &values);
 
   // if coils/input discrete value changed,, these signal will emited
-  void coilsValueChanged(Address address, const BitValue &value);
-  void inputDiscreteValueChanged(Address, const BitValue &value);
+  void coilsValueChanged(Address address, bool value);
+  void inputDiscreteValueChanged(Address, bool value);
 
-  void writeCoilsRequested(Address address, const BitValue &value);
+  void writeCoilsRequested(Address address, bool value);
   void writeHodingRegistersRequested(Address address, const ByteArray &values);
 
 protected:

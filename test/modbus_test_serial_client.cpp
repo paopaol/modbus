@@ -772,9 +772,9 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     EXPECT_FALSE(response.isException());
     auto access = any::any_cast<SingleBitAccess>(myrequest.userData());
     access.unmarshalReadResponse(response.data());
-    EXPECT_EQ(access.value(kStartAddress), BitValue::kOn);
-    EXPECT_EQ(access.value(kStartAddress + 1), BitValue::kOff);
-    EXPECT_EQ(access.value(kStartAddress + 2), BitValue::kOn);
+    EXPECT_EQ(access.value(kStartAddress), true);
+    EXPECT_EQ(access.value(kStartAddress + 1), false);
+    EXPECT_EQ(access.value(kStartAddress + 2), true);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -974,10 +974,9 @@ TEST(ModbusClient, readSingleBits_success) {
     Quantity quantity = qvariant_cast<Quantity>(arguments.at(3));
     EXPECT_EQ(quantity, 3);
 
-    QVector<BitValue> valueList =
-        qvariant_cast<QVector<BitValue>>(arguments.at(4));
-    EXPECT_THAT(valueList,
-                ElementsAre(BitValue::kOn, BitValue::kOff, BitValue::kOn));
+    QVector<uint8_t> valueList =
+        qvariant_cast<QVector<uint8_t>>(arguments.at(4));
+    EXPECT_THAT(valueList, ElementsAre(true, false, true));
 
     Error error = qvariant_cast<Error>(arguments.at(5));
     EXPECT_EQ(error, Error::kNoError);
@@ -1003,7 +1002,7 @@ TEST(ModbusClient, writeSingleCoil_success) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.writeSingleCoil(kServerAddress, Address(0x05), BitValue::kOn);
+    serialClient.writeSingleCoil(kServerAddress, Address(0x05), true);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
@@ -1043,16 +1042,16 @@ TEST(ModbusClient, writeMultipleCoils_success) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<BitValue> valueList;
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
+    QVector<uint8_t> valueList;
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
     serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
@@ -1090,16 +1089,16 @@ TEST(ModbusClient, writeMultipleCoils_failed) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<BitValue> valueList;
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
+    QVector<uint8_t> valueList;
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
     serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
@@ -1237,8 +1236,7 @@ static void createReadCoils(ServerAddress serverAddress, Address startAddress,
   access.setQuantity(kQuantity);
 
   for (int i = 0; i < access.quantity(); i++) {
-    access.setValue(access.startAddress() + i,
-                    i % 2 == 0 ? BitValue::kOn : BitValue::kOff);
+    access.setValue(access.startAddress() + i, i % 2 == 0);
   }
 
   session.request.reset(new Request());
