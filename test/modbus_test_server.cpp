@@ -157,8 +157,8 @@ TEST(QModbusServer, processReadCoils_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.writeCoils(0x01, BitValue::kOn);
-  d.writeCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, true);
+  d.writeCoils(0x03, true);
 
   SingleBitAccess access;
 
@@ -188,8 +188,8 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.writeCoils(0x01, BitValue::kOn);
-  d.writeCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, true);
+  d.writeCoils(0x03, true);
 
   SingleBitAccess access;
 
@@ -219,7 +219,7 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(BitValue::kOn);
+  access.setValue(true);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             access.marshalSingleWriteRequest(),
@@ -246,7 +246,7 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(BitValue::kOn);
+  access.setValue(true);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             access.marshalSingleWriteRequest(),
@@ -274,10 +274,10 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
                             bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), Error::kIllegalDataValue);
+  EXPECT_EQ(response.error(), Error::kStorageParityError);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), ByteArray({0x03}));
+  EXPECT_EQ(response.data(), ByteArray({0x08}));
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
@@ -288,7 +288,7 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
   d.setCanWriteSingleBitValueFunc(
-      [&](Address address, BitValue value) { return Error::kSlaveDeviceBusy; });
+      [&](Address address, bool value) { return Error::kSlaveDeviceBusy; });
 
   d.handleCoils(0x01, 10);
 
@@ -503,7 +503,7 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x01}));
   EXPECT_EQ(spy.count(), 3);
-  EXPECT_EQ(spy2.count(),1);
+  EXPECT_EQ(spy2.count(), 1);
 }
 
 TEST(QModbusServer, writeValueSixteenValue_success) {

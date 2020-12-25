@@ -1,13 +1,13 @@
 #ifndef __MODBUS_SERVER_P_H_
 #define __MODBUS_SERVER_P_H_
 
+#include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus/tools/modbus_server.h>
-#include <algorithm>
 
 namespace modbus {
 enum class StorageKind {
@@ -34,13 +34,13 @@ static std::string dump(TransferMode transferMode,
                                               : tool::dumpHex(array);
 }
 
-#define sessionIteratorOrReturn(it, fd) \
-  auto it = sessionList_.find(fd);      \
-  if (it == sessionList_.end()) {       \
-    return;                             \
+#define sessionIteratorOrReturn(it, fd)                                        \
+  auto it = sessionList_.find(fd);                                             \
+  if (it == sessionList_.end()) {                                              \
+    return;                                                                    \
   }
 
-#define DeferRun(functor) \
+#define DeferRun(functor)                                                      \
   std::shared_ptr<void> _##__LINE__(nullptr, std::bind(functor))
 
 struct ClientSession {
@@ -57,7 +57,7 @@ struct HandleFuncEntry {
 class QModbusServerPrivate : public QObject {
   Q_OBJECT
   Q_DECLARE_PUBLIC(QModbusServer)
- public:
+public:
   enum class ProcessResult {
     kSuccess,
     kNeedMoreData,
@@ -215,14 +215,8 @@ class QModbusServerPrivate : public QObject {
     return true;
   }
 
-  bool coilsValue(const SingleBitAccess &access, Address address,
-                  BitValue *value) {
-    if (!value) {
-      return false;
-    }
-    auto v = access.value(address);
-    *value = v;
-    return true;
+  bool coilsValue(const SingleBitAccess &access, Address address) {
+    return access.value(address);
   }
 
   bool holdingRegisterValue(Address address, SixteenBitValue *value) {
@@ -233,12 +227,10 @@ class QModbusServerPrivate : public QObject {
     return registerValue(inputRegister_, address, value);
   }
 
-  bool coilsValue(Address address, BitValue *value) {
-    return coilsValue(coils_, address, value);
-  }
+  bool coilsValue(Address address) { return coilsValue(coils_, address); }
 
-  bool inputDiscreteValue(Address address, BitValue *value) {
-    return coilsValue(inputDiscrete_, address, value);
+  bool inputDiscreteValue(Address address) {
+    return coilsValue(inputDiscrete_, address);
   }
 
   void setServer(AbstractServer *server) { server_ = server; }
@@ -275,31 +267,31 @@ class QModbusServerPrivate : public QObject {
                                  const std::unique_ptr<Frame> &frame,
                                  const pp::bytes::Buffer &buffer) {
     switch (result) {
-      case ProcessResult::kNeedMoreData: {
-        log(LogLevel::kDebug, "{} need more data R[{}]",
-            session.client->fullName(), dump(transferMode_, buffer));
-        break;
-      }
-      case ProcessResult::kBadServerAddress: {
-        log(LogLevel::kError,
-            "{} unexpected server address,my "
-            "address[{}]",
-            session.client->fullName(), serverAddress_);
-        break;
-      }
-      case ProcessResult::kBadFunctionCode: {
-        log(LogLevel::kError, "{} unsupported function code",
-            session.client->fullName());
-        break;
-      }
-      case ProcessResult::kBroadcast: {
-      }
-      case ProcessResult::kStorageParityError: {
-        log(LogLevel::kError, "{} invalid request", session.client->fullName());
-        break;
-      }
-      case ProcessResult::kSuccess: {
-      }
+    case ProcessResult::kNeedMoreData: {
+      log(LogLevel::kDebug, "{} need more data R[{}]",
+          session.client->fullName(), dump(transferMode_, buffer));
+      break;
+    }
+    case ProcessResult::kBadServerAddress: {
+      log(LogLevel::kError,
+          "{} unexpected server address,my "
+          "address[{}]",
+          session.client->fullName(), serverAddress_);
+      break;
+    }
+    case ProcessResult::kBadFunctionCode: {
+      log(LogLevel::kError, "{} unsupported function code",
+          session.client->fullName());
+      break;
+    }
+    case ProcessResult::kBroadcast: {
+    }
+    case ProcessResult::kStorageParityError: {
+      log(LogLevel::kError, "{} invalid request", session.client->fullName());
+      break;
+    }
+    case ProcessResult::kSuccess: {
+    }
     }
   }
 
@@ -406,29 +398,29 @@ class QModbusServerPrivate : public QObject {
   Response processRequest(const Request &request) {
     using modbus::FunctionCode;
     switch (request.functionCode()) {
-      case kReadCoils:
-      case kReadInputDiscrete: {
-        return processReadSingleBitRequest(request, request.functionCode());
-      }
-      case kWriteSingleCoil: {
-        return processWriteCoilRequest(request);
-      }
-      case kWriteMultipleCoils: {
-        return processWriteCoilsRequest(request);
-      }
-      case kReadHoldingRegisters:
-      case kReadInputRegister: {
-        return processReadMultipleRegisters(request, request.functionCode());
-      }
-      case kWriteSingleRegister: {
-        return processWriteHoldingRegisterRequest(request);
-      }
-      case kWriteMultipleRegisters: {
-        return processWriteHoldingRegistersRequest(request);
-      }
-      default:
-        smart_assert(0 && "unsuported function")(request.functionCode());
-        break;
+    case kReadCoils:
+    case kReadInputDiscrete: {
+      return processReadSingleBitRequest(request, request.functionCode());
+    }
+    case kWriteSingleCoil: {
+      return processWriteCoilRequest(request);
+    }
+    case kWriteMultipleCoils: {
+      return processWriteCoilsRequest(request);
+    }
+    case kReadHoldingRegisters:
+    case kReadInputRegister: {
+      return processReadMultipleRegisters(request, request.functionCode());
+    }
+    case kWriteSingleRegister: {
+      return processWriteHoldingRegisterRequest(request);
+    }
+    case kWriteMultipleRegisters: {
+      return processWriteHoldingRegistersRequest(request);
+    }
+    default:
+      smart_assert(0 && "unsuported function")(request.functionCode());
+      break;
     }
     return Response();
   }
@@ -484,10 +476,6 @@ class QModbusServerPrivate : public QObject {
     Q_Q(QModbusServer);
     Address startAddress = you->startAddress();
     auto value = you->value(startAddress);
-    if (value == BitValue::kBadValue) {
-      return Error::kIllegalDataValue;
-    }
-
     Address reqStartAddress = you->startAddress();
     for (size_t i = 0; i < you->quantity(); i++) {
       Address address = reqStartAddress + i;
@@ -529,9 +517,6 @@ class QModbusServerPrivate : public QObject {
     }
     Address startAddress = you.startAddress();
     auto value = you.value(startAddress);
-    if (value == BitValue::kBadValue) {
-      return Error::kIllegalDataValue;
-    }
 
     Address reqStartAddress = you.startAddress();
     for (size_t i = 0; i < you.quantity(); i++) {
@@ -602,7 +587,7 @@ class QModbusServerPrivate : public QObject {
     canWriteSixteenBitValue_ = func;
   }
 
-  Error canWriteSingleBitValue(Address startAddress, BitValue value) {
+  Error canWriteSingleBitValue(Address startAddress, bool value) {
     if (canWriteSingleBitValue_) {
       return canWriteSingleBitValue_(startAddress, value);
     }
@@ -797,7 +782,7 @@ class QModbusServerPrivate : public QObject {
     return Error::kNoError;
   }
 
-  Error writeInputDiscrete(Address address, BitValue setValue) {
+  Error writeInputDiscrete(Address address, bool setValue) {
     SingleBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
@@ -811,7 +796,7 @@ class QModbusServerPrivate : public QObject {
     return Error::kNoError;
   }
 
-  Error writeCoils(Address address, BitValue setValue) {
+  Error writeCoils(Address address, bool setValue) {
     SingleBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
@@ -951,6 +936,6 @@ static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer) {
   return data;
 }
 
-}  // namespace modbus
+} // namespace modbus
 
-#endif  // __MODBUS_SERVER_P_H_
+#endif // __MODBUS_SERVER_P_H_

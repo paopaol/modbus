@@ -1,20 +1,20 @@
+#include "modbus_client_p.h"
+#include "modbus_url_parser.h"
+#include <QTimer>
+#include <algorithm>
 #include <assert.h>
 #include <base/modbus_logger.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/single_bit_access.h>
 #include <modbus/base/smart_assert.h>
 #include <modbus_frame.h>
-#include <QTimer>
-#include <algorithm>
-#include "modbus_client_p.h"
-#include "modbus_url_parser.h"
 
 namespace modbus {
 
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
-static QVector<SixteenBitValue> toSixteenBitValueList(
-    const SixteenBitAccess &access);
-static QVector<BitValue> toBitValueList(const SingleBitAccess &access);
+static QVector<SixteenBitValue>
+toSixteenBitValueList(const SixteenBitAccess &access);
+static QVector<uint8_t> toBitValueList(const SingleBitAccess &access);
 
 struct ReadWriteRegistersAccess {
   SixteenBitAccess readAccess;
@@ -97,7 +97,7 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
 }
 
 void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
-                                    Address startAddress, BitValue value) {
+                                    Address startAddress, bool value) {
   static const DataChecker dataChecker = {bytesRequired<4>};
 
   SingleBitAccess access;
@@ -113,7 +113,7 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
 
 void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
                                        Address startAddress,
-                                       const QVector<BitValue> &valueList) {
+                                       const QVector<uint8_t> &valueList) {
   static const DataChecker dataChecker = {bytesRequired<4>};
   SingleBitAccess access;
 
@@ -243,7 +243,7 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Address>("Address");
   qRegisterMetaType<Error>("Error");
   qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
-  qRegisterMetaType<QVector<BitValue>>("QVector<BitValue>");
+  qRegisterMetaType<QVector<uint8_t>>("QVector<uint8_t>");
   qRegisterMetaType<FunctionCode>("FunctionCode");
   qRegisterMetaType<Quantity>("Quantity");
 
@@ -379,7 +379,7 @@ void QModbusClient::initMemberValues() {
   d->waitConversionDelay_ = 200;
   d->t3_5_ = 60;
   d->waitResponseTimeout_ = 1000;
-  d->retryTimes_ = 0;  /// default no retry
+  d->retryTimes_ = 0; /// default no retry
   d->transferMode_ = TransferMode::kRtu;
 }
 
@@ -547,10 +547,10 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
   d->errorString_ = errorString;
 
   switch (d->sessionState_.state()) {
-    case SessionState::kWaitingResponse:
-      d->waitResponseTimer_->stop();
-    default:
-      break;
+  case SessionState::kWaitingResponse:
+    d->waitResponseTimer_->stop();
+  default:
+    break;
   }
 
   d->sessionState_.setState(SessionState::kIdle);
@@ -590,68 +590,66 @@ void QModbusClient::processFunctionCode(const Request &request,
     return;
   }
   switch (request.functionCode()) {
-    case FunctionCode::kReadCoils:
-    case FunctionCode::kReadInputDiscrete: {
-      auto access = modbus::any::any_cast<SingleBitAccess>(data);
-      if (!response.isException()) {
-        processReadSingleBit(request, response, &access);
-      }
-      emit readSingleBitsFinished(request.serverAddress(),
-                                  request.functionCode(), access.startAddress(),
-                                  access.quantity(), toBitValueList(access),
-                                  response.error());
-      return;
+  case FunctionCode::kReadCoils:
+  case FunctionCode::kReadInputDiscrete: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
+    if (!response.isException()) {
+      processReadSingleBit(request, response, &access);
     }
-    case FunctionCode::kWriteSingleCoil: {
-      auto access = modbus::any::any_cast<SingleBitAccess>(data);
-      emit writeSingleCoilFinished(request.serverAddress(),
-                                   access.startAddress(), response.error());
-      return;
-    }
-    case FunctionCode::kWriteMultipleCoils: {
-      auto access = modbus::any::any_cast<SingleBitAccess>(data);
-      emit writeMultipleCoilsFinished(request.serverAddress(),
-                                      access.startAddress(), response.error());
-      return;
-    }
-    case FunctionCode::kReadHoldingRegisters:
-    case FunctionCode::kReadInputRegister: {
-      auto access = modbus::any::any_cast<SixteenBitAccess>(data);
-      if (!response.isException()) {
-        processReadRegisters(request, response, &access);
-      }
-      const auto &data = access.value();
-      emit readRegistersFinished(request.serverAddress(),
-                                 request.functionCode(), access.startAddress(),
-                                 access.quantity(), access.value(),
+    emit readSingleBitsFinished(request.serverAddress(), request.functionCode(),
+                                access.startAddress(), access.quantity(),
+                                toBitValueList(access), response.error());
+    return;
+  }
+  case FunctionCode::kWriteSingleCoil: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
+    emit writeSingleCoilFinished(request.serverAddress(), access.startAddress(),
                                  response.error());
-      return;
+    return;
+  }
+  case FunctionCode::kWriteMultipleCoils: {
+    auto access = modbus::any::any_cast<SingleBitAccess>(data);
+    emit writeMultipleCoilsFinished(request.serverAddress(),
+                                    access.startAddress(), response.error());
+    return;
+  }
+  case FunctionCode::kReadHoldingRegisters:
+  case FunctionCode::kReadInputRegister: {
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
+    if (!response.isException()) {
+      processReadRegisters(request, response, &access);
     }
-    case FunctionCode::kWriteSingleRegister: {
-      auto access = modbus::any::any_cast<SixteenBitAccess>(data);
-      emit writeSingleRegisterFinished(request.serverAddress(),
-                                       access.startAddress(), response.error());
-      return;
+    const auto &data = access.value();
+    emit readRegistersFinished(request.serverAddress(), request.functionCode(),
+                               access.startAddress(), access.quantity(),
+                               access.value(), response.error());
+    return;
+  }
+  case FunctionCode::kWriteSingleRegister: {
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
+    emit writeSingleRegisterFinished(request.serverAddress(),
+                                     access.startAddress(), response.error());
+    return;
+  }
+  case FunctionCode::kWriteMultipleRegisters: {
+    auto access = modbus::any::any_cast<SixteenBitAccess>(data);
+    emit writeMultipleRegistersFinished(
+        request.serverAddress(), access.startAddress(), response.error());
+    return;
+  }
+  case FunctionCode::kReadWriteMultipleRegisters: {
+    auto access = modbus::any::any_cast<ReadWriteRegistersAccess>(data);
+    auto readAccess = access.readAccess;
+    if (!response.isException()) {
+      processReadRegisters(request, response, &readAccess);
     }
-    case FunctionCode::kWriteMultipleRegisters: {
-      auto access = modbus::any::any_cast<SixteenBitAccess>(data);
-      emit writeMultipleRegistersFinished(
-          request.serverAddress(), access.startAddress(), response.error());
-      return;
-    }
-    case FunctionCode::kReadWriteMultipleRegisters: {
-      auto access = modbus::any::any_cast<ReadWriteRegistersAccess>(data);
-      auto readAccess = access.readAccess;
-      if (!response.isException()) {
-        processReadRegisters(request, response, &readAccess);
-      }
-      emit readWriteMultipleRegistersFinished(
-          request.serverAddress(), readAccess.startAddress(),
-          toSixteenBitValueList(readAccess), response.error());
-      return;
-    }
-    default:
-      return;
+    emit readWriteMultipleRegistersFinished(
+        request.serverAddress(), readAccess.startAddress(),
+        toSixteenBitValueList(readAccess), response.error());
+    return;
+  }
+  default:
+    return;
   }
 }
 
@@ -661,8 +659,8 @@ static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
   array.insert(array.end(), data, data + size);
 }
 
-static QVector<SixteenBitValue> toSixteenBitValueList(
-    const SixteenBitAccess &access) {
+static QVector<SixteenBitValue>
+toSixteenBitValueList(const SixteenBitAccess &access) {
   QVector<SixteenBitValue> valueList;
 
   for (size_t i = 0; i < access.quantity(); i++) {
@@ -678,16 +676,13 @@ static QVector<SixteenBitValue> toSixteenBitValueList(
   return valueList;
 }
 
-static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
-  QVector<BitValue> valueList;
+static QVector<uint8_t> toBitValueList(const SingleBitAccess &access) {
+  QVector<uint8_t> valueList;
 
   for (size_t i = 0; i < access.quantity(); i++) {
     Address address = access.startAddress() + i;
 
-    BitValue value = access.value(address);
-    if (value == BitValue::kBadValue) {
-      continue;
-    }
+    auto value = access.value(address);
     valueList.push_back(value);
   }
   return valueList;
@@ -730,4 +725,4 @@ QModbusClient *createClient(const QString &url, QObject *parent) {
   return nullptr;
 }
 
-}  // namespace modbus
+} // namespace modbus

@@ -16,29 +16,6 @@ using CoilAddress = uint16_t;
 using RegisterAddress = uint16_t;
 using Address = uint16_t;
 using Quantity = uint16_t;
-enum class BitValue { kOff, kOn, kBadValue };
-
-inline std::ostream &operator<<(std::ostream &output, const BitValue &value) {
-  switch (value) {
-  case BitValue::kOn:
-    output << "on";
-    break;
-  case BitValue::kOff:
-    output << "off";
-    break;
-  case BitValue::kBadValue:
-    output << "badValue";
-    break;
-  default:
-    output.setstate(std::ios_base::failbit);
-  }
-  return output;
-}
-
-struct BitValueEx {
-  BitValue value = BitValue::kBadValue;
-  std::string description;
-};
 
 struct SixteenBitValue {
   enum class ByteOrder { kNetworkByteOrder, kHostByteOrder };

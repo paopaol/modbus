@@ -1,7 +1,7 @@
 #ifndef __MODBUS_CLIENT_H_
 #define __MODBUS_CLIENT_H_
 
-#include <modbus/base/sixteen_bit_access.h>
+#include "modbus/base/modbus.h"
 #include <QObject>
 #include <QScopedPointer>
 #include <QTimer>
@@ -9,14 +9,14 @@
 #include <QtNetwork/QAbstractSocket>
 #include <QtSerialPort/QSerialPort>
 #include <memory>
+#include <modbus/base/sixteen_bit_access.h>
 #include <queue>
-#include "modbus/base/modbus.h"
 
 namespace modbus {
 
 class AbstractIoDevice : public QObject {
   Q_OBJECT
- public:
+public:
   AbstractIoDevice(QObject *parent = nullptr) : QObject(parent) {}
   virtual ~AbstractIoDevice() {}
   virtual void open() = 0;
@@ -25,7 +25,7 @@ class AbstractIoDevice : public QObject {
   virtual QByteArray readAll() = 0;
   virtual void clear() = 0;
   virtual std::string name() = 0;
- signals:
+signals:
   void opened();
   void closed();
   void error(const QString &errorString);
@@ -38,7 +38,7 @@ class ReconnectableIoDevice : public QObject {
   Q_OBJECT
   Q_DECLARE_PRIVATE(ReconnectableIoDevice);
 
- public:
+public:
   static const int kBrokenLineReconnection = -1;
   ReconnectableIoDevice(QObject *parent = nullptr);
   ReconnectableIoDevice(AbstractIoDevice *iodevice, QObject *parent = nullptr);
@@ -56,7 +56,7 @@ class ReconnectableIoDevice : public QObject {
 
   bool isOpened();
   bool isClosed();
- signals:
+signals:
   void opened();
   void closed();
   void error(const QString &errorString);
@@ -64,7 +64,7 @@ class ReconnectableIoDevice : public QObject {
   void readyRead();
   void connectionIsLostWillReconnect();
 
- private:
+private:
   void setupEnvironment();
   void onIoDeviceOpened();
   void onIoDeviceClosed();
@@ -80,7 +80,7 @@ class QModbusClient : public QObject {
   Q_OBJECT
   Q_DECLARE_PRIVATE(QModbusClient);
 
- public:
+public:
   QModbusClient(AbstractIoDevice *iodevice, QObject *parent = nullptr);
   QModbusClient(QObject *parent = nullptr);
   ~QModbusClient();
@@ -104,14 +104,14 @@ class QModbusClient : public QObject {
    *will emit writeSingleCoilFinished signal
    */
   void writeSingleCoil(ServerAddress serverAddress, Address startAddress,
-                       BitValue value);
+                       bool value);
 
   /*
    *for function code 0x0f
    *will emit writeMultipleCoilsFinished signal
    */
   void writeMultipleCoils(ServerAddress serverAddress, Address startAddress,
-                          const QVector<BitValue> &valueList);
+                          const QVector<uint8_t> &valueList);
 
   /**
    * sixteem bit access, for function code 3/4
@@ -177,7 +177,7 @@ class QModbusClient : public QObject {
 
   RuntimeDiagnosis runtimeDiagnosis() const;
 
- signals:
+signals:
   void clientOpened();
   void clientClosed();
   void errorOccur(const QString &errorString);
@@ -186,7 +186,7 @@ class QModbusClient : public QObject {
   void readSingleBitsFinished(ServerAddress serverAddress,
                               FunctionCode functionCode, Address startAddress,
                               Quantity quantity,
-                              const QVector<BitValue> &valueList, Error error);
+                              const QVector<uint8_t> &valueList, Error error);
   void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
                                Error error);
   void readRegistersFinished(ServerAddress serverAddress,
@@ -205,7 +205,7 @@ class QModbusClient : public QObject {
       ServerAddress serverAddress, Address readStartAddress,
       const QVector<SixteenBitValue> &valueList, Error error);
 
- private:
+private:
   void runAfter(int delay, const std::function<void()> &functor);
   void setupEnvironment();
   void initMemberValues();
@@ -228,13 +228,13 @@ Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
                       const DataChecker &dataChecker, const any &userData,
                       const ByteArray &data);
 
-QModbusClient *newQtSerialClient(
-    const QString &serialName,
-    QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,
-    QSerialPort::DataBits dataBits = QSerialPort::Data8,
-    QSerialPort::Parity parity = QSerialPort::NoParity,
-    QSerialPort::StopBits stopBits = QSerialPort::OneStop,
-    QObject *parent = nullptr);
+QModbusClient *
+newQtSerialClient(const QString &serialName,
+                  QSerialPort::BaudRate baudRate = QSerialPort::Baud9600,
+                  QSerialPort::DataBits dataBits = QSerialPort::Data8,
+                  QSerialPort::Parity parity = QSerialPort::NoParity,
+                  QSerialPort::StopBits stopBits = QSerialPort::OneStop,
+                  QObject *parent = nullptr);
 
 QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
                                const QString &hostName, quint16 port,
@@ -251,13 +251,12 @@ QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
 // modbus.udp://192.168.4.66:502/
 QModbusClient *createClient(const QString &url, QObject *parent = nullptr);
 
-}  // namespace modbus
+} // namespace modbus
 Q_DECLARE_METATYPE(modbus::Response);
 Q_DECLARE_METATYPE(modbus::Request);
 Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
 Q_DECLARE_METATYPE(modbus::Error);
 Q_DECLARE_METATYPE(QVector<modbus::SixteenBitValue>);
-Q_DECLARE_METATYPE(QVector<modbus::BitValue>);
 Q_DECLARE_METATYPE(modbus::ByteArray);
 
-#endif  // __MODBUS_CLIENT_H_
+#endif // __MODBUS_CLIENT_H_
