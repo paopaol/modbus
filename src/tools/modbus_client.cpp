@@ -14,7 +14,7 @@ namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 static QVector<SixteenBitValue>
 toSixteenBitValueList(const SixteenBitAccess &access);
-static QVector<uint8_t> toBitValueList(const SingleBitAccess &access);
+static ByteArray toBitValueList(const SingleBitAccess &access);
 
 struct ReadWriteRegistersAccess {
   SixteenBitAccess readAccess;
@@ -676,8 +676,8 @@ toSixteenBitValueList(const SixteenBitAccess &access) {
   return valueList;
 }
 
-static QVector<uint8_t> toBitValueList(const SingleBitAccess &access) {
-  QVector<uint8_t> valueList;
+static ByteArray toBitValueList(const SingleBitAccess &access) {
+  ByteArray valueList;
 
   for (size_t i = 0; i < access.quantity(); i++) {
     Address address = access.startAddress() + i;

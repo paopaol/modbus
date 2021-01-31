@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
   modbusServer->handleInputRegisters(0x00, 0x20);
 
   std::vector<modbus::SixteenBitValue> data;
-  modbusServer->writeHodingRegister(0, {0, 5});
+  modbusServer->writeHodingRegisters(0, {{0, 5}});
 
   QObject::connect(
       modbusServer, &modbus::QModbusServer::holdingRegisterValueChanged,

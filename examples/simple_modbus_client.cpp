@@ -4,8 +4,9 @@
 static void processFunctionCode3(modbus::ServerAddress serverAddress,
                                  modbus::FunctionCode functionCode,
                                  modbus::Address address,
-                                 modbus::Quantity quantity, const uint8_t *data,
-                                 size_t size, modbus::Error error) {
+                                 modbus::Quantity quantity,
+                                 const std::vector<uint8_t> &data,
+                                 modbus::Error error) {
   if (error != modbus::Error::kNoError) {
     return;
   }
