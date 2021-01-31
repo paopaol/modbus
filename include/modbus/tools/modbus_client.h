@@ -185,8 +185,8 @@ signals:
   void requestFinished(const Request &request, const Response &response);
   void readSingleBitsFinished(ServerAddress serverAddress,
                               FunctionCode functionCode, Address startAddress,
-                              Quantity quantity,
-                              const QVector<uint8_t> &valueList, Error error);
+                              Quantity quantity, const ByteArray &valueList,
+                              Error error);
   void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
                                Error error);
   void readRegistersFinished(ServerAddress serverAddress,

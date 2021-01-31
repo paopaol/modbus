@@ -42,17 +42,17 @@ int main(int argc, char *argv[]) {
   QObject::connect(client.data(), &modbus::QModbusClient::clientOpened, [&]() {
     qDebug() << "client is opened";
 
-    modbus::Request request;
+    auto request = std::unique_ptr<modbus::Request>(new modbus::Request);
 
     modbus::SingleBitAccess access;
     access.setStartAddress(0);
     access.setQuantity(5);
 
-    request.setServerAddress(0);
-    request.setFunctionCode(modbus::FunctionCode::kReadCoils);
-    request.setUserData(access);
-    request.setData(access.marshalReadRequest());
-    request.setDataChecker(newDataChecker());
+    request->setServerAddress(0);
+    request->setFunctionCode(modbus::FunctionCode::kReadCoils);
+    request->setUserData(access);
+    request->setData(access.marshalReadRequest());
+    request->setDataChecker(newDataChecker());
 
     client->sendRequest(request);
   });

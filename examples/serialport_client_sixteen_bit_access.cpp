@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
                    [&](modbus::ServerAddress serverAddress,
                        modbus::FunctionCode functionCode,
                        modbus::Address startAddress, modbus::Quantity quantity,
-                       const uint8_t *data, size_t size, modbus::Error error) {
+                       const std::vector<uint8_t> &data, modbus::Error error) {
                      std::shared_ptr<void> _(
                          nullptr, std::bind([&]() {
                            printf("pending Request size:%zu\n",
