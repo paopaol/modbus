@@ -14,7 +14,7 @@ namespace modbus {
 static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 static QVector<SixteenBitValue>
 toSixteenBitValueList(const SixteenBitAccess &access);
-static QVector<BitValue> toBitValueList(const SingleBitAccess &access);
+static ByteArray toBitValueList(const SingleBitAccess &access);
 
 struct ReadWriteRegistersAccess {
   SixteenBitAccess readAccess;
@@ -51,7 +51,7 @@ void QModbusClient::close() {
   d->device_->close();
 }
 
-void QModbusClient::sendRequest(const Request &request) {
+void QModbusClient::sendRequest(std::unique_ptr<Request> &request) {
   Q_D(QModbusClient);
 
   if (!isOpened()) {
@@ -61,16 +61,16 @@ void QModbusClient::sendRequest(const Request &request) {
 
   /*just queue the request, when the session state is in idle, it will be sent
    * out*/
-  auto &element = d->enqueueAndPeekLastElement();
-  createElement(request, &element);
+  auto *element = d->enqueueAndPeekLastElement();
+  createElement(request, element);
 
-  element.requestFrame = createModbusFrame(d->transferMode_);
-  element.requestFrame->setAdu(element.request);
+  element->requestFrame = createModbusFrame(d->transferMode_);
+  element->requestFrame->setAdu(*element->request);
 
-  element.responseFrame = createModbusFrame(d->transferMode_);
-  element.responseFrame->setAdu(element.response);
+  element->responseFrame = createModbusFrame(d->transferMode_);
+  element->responseFrame->setAdu(element->response);
 
-  element.retryTimes = d->retryTimes_;
+  element->retryTimes = d->retryTimes_;
   d->scheduleNextRequest(d->t3_5_);
 }
 
@@ -90,13 +90,14 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
-  Request request(serverAddress, functionCode, dataChecker, access,
-                  access.marshalReadRequest());
+  std::unique_ptr<Request> request(new Request(serverAddress, functionCode,
+                                               dataChecker, access,
+                                               access.marshalReadRequest()));
   sendRequest(request);
 }
 
 void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
-                                    Address startAddress, BitValue value) {
+                                    Address startAddress, bool value) {
   static const DataChecker dataChecker = {bytesRequired<4>};
 
   SingleBitAccess access;
@@ -104,14 +105,15 @@ void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(1);
   access.setValue(value);
-  Request request(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
-                  access, access.marshalSingleWriteRequest());
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
+                  access, access.marshalSingleWriteRequest()));
   sendRequest(request);
 }
 
 void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
                                        Address startAddress,
-                                       const QVector<BitValue> &valueList) {
+                                       const QVector<uint8_t> &valueList) {
   static const DataChecker dataChecker = {bytesRequired<4>};
   SingleBitAccess access;
 
@@ -121,8 +123,10 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
     Address address = startAddress + offset;
     access.setValue(address, valueList[offset]);
   }
-  Request request(serverAddress, FunctionCode::kWriteMultipleCoils, dataChecker,
-                  access, access.marshalMultipleWriteRequest());
+
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, FunctionCode::kWriteMultipleCoils, dataChecker,
+                  access, access.marshalMultipleWriteRequest()));
   sendRequest(request);
 }
 
@@ -142,9 +146,9 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
-  Request request(serverAddress, functionCode, dataChecker, access,
-                  access.marshalMultipleReadRequest());
-
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, functionCode, dataChecker, access,
+                  access.marshalMultipleReadRequest()));
   sendRequest(request);
 }
 
@@ -157,9 +161,9 @@ void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
   access.setStartAddress(address);
   access.setValue(value.toUint16());
 
-  Request request(serverAddress, FunctionCode::kWriteSingleRegister,
-                  dataChecker, access, access.marshalSingleWriteRequest());
-
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, FunctionCode::kWriteSingleRegister,
+                  dataChecker, access, access.marshalSingleWriteRequest()));
   sendRequest(request);
 }
 
@@ -178,9 +182,9 @@ void QModbusClient::writeMultipleRegisters(
     access.setValue(address, sixValue.toUint16());
     offset++;
   }
-  Request request(serverAddress, FunctionCode::kWriteMultipleRegisters,
-                  dataChecker, access, access.marshalMultipleWriteRequest());
-
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, FunctionCode::kWriteMultipleRegisters,
+                  dataChecker, access, access.marshalMultipleWriteRequest()));
   sendRequest(request);
 }
 
@@ -208,9 +212,9 @@ void QModbusClient::readWriteMultipleRegisters(
   ByteArray writeData = access.writeAccess.marshalMultipleWriteRequest();
 
   data.insert(data.end(), writeData.begin(), writeData.end());
-  Request request(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
-                  dataChecker, access, data);
-
+  std::unique_ptr<Request> request(
+      new Request(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
+                  dataChecker, access, data));
   sendRequest(request);
 }
 
@@ -233,11 +237,13 @@ void QModbusClient::setupEnvironment() {
   qRegisterMetaType<Request>("Request");
   qRegisterMetaType<Response>("Response");
   qRegisterMetaType<SixteenBitAccess>("SixteenBitAccess");
+  qRegisterMetaType<ByteArray>("ByteArray");
+  qRegisterMetaType<modbus::ByteArray>("modbus::ByteArray");
   qRegisterMetaType<ServerAddress>("ServerAddress");
   qRegisterMetaType<Address>("Address");
   qRegisterMetaType<Error>("Error");
   qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
-  qRegisterMetaType<QVector<BitValue>>("QVector<BitValue>");
+  qRegisterMetaType<QVector<uint8_t>>("QVector<uint8_t>");
   qRegisterMetaType<FunctionCode>("FunctionCode");
   qRegisterMetaType<Quantity>("Quantity");
 
@@ -326,7 +332,11 @@ void QModbusClient::setFrameInterval(int frameInterval) {
 
 void QModbusClient::clearPendingRequest() {
   Q_D(QModbusClient);
-  d->elementQueue_.clear();
+  while (!d->elementQueue_.empty()) {
+    auto e = d->elementQueue_.front();
+    d->elementQueue_.pop_front();
+    delete e;
+  }
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 }
@@ -378,8 +388,8 @@ void QModbusClient::onIoDeviceResponseTimeout() {
   assert(d->sessionState_.state() == SessionState::kWaitingResponse);
 
   auto &element = d->elementQueue_.front();
-  element.bytesWritten = 0;
-  element.dataRecived.clear();
+  element->bytesWritten = 0;
+  element->dataRecived.clear();
 
   /**
    *  An error occurs when the response times out but no response is
@@ -390,13 +400,13 @@ void QModbusClient::onIoDeviceResponseTimeout() {
    */
   d->sessionState_.setState(SessionState::kIdle);
 
-  auto request = element.request;
-  auto response = element.response;
+  const auto &request = *element->request;
+  auto &response = element->response;
 
-  if (element.retryTimes-- > 0) {
+  if (element->retryTimes-- > 0) {
     log(LogLevel::kWarning,
         "{} waiting response timeout, retry it, retrytimes ",
-        d->device_->name(), element.retryTimes);
+        d->device_->name(), element->retryTimes);
 
     response.setFunctionCode(request.functionCode());
     response.setServerAddress(request.serverAddress());
@@ -408,9 +418,11 @@ void QModbusClient::onIoDeviceResponseTimeout() {
     /**
      * if have no retry times, remove this request
      */
-    d->elementQueue_.pop_front();
     response.setError(Error::kTimeout);
-    emit requestFinished(request, response);
+    auto e = d->elementQueue_.front();
+    d->elementQueue_.pop_front();
+    emit requestFinished(*e->request, e->response);
+    delete e;
   }
   d->scheduleNextRequest(d->t3_5_);
 }
@@ -438,20 +450,20 @@ void QModbusClient::onIoDeviceReadyRead() {
   }
 
   auto &element = d->elementQueue_.front();
-  auto &dataRecived = element.dataRecived;
-  auto request = element.request;
+  auto &dataRecived = element->dataRecived;
+  auto &request = element->request;
 
   appendQByteArray(dataRecived, qdata);
 
   Error error = Error::kNoError;
-  auto result = element.responseFrame->unmarshal(dataRecived, &error);
+  auto result = element->responseFrame->unmarshal(dataRecived, &error);
   if (result != DataChecker::Result::kSizeOk) {
     log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
                                 d->dump(dataRecived) + "]");
     return;
   }
 
-  Response response(element.responseFrame->adu());
+  Response response(element->responseFrame->adu());
   response.setError(error);
 
   /**
@@ -459,7 +471,7 @@ void QModbusClient::onIoDeviceReadyRead() {
    * Should continue to time out
    * discard all recived dat
    */
-  if (response.serverAddress() != request.serverAddress()) {
+  if (response.serverAddress() != request->serverAddress()) {
     log(LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
@@ -480,8 +492,10 @@ void QModbusClient::onIoDeviceReadyRead() {
   /**
    * Pop at the end
    */
+  auto e = d->elementQueue_.front();
   d->elementQueue_.pop_front();
-  emit requestFinished(request, response);
+  emit requestFinished(*e->request, response);
+  delete e;
   d->scheduleNextRequest(d->t3_5_);
 }
 
@@ -494,14 +508,16 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
 
   /*check the request is sent done*/
   auto &element = d->elementQueue_.front();
-  auto &request = element.request;
-  element.bytesWritten += bytes;
-  if (element.bytesWritten != element.requestFrame->marshalSize()) {
+  auto &request = element->request;
+  element->bytesWritten += bytes;
+  if (element->bytesWritten != element->requestFrame->marshalSize()) {
     return;
   }
 
-  if (request.isBrocast()) {
+  if (request->isBrocast()) {
+    auto e = d->elementQueue_.front();
     d->elementQueue_.pop_front();
+    delete e;
     d->sessionState_.setState(SessionState::kIdle);
     d->scheduleNextRequest(d->waitConversionDelay_);
 
@@ -601,9 +617,10 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadRegisters(request, response, &access);
     }
+    const auto &data = access.value();
     emit readRegistersFinished(request.serverAddress(), request.functionCode(),
                                access.startAddress(), access.quantity(),
-                               toSixteenBitValueList(access), response.error());
+                               access.value(), response.error());
     return;
   }
   case FunctionCode::kWriteSingleRegister: {
@@ -657,16 +674,13 @@ toSixteenBitValueList(const SixteenBitAccess &access) {
   return valueList;
 }
 
-static QVector<BitValue> toBitValueList(const SingleBitAccess &access) {
-  QVector<BitValue> valueList;
+static ByteArray toBitValueList(const SingleBitAccess &access) {
+  ByteArray valueList;
 
   for (size_t i = 0; i < access.quantity(); i++) {
     Address address = access.startAddress() + i;
 
-    BitValue value = access.value(address);
-    if (value == BitValue::kBadValue) {
-      continue;
-    }
+    auto value = access.value(address);
     valueList.push_back(value);
   }
   return valueList;

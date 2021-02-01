@@ -27,27 +27,27 @@ TEST(SingleBitAccess, set_get) {
 
   {
     modbus::SingleBitAccess access;
-    access.setValue(modbus::BitValue::kOn);
-    EXPECT_EQ(modbus::BitValue::kOn, access.value(access.startAddress()));
+    access.setValue(true);
+    EXPECT_EQ(true, access.value(access.startAddress()));
   }
 
   {
     modbus::SingleBitAccess access;
-    access.setValue(0x1234 /*no exists*/, modbus::BitValue::kOn);
-    EXPECT_EQ(modbus::BitValue::kBadValue, access.value(access.startAddress()));
+    access.setValue(0x1234 /*no exists*/, true);
+    EXPECT_EQ(false, access.value(access.startAddress()));
   }
 }
 
 TEST(SingleBitAccess, setValue_getValue) {
   modbus::SingleBitAccess access;
 
-  access.setValue(modbus::BitValue::kOn);
-  modbus::BitValueEx valueEx = access.valueEx(access.startAddress());
-  EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
+  access.setValue(true);
+  auto valueEx = access.value(access.startAddress());
+  EXPECT_EQ(valueEx, true);
 
-  access.setValue(modbus::Address(0x03), modbus::BitValue::kOn);
-  valueEx = access.valueEx(0x03);
-  EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
+  access.setValue(modbus::Address(0x03), true);
+  valueEx = access.value(0x03);
+  EXPECT_EQ(valueEx, true);
 }
 
 TEST(SingleBitAccess, marshalSingleWriteRequest) {
@@ -58,7 +58,7 @@ TEST(SingleBitAccess, marshalSingleWriteRequest) {
    * singleWrite must set quantity to 1
    */
   access.setQuantity(1);
-  access.setValue(modbus::BitValue::kOn);
+  access.setValue(true);
 
   modbus::ByteArray expectPayload({0x00, 0xac, 0xff, 0x00});
 
@@ -76,19 +76,19 @@ TEST(SingleBitAccess, marshalMultipleWriteRequest) {
   // cd 01
   // cd
   // 1100 1101
-  access.setValue(startAddress, modbus::BitValue::kOn);
-  access.setValue(startAddress + 1, modbus::BitValue::kOff);
-  access.setValue(startAddress + 2, modbus::BitValue::kOn);
-  access.setValue(startAddress + 3, modbus::BitValue::kOn);
+  access.setValue(startAddress, true);
+  access.setValue(startAddress + 1, false);
+  access.setValue(startAddress + 2, true);
+  access.setValue(startAddress + 3, true);
 
-  access.setValue(startAddress + 4, modbus::BitValue::kOff);
-  access.setValue(startAddress + 5, modbus::BitValue::kOff);
-  access.setValue(startAddress + 6, modbus::BitValue::kOn);
-  access.setValue(startAddress + 7, modbus::BitValue::kOn);
+  access.setValue(startAddress + 4, false);
+  access.setValue(startAddress + 5, false);
+  access.setValue(startAddress + 6, true);
+  access.setValue(startAddress + 7, true);
   // 01
   // 0000 0001
-  access.setValue(startAddress + 8, modbus::BitValue::kOn);
-  access.setValue(startAddress + 9, modbus::BitValue::kOff);
+  access.setValue(startAddress + 8, true);
+  access.setValue(startAddress + 9, false);
 
   modbus::ByteArray expectData({0x00, 0x13, 0x00, 0x0a, 0x02, 0xcd, 0x01});
   modbus::ByteArray data = access.marshalMultipleWriteRequest();
@@ -105,18 +105,18 @@ TEST(SingleBitAccess, unmarshalReadResponse_dataIsValid_unmarshalSuccess) {
       {0x03, 0xcd /*1100 1101*/, 0x6b, 0x05 /*0000 0101*/});
   bool ok = access.unmarshalReadResponse(goodData);
   EXPECT_EQ(ok, true);
-  EXPECT_EQ(access.value(0x13), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(0x14), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(0x15), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(0x16), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(23), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(24), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(25), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(26), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(0x13), true);
+  EXPECT_EQ(access.value(0x14), false);
+  EXPECT_EQ(access.value(0x15), true);
+  EXPECT_EQ(access.value(0x16), true);
+  EXPECT_EQ(access.value(23), false);
+  EXPECT_EQ(access.value(24), false);
+  EXPECT_EQ(access.value(25), true);
+  EXPECT_EQ(access.value(26), true);
 
-  EXPECT_EQ(access.value(35), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(36), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(37), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(35), true);
+  EXPECT_EQ(access.value(36), false);
+  EXPECT_EQ(access.value(37), true);
 }
 
 TEST(SingleBitAccess, marshalReadResponse_success) {
@@ -125,15 +125,15 @@ TEST(SingleBitAccess, marshalReadResponse_success) {
   access.setStartAddress(0x01);
   access.setQuantity(0x09);
 
-  access.setValue(access.startAddress() + 0, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 1, modbus::BitValue::kOff);
-  access.setValue(access.startAddress() + 2, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 3, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 4, modbus::BitValue::kOff);
-  access.setValue(access.startAddress() + 5, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 6, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 7, modbus::BitValue::kOn);
-  access.setValue(access.startAddress() + 8, modbus::BitValue::kOff);
+  access.setValue(access.startAddress() + 0, true);
+  access.setValue(access.startAddress() + 1, false);
+  access.setValue(access.startAddress() + 2, true);
+  access.setValue(access.startAddress() + 3, true);
+  access.setValue(access.startAddress() + 4, false);
+  access.setValue(access.startAddress() + 5, true);
+  access.setValue(access.startAddress() + 6, true);
+  access.setValue(access.startAddress() + 7, true);
+  access.setValue(access.startAddress() + 8, false);
 
   auto dataArray = access.marshalReadResponse();
   EXPECT_EQ(dataArray, modbus::ByteArray({0x02, 0xed, 0x00}));

@@ -101,8 +101,8 @@ TEST(QModbusServer,
   raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadServerAddress);
 }
@@ -120,8 +120,8 @@ TEST(QModbusServer, recivedRequest_needMoreData) {
   ByteArray raw({0x01});
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kNeedMoreData);
 }
@@ -142,8 +142,8 @@ TEST(
   raw = tool::appendCrc(raw);
   requestBuffer->Write((char *)raw.data(), raw.size());
 
-  std::shared_ptr<Frame> request;
-  std::shared_ptr<Frame> response;
+  std::unique_ptr<Frame> request;
+  std::unique_ptr<Frame> response;
   auto result = d.processModbusRequest(requestBuffer, request, response);
   EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadFunctionCode);
 }
@@ -157,8 +157,8 @@ TEST(QModbusServer, processReadCoils_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.writeCoils(0x01, BitValue::kOn);
-  d.writeCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, true);
+  d.writeCoils(0x03, true);
 
   SingleBitAccess access;
 
@@ -188,8 +188,8 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleCoils(0x01, 10);
-  d.writeCoils(0x01, BitValue::kOn);
-  d.writeCoils(0x03, BitValue::kOn);
+  d.writeCoils(0x01, true);
+  d.writeCoils(0x03, true);
 
   SingleBitAccess access;
 
@@ -219,7 +219,7 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(BitValue::kOn);
+  access.setValue(true);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             access.marshalSingleWriteRequest(),
@@ -246,7 +246,7 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 
   access.setStartAddress(0x01);
   access.setQuantity(0x01);
-  access.setValue(BitValue::kOn);
+  access.setValue(true);
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
                             access.marshalSingleWriteRequest(),
@@ -274,10 +274,10 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
                             bytesRequired<4>));
 
   auto response = d.processRequest(request);
-  EXPECT_EQ(response.error(), Error::kIllegalDataValue);
+  EXPECT_EQ(response.error(), Error::kStorageParityError);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
-  EXPECT_EQ(response.data(), ByteArray({0x03}));
+  EXPECT_EQ(response.data(), ByteArray({0x08}));
 }
 
 TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
@@ -288,7 +288,7 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
   d.setCanWriteSingleBitValueFunc(
-      [&](Address address, BitValue value) { return Error::kSlaveDeviceBusy; });
+      [&](Address address, bool value) { return Error::kSlaveDeviceBusy; });
 
   d.handleCoils(0x01, 10);
 
@@ -350,9 +350,9 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
-  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
-  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x00, 0x00, 0x03}),
@@ -373,9 +373,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
-  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
-  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x99, 0x00, 0x03}),
@@ -395,9 +395,9 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleInputRegisters(0x00, 0x10);
-  d.writeInputRegister(0x00, SixteenBitValue(0x1234));
-  d.writeInputRegister(0x01, SixteenBitValue(0x5678));
-  d.writeInputRegister(0x02, SixteenBitValue(0x9876));
+  d.writeInputRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -417,9 +417,9 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -439,9 +439,9 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x88, 0x00, 0x09}),
@@ -465,9 +465,9 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
       });
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
                             ByteArray({0x00, 0x08, 0x00, 0x09}),
@@ -484,14 +484,15 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   QModbusServerPrivate d(&modbusServer);
 
   QSignalSpy spy(&modbusServer, &QModbusServer::holdingRegisterValueChanged);
+  QSignalSpy spy2(&modbusServer, &QModbusServer::writeHodingRegistersRequested);
 
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
   Request request(createAdu(
       0x01, FunctionCode::kWriteMultipleRegisters,
@@ -501,7 +502,8 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x01}));
-  EXPECT_EQ(spy.count(), 4);
+  EXPECT_EQ(spy.count(), 3);
+  EXPECT_EQ(spy2.count(), 1);
 }
 
 TEST(QModbusServer, writeValueSixteenValue_success) {
@@ -515,9 +517,9 @@ TEST(QModbusServer, writeValueSixteenValue_success) {
   d.setTransferMode(TransferMode::kRtu);
 
   d.handleHoldingRegisters(0x00, 0x10);
-  d.writeHodingRegister(0x00, SixteenBitValue(0x1234));
-  d.writeHodingRegister(0x01, SixteenBitValue(0x5678));
-  d.writeHodingRegister(0x02, SixteenBitValue(0x9876));
+  d.writeHodingRegisters(0x00, {SixteenBitValue(0x1234)});
+  d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
+  d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
   EXPECT_EQ(spy.count(), 3);
 

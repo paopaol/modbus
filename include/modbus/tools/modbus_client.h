@@ -8,6 +8,7 @@
 #include <QVector>
 #include <QtNetwork/QAbstractSocket>
 #include <QtSerialPort/QSerialPort>
+#include <memory>
 #include <modbus/base/sixteen_bit_access.h>
 #include <queue>
 
@@ -89,7 +90,7 @@ public:
   /**
    * if the connection is not opened, the request will dropped
    */
-  void sendRequest(const Request &request);
+  void sendRequest(std::unique_ptr<Request> &request);
 
   /**
    *for function code 0x01/0x02
@@ -103,14 +104,14 @@ public:
    *will emit writeSingleCoilFinished signal
    */
   void writeSingleCoil(ServerAddress serverAddress, Address startAddress,
-                       BitValue value);
+                       bool value);
 
   /*
    *for function code 0x0f
    *will emit writeMultipleCoilsFinished signal
    */
   void writeMultipleCoils(ServerAddress serverAddress, Address startAddress,
-                          const QVector<BitValue> &valueList);
+                          const QVector<uint8_t> &valueList);
 
   /**
    * sixteem bit access, for function code 3/4
@@ -184,14 +185,13 @@ signals:
   void requestFinished(const Request &request, const Response &response);
   void readSingleBitsFinished(ServerAddress serverAddress,
                               FunctionCode functionCode, Address startAddress,
-                              Quantity quantity,
-                              const QVector<BitValue> &valueList, Error error);
+                              Quantity quantity, const ByteArray &valueList,
+                              Error error);
   void writeSingleCoilFinished(ServerAddress serverAddress, Address address,
                                Error error);
   void readRegistersFinished(ServerAddress serverAddress,
                              FunctionCode functionCode, Address startAddress,
-                             Quantity quantity,
-                             const QVector<SixteenBitValue> &valueList,
+                             Quantity quantity, const ByteArray &data,
                              Error error);
   void writeSingleRegisterFinished(ServerAddress serverAddress, Address address,
                                    Error error);
@@ -257,6 +257,6 @@ Q_DECLARE_METATYPE(modbus::Request);
 Q_DECLARE_METATYPE(modbus::SixteenBitAccess);
 Q_DECLARE_METATYPE(modbus::Error);
 Q_DECLARE_METATYPE(QVector<modbus::SixteenBitValue>);
-Q_DECLARE_METATYPE(QVector<modbus::BitValue>);
+Q_DECLARE_METATYPE(modbus::ByteArray);
 
 #endif // __MODBUS_CLIENT_H_

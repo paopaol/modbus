@@ -23,7 +23,7 @@ TEST(SingleBitAccessProcess, readSingleBitProcess) {
 
   bool ok = modbus::processReadSingleBit(request, response, &access);
   EXPECT_EQ(ok, true);
-  EXPECT_EQ(access.value(access.startAddress()), modbus::BitValue::kOn);
-  EXPECT_EQ(access.value(access.startAddress() + 1), modbus::BitValue::kOff);
-  EXPECT_EQ(access.value(access.startAddress() + 2), modbus::BitValue::kOn);
+  EXPECT_EQ(access.value(access.startAddress()), true);
+  EXPECT_EQ(access.value(access.startAddress() + 1), false);
+  EXPECT_EQ(access.value(access.startAddress() + 2), true);
 }

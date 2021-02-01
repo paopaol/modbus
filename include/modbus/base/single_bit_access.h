@@ -26,21 +26,11 @@ public:
   /**
    * this will set the value to startAddress
    */
-  void setValue(BitValue value) { setValue(startAddress_, value); }
+  void setValue(bool value) { setValue(startAddress_, value); }
   /**
    * set value to address
    */
-  void setValue(Address address, BitValue value) {
-    if (valueMap_.find(address) != valueMap_.end()) {
-      auto &valueEx = valueMap_[address];
-      valueEx.value = value;
-    } else {
-      BitValueEx valueEx;
-
-      valueEx.value = value;
-      valueMap_[address] = valueEx;
-    }
-  }
+  void setValue(Address address, bool value) { valueMap_[address] = value; }
 
   /**
    * Conversion to modbus protocol format
@@ -80,7 +70,7 @@ public:
     data.push_back(startAddress_ / 256);
     data.push_back(startAddress_ % 256);
 
-    data.push_back(it->second.value == BitValue::kOn ? 0xff : 0x00);
+    data.push_back(it->second ? 0xff : 0x00);
     data.push_back(0x00);
 
     return data;
@@ -110,7 +100,7 @@ public:
                    "some value of address not set, bad operation!")(
           nextAddress);
 
-      bool value = it->second.value == BitValue::kOn ? true : false;
+      bool value = it->second ? true : false;
       byte |= value << offset++;
       if (offset == 8) {
         offset = 0;
@@ -135,7 +125,7 @@ public:
         if (v == valueMap_.end()) {
           temp = false;
         } else {
-          temp = v->second.value == BitValue::kOn ? true : false;
+          temp = v->second ? true : false;
         }
         bitValueList.push_back(temp);
       }
@@ -176,11 +166,11 @@ public:
     startAddress_ = data[0] * 256 + data[1];
     quantity_ = 1;
     if (data[2] == 0xff && data[3] == 0x00) {
-      setValue(BitValue::kOn);
+      setValue(true);
     } else if (data[2] == 0x00 && data[3] == 0x00) {
-      setValue(BitValue::kOff);
+      setValue(false);
     } else {
-      setValue(BitValue::kBadValue);
+      return false;
     }
     return true;
   }
@@ -197,20 +187,13 @@ public:
     return unmarshalValueArray(valueArray);
   }
 
-  BitValue value(Address address) const {
-    auto value = valueEx(address);
-    return value.value;
-  }
-
-  BitValueEx valueEx(Address address) const {
-    BitValueEx value;
-
+  bool value(Address address) const {
     auto it = valueMap_.find(address);
     if (it != valueMap_.end()) {
-      value = it->second;
+      return it->second;
     }
 
-    return value;
+    return false;
   }
 
 private:
@@ -229,15 +212,7 @@ private:
       for (int i = 0; i < remainQuantity; i++) {
         Address address = nextAddress++;
         bool status = n & (0x01 << i);
-
-        if (valueMap_.find(address) != valueMap_.end()) {
-          auto &valueEx = valueMap_[address];
-          valueEx.value = status ? BitValue::kOn : BitValue::kOff;
-        } else {
-          BitValueEx valueEx;
-          valueEx.value = status ? BitValue::kOn : BitValue::kOff;
-          valueMap_[address] = valueEx;
-        }
+        valueMap_[address] = status;
       }
       quantity -= remainQuantity;
     }
@@ -246,7 +221,7 @@ private:
 
   Address startAddress_ = 0xff;
   Quantity quantity_ = 0;
-  mutable std::unordered_map<Address, BitValueEx> valueMap_;
+  mutable std::unordered_map<Address, bool> valueMap_;
 };
 
 bool processReadSingleBit(const Request &request, const Response &response,

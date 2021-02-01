@@ -215,14 +215,8 @@ public:
     return true;
   }
 
-  bool coilsValue(const SingleBitAccess &access, Address address,
-                  BitValue *value) {
-    if (!value) {
-      return false;
-    }
-    auto v = access.value(address);
-    *value = v;
-    return true;
+  bool coilsValue(const SingleBitAccess &access, Address address) {
+    return access.value(address);
   }
 
   bool holdingRegisterValue(Address address, SixteenBitValue *value) {
@@ -233,12 +227,10 @@ public:
     return registerValue(inputRegister_, address, value);
   }
 
-  bool coilsValue(Address address, BitValue *value) {
-    return coilsValue(coils_, address, value);
-  }
+  bool coilsValue(Address address) { return coilsValue(coils_, address); }
 
-  bool inputDiscreteValue(Address address, BitValue *value) {
-    return coilsValue(inputDiscrete_, address, value);
+  bool inputDiscreteValue(Address address) {
+    return coilsValue(inputDiscrete_, address);
   }
 
   void setServer(AbstractServer *server) { server_ = server; }
@@ -272,7 +264,7 @@ public:
 
   void checkProcessRequestResult(const ClientSession &session,
                                  ProcessResult result,
-                                 const std::shared_ptr<Frame> &requestFrame,
+                                 const std::unique_ptr<Frame> &frame,
                                  const pp::bytes::Buffer &buffer) {
     switch (result) {
     case ProcessResult::kNeedMoreData: {
@@ -309,8 +301,8 @@ public:
     log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
         dump(transferMode_, *buffer));
 
-    std::shared_ptr<Frame> requestFrame;
-    std::shared_ptr<Frame> responseFrame;
+    std::unique_ptr<Frame> requestFrame;
+    std::unique_ptr<Frame> responseFrame;
     auto result = processModbusRequest(buffer, requestFrame, responseFrame);
     checkProcessRequestResult(session, result, requestFrame, *buffer);
     // if requestFrame and responseFrame is not null
@@ -321,8 +313,8 @@ public:
   }
 
   ProcessResult processModbusRequest(const BytesBufferPtr &buffer,
-                                     std::shared_ptr<Frame> &requestFrame,
-                                     std::shared_ptr<Frame> &responseFrame) {
+                                     std::unique_ptr<Frame> &requestFrame,
+                                     std::unique_ptr<Frame> &responseFrame) {
     requestFrame = createModbusFrame(transferMode_);
     auto data = byteArrayFromBuffer(*buffer);
 
@@ -433,7 +425,7 @@ public:
     return Response();
   }
 
-  void writeFrame(ClientSession &session, const std::shared_ptr<Frame> &frame,
+  void writeFrame(ClientSession &session, const std::unique_ptr<Frame> &frame,
                   uint16_t id) {
     auto array = frame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
@@ -466,7 +458,7 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = writeCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -482,12 +474,6 @@ public:
   Error writeCoilsInternal(StorageKind kind, SingleBitAccess *my,
                            const SingleBitAccess *you) {
     Q_Q(QModbusServer);
-    Address startAddress = you->startAddress();
-    auto value = you->value(startAddress);
-    if (value == BitValue::kBadValue) {
-      return Error::kIllegalDataValue;
-    }
-
     Address reqStartAddress = you->startAddress();
     for (size_t i = 0; i < you->quantity(); i++) {
       Address address = reqStartAddress + i;
@@ -511,6 +497,38 @@ public:
         }
       }
     }
+    return Error::kNoError;
+  }
+
+  Error handleClientwriteCoils(FunctionCode functionCode,
+                               const Request &request, SingleBitAccess &my,
+                               const SingleBitAccess &you) {
+    Q_Q(QModbusServer);
+    auto error = validateSingleBitAccess(you, my);
+    if (error != Error::kNoError) {
+      log(LogLevel::kError,
+          "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
+          "requestStartAddress({}),requestQuantity({})",
+          functionCode, my.startAddress(), my.quantity(), you.startAddress(),
+          my.quantity());
+      return error;
+    }
+
+    Address reqStartAddress = you.startAddress();
+    for (size_t i = 0; i < you.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you.value(address);
+      auto error = canWriteSingleBitValue(address, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+    for (size_t i = 0; i < you.quantity(); i++) {
+      Address address = reqStartAddress + i;
+      auto value = you.value(address);
+      emit q->writeCoilsRequested(address, value);
+    }
+
     return Error::kNoError;
   }
 
@@ -544,7 +562,7 @@ public:
       log(LogLevel::kError, "invalid request");
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
-    auto error = writeCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -565,7 +583,7 @@ public:
     canWriteSixteenBitValue_ = func;
   }
 
-  Error canWriteSingleBitValue(Address startAddress, BitValue value) {
+  Error canWriteSingleBitValue(Address startAddress, bool value) {
     if (canWriteSingleBitValue_) {
       return canWriteSingleBitValue_(startAddress, value);
     }
@@ -702,11 +720,36 @@ public:
     return Error::kNoError;
   }
 
-  Error writeHodingRegister(Address address, const SixteenBitValue &setValue) {
+  Error handleClientWriteHodingRegisters(const SixteenBitAccess &access,
+                                         const SixteenBitAccess &my) {
+    auto error = validateSixteenAccess(access, my);
+    if (error != Error::kNoError) {
+      return error;
+    }
+    Quantity quantity = access.quantity();
+    for (size_t i = 0; i < quantity; i++) {
+      Address reqStartAddress = access.startAddress() + i;
+      auto value = access.value(reqStartAddress);
+      auto error = canWriteSixteenBitValue(reqStartAddress, value);
+      if (error != Error::kNoError) {
+        return error;
+      }
+    }
+    Q_Q(QModbusServer);
+    emit q->writeHodingRegistersRequested(access.startAddress(),
+                                          access.value());
+    return Error::kNoError;
+  }
+
+  Error writeHodingRegisters(Address address,
+                             const QVector<SixteenBitValue> &setValues) {
     SixteenBitAccess access;
     access.setStartAddress(address);
-    access.setQuantity(1);
-    access.setValue(address, setValue.toUint16());
+    access.setQuantity(setValues.size());
+    auto addr = address;
+    for (const auto &value : setValues) {
+      access.setValue(addr++, value.toUint16());
+    }
     auto error = writeRegisterValuesInternal(StorageKind::kHoldingRegisters,
                                              &holdingRegister_, access);
     if (error != Error::kNoError) {
@@ -717,11 +760,15 @@ public:
     return Error::kNoError;
   }
 
-  Error writeInputRegister(Address address, const SixteenBitValue &setValue) {
+  Error writeInputRegisters(Address address,
+                            const QVector<SixteenBitValue> &setValues) {
     SixteenBitAccess access;
     access.setStartAddress(address);
-    access.setQuantity(1);
-    access.setValue(address, setValue.toUint16());
+    access.setQuantity(setValues.size());
+    auto addr = address;
+    for (const auto &value : setValues) {
+      access.setValue(addr++, value.toUint16());
+    }
     auto error = writeRegisterValuesInternal(StorageKind::kInputRegisters,
                                              &inputRegister_, access);
     if (error != Error::kNoError) {
@@ -731,7 +778,7 @@ public:
     return Error::kNoError;
   }
 
-  Error writeInputDiscrete(Address address, BitValue setValue) {
+  Error writeInputDiscrete(Address address, bool setValue) {
     SingleBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
@@ -745,7 +792,7 @@ public:
     return Error::kNoError;
   }
 
-  Error writeCoils(Address address, BitValue setValue) {
+  Error writeCoils(Address address, bool setValue) {
     SingleBitAccess access;
     access.setStartAddress(address);
     access.setQuantity(1);
@@ -759,7 +806,6 @@ public:
   }
 
   Response processWriteHoldingRegisterRequest(const Request &request) {
-    Q_Q(QModbusServer);
     SixteenBitAccess access;
     auto functionCode = kWriteSingleRegister;
 
@@ -769,8 +815,7 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    auto error = writeHodingRegister(access.startAddress(),
-                                     access.value(access.startAddress()));
+    auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
     if (error != Error::kNoError) {
       return createErrorReponse(functionCode, error);
     }
@@ -793,14 +838,9 @@ public:
       return createErrorReponse(functionCode, Error::kStorageParityError);
     }
 
-    for (int i = 0; i < access.quantity(); i++) {
-      Address address = access.startAddress() + i;
-      auto value = access.value(address);
-
-      auto error = writeHodingRegister(address, value);
-      if (error != Error::kNoError) {
-        return createErrorReponse(functionCode, error);
-      }
+    auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
+    if (error != Error::kNoError) {
+      return createErrorReponse(functionCode, error);
     }
 
     Response response;

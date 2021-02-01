@@ -9,7 +9,9 @@ namespace modbus {
 QModbusServer::QModbusServer(AbstractServer *server, QObject *parent)
     : QObject(parent), d_ptr(new QModbusServerPrivate(this)) {
   qRegisterMetaType<SixteenBitValue>("SixteenBitValue");
-  qRegisterMetaType<BitValue>("BitValue");
+  qRegisterMetaType<Address>("Address");
+  qRegisterMetaType<QVector<SixteenBitValue>>("QVector<SixteenBitValue>");
+  qRegisterMetaType<ByteArray>("ByteArray");
   Q_D(QModbusServer);
   d->setServer(server);
   d->setEnv();
@@ -116,34 +118,34 @@ bool QModbusServer::inputRegisterValue(Address address,
   return d->inputRegisterValue(address, value);
 }
 
-bool QModbusServer::coilsValue(Address address, BitValue *value) {
+bool QModbusServer::coilsValue(Address address) {
   Q_D(QModbusServer);
-  return d->coilsValue(address, value);
+  return d->coilsValue(address);
 }
 
-bool QModbusServer::inputDiscreteValue(Address address, BitValue *value) {
+bool QModbusServer::inputDiscreteValue(Address address) {
   Q_D(QModbusServer);
-  return d->inputDiscreteValue(address, value);
+  return d->inputDiscreteValue(address);
 }
 
-Error QModbusServer::writeCoils(Address address, BitValue setValue) {
+Error QModbusServer::writeCoils(Address address, bool setValue) {
   Q_D(QModbusServer);
   return d->writeCoils(address, setValue);
 }
 
-Error QModbusServer::writeInputDiscrete(Address address, BitValue setValue) {
+Error QModbusServer::writeInputDiscrete(Address address, bool setValue) {
   Q_D(QModbusServer);
   return d->writeInputDiscrete(address, setValue);
 }
-Error QModbusServer::writeInputRegister(Address address,
-                                        const SixteenBitValue &setValue) {
+Error QModbusServer::writeInputRegisters(
+    Address address, const QVector<SixteenBitValue> &setValues) {
   Q_D(QModbusServer);
-  return d->writeInputRegister(address, setValue);
+  return d->writeInputRegisters(address, setValues);
 }
-Error QModbusServer::writeHodingRegister(Address address,
-                                         const SixteenBitValue &setValue) {
+Error QModbusServer::writeHodingRegisters(
+    Address address, const QVector<SixteenBitValue> &setValues) {
   Q_D(QModbusServer);
-  return d->writeHodingRegister(address, setValue);
+  return d->writeHodingRegisters(address, setValues);
 }
 
 bool QModbusServer::listenAndServe() {
