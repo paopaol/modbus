@@ -8,12 +8,12 @@ namespace modbus {
 
 ReconnectableIoDevice::ReconnectableIoDevice(modbus::AbstractIoDevice *iodevice,
                                              QObject *parent)
-    : d_ptr(new ReconnectableIoDevicePrivate(iodevice, this)), QObject(parent) {
+    : QObject(parent), d_ptr(new ReconnectableIoDevicePrivate(iodevice, this)) {
   setupEnvironment();
 }
 
 ReconnectableIoDevice::ReconnectableIoDevice(QObject *parent)
-    : d_ptr(nullptr), QObject(parent) {
+    : QObject(parent), d_ptr(nullptr) {
   setupEnvironment();
 }
 

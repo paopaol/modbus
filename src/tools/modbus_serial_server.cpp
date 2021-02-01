@@ -59,8 +59,8 @@ class SerialServer : public AbstractServer {
   Q_OBJECT
 public:
   SerialServer(QSerialPort *serialPort, QObject *parent = nullptr)
-      : serialConnection_(new SerialConnection(serialPort, this)),
-        AbstractServer(parent) {}
+      : AbstractServer(parent),
+        serialConnection_(new SerialConnection(serialPort, this)) {}
 
   bool listenAndServe() override {
     bool success = serialConnection_->open();

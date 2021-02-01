@@ -22,13 +22,13 @@ struct ReadWriteRegistersAccess {
 };
 
 QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
-    : d_ptr(new QModbusClientPrivate(iodevice, this)), QObject(parent) {
+    : QObject(parent), d_ptr(new QModbusClientPrivate(iodevice, this)) {
   initMemberValues();
   setupEnvironment();
 }
 
 QModbusClient::QModbusClient(QObject *parent)
-    : d_ptr(new QModbusClientPrivate(nullptr, parent)), QObject(parent) {
+    : QObject(parent), d_ptr(new QModbusClientPrivate(nullptr, parent)) {
   initMemberValues();
   setupEnvironment();
 }
@@ -117,7 +117,7 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
 
   access.setStartAddress(startAddress);
   access.setQuantity(valueList.size());
-  for (size_t offset = 0; offset < valueList.size(); offset++) {
+  for (int offset = 0; offset < valueList.size(); offset++) {
     Address address = startAddress + offset;
     access.setValue(address, valueList[offset]);
   }
@@ -440,8 +440,6 @@ void QModbusClient::onIoDeviceReadyRead() {
   auto &element = d->elementQueue_.front();
   auto &dataRecived = element.dataRecived;
   auto request = element.request;
-
-  auto sessionState = d->sessionState_.state();
 
   appendQByteArray(dataRecived, qdata);
 

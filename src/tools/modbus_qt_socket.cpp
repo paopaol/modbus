@@ -11,7 +11,7 @@ class QtTcpSocket : public AbstractIoDevice {
   Q_OBJECT
 public:
   QtTcpSocket(QObject *parent = nullptr)
-      : socket_(new QTcpSocket(this)), AbstractIoDevice(parent) {
+      : AbstractIoDevice(parent), socket_(new QTcpSocket(this)) {
     setupEnvironment();
   }
   ~QtTcpSocket() {
@@ -49,8 +49,8 @@ public:
 
 private:
   void setupEnvironment() {
-	socket_->socketOption(QAbstractSocket::KeepAliveOption);
-	socket_->setSocketOption(QAbstractSocket::LowDelayOption, 1);
+    socket_->socketOption(QAbstractSocket::KeepAliveOption);
+    socket_->setSocketOption(QAbstractSocket::LowDelayOption, 1);
     connect(socket_, &QAbstractSocket::disconnected, this,
             &QtTcpSocket::closed);
     connect(socket_, &QAbstractSocket::connected, this, &QtTcpSocket::opened);
@@ -81,7 +81,7 @@ class QtUdpSocket : public AbstractIoDevice {
   Q_OBJECT
 public:
   QtUdpSocket(QObject *parent = nullptr)
-      : socket_(new QUdpSocket(this)), AbstractIoDevice(parent) {
+      : AbstractIoDevice(parent), socket_(new QUdpSocket(this)) {
     setupEnvironment();
   }
   ~QtUdpSocket() { socket_->deleteLater(); }

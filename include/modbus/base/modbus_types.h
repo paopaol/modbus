@@ -37,7 +37,6 @@ inline std::ostream &operator<<(std::ostream &output, const BitValue &value) {
 
 struct BitValueEx {
   BitValue value = BitValue::kBadValue;
-  std::string description;
 };
 
 struct SixteenBitValue {

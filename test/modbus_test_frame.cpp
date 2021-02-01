@@ -106,7 +106,7 @@ TEST(ModbusFrame, MbapFrame_marshalSize_success) {
   MbapFrame frame;
   frame.setAdu(adu);
 
-  EXPECT_EQ(frame.marshalSize(), 12);
+  EXPECT_EQ(frame.marshalSize(), static_cast<size_t>(12));
 }
 
 TEST(ModbusFrame, MbapFrame_marshal_success) {

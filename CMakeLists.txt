@@ -22,7 +22,7 @@ if(MSVC)
   add_compile_definitions("_SCL_SECURE_NO_WARNINGS")
   set(CMAKE_INSTALL_LIBDIR "lib")
 else()
-  add_compile_options("-std=c++11")
+  add_compile_options("-std=c++11" "-Wall" "-Werror")
   include(GNUInstallDirs)
 endif()
 

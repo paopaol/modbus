@@ -9,10 +9,6 @@ TEST(SingleBitAccessProcess, readSingleBitProcess) {
 
   access.setStartAddress(0x03);
   access.setQuantity(0x03);
-  access.setDeviceName("device");
-  access.setDescription(access.startAddress(), "value1");
-  access.setDescription(access.startAddress() + 1, "value2");
-  access.setDescription(access.startAddress() + 2, "value3");
 
   auto request =
       modbus::createRequest(0x01, modbus::FunctionCode::kReadCoils, dataChecker,

@@ -119,7 +119,7 @@ class ReconnectableIoDevicePrivate : public QObject {
 public:
   ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
                                QObject *parent = nullptr)
-      : ioDevice_(iodevice), QObject(parent) {
+      : QObject(parent), ioDevice_(iodevice) {
     ioDevice_->setParent(this);
   }
   ~ReconnectableIoDevicePrivate() {}

@@ -20,9 +20,7 @@ int main(int argc, char *argv[]) {
 
   QObject::connect(
       modbusServer, &modbus::QModbusServer::holdingRegisterValueChanged,
-      [&](modbus::Address _t1, const QVector<modbus::SixteenBitValue> &_t2) {
-        int i = 0;
-      });
+      [&](modbus::Address _t1, const QVector<modbus::SixteenBitValue> &_t2) {});
 
   bool success = modbusServer->listenAndServe();
   if (!success) {
