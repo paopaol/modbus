@@ -12,7 +12,7 @@ using namespace testing;
 using namespace modbus;
 
 struct Session {
-  Request request;
+  std::unique_ptr<Request> request;
   ByteArray requestRaw;
   Response response;
   ByteArray responseRaw;
@@ -27,8 +27,8 @@ static const Address kStartAddress = 10;
 static const Quantity kQuantity = 3;
 static const ServerAddress kServerAddress = 1;
 static const ServerAddress kBadServerAddress = 0x11;
-static Request createSingleBitAccessRequest();
-static Request createBrocastRequest();
+static std::unique_ptr<Request> createSingleBitAccessRequest();
+static std::unique_ptr<Request> createBrocastRequest();
 template <TransferMode mode>
 static void createReadCoils(ServerAddress serverAddress, Address startAddress,
                             Quantity quantity, Session &session);
@@ -128,9 +128,15 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
     // make sure the client is opened
     serialClient.open();
     EXPECT_EQ(serialClient.isOpened(), true);
-    serialClient.sendRequest(session.request);
-    serialClient.sendRequest(session.request);
-    serialClient.sendRequest(session.request);
+    std::unique_ptr<Request> req(new Request);
+    *req = *session.request;
+    serialClient.sendRequest(req);
+    req.reset(new Request);
+    *req = *session.request;
+    serialClient.sendRequest(req);
+    req.reset(new Request);
+    *req = *session.request;
+    serialClient.sendRequest(req);
     EXPECT_EQ(serialClient.pendingRequestSize(), static_cast<size_t>(3));
 
     spy.wait(300);
@@ -289,11 +295,11 @@ TEST(ModbusSerialClient,
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    Request req;
-    req.setServerAddress(0x01);
-    req.setFunctionCode(FunctionCode::kReadCoils);
-    req.setData({0x00, 0x0a, 0x00, 0x03});
-    req.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+    std::unique_ptr<Request> req(new Request);
+    req->setServerAddress(0x01);
+    req->setFunctionCode(FunctionCode::kReadCoils);
+    req->setData({0x00, 0x0a, 0x00, 0x03});
+    req->setDataChecker({bytesRequiredStoreInArrayIndex<0>});
     serialClient.sendRequest(req);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
@@ -481,7 +487,7 @@ TEST(ModbusSerialClient, sendBrocast_gotResponse_discardIt) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    Request request = createBrocastRequest();
+    auto request = createBrocastRequest();
     serialClient.sendRequest(request);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
@@ -542,7 +548,7 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
   declare_app(app);
 
   {
-    Request request = createBrocastRequest();
+    auto request = createBrocastRequest();
 
     auto serialPort = new MockSerialPort();
 
@@ -578,7 +584,7 @@ TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
   declare_app(app);
 
   {
-    Request request = createBrocastRequest();
+    auto request = createBrocastRequest();
 
     auto serialPort = new MockSerialPort();
 
@@ -727,7 +733,7 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
   declare_app(app);
 
   {
-    Request request = createSingleBitAccessRequest();
+    auto request = createSingleBitAccessRequest();
 
     auto serialPort = new MockSerialPort();
 
@@ -760,16 +766,16 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
     spy.wait(200000);
     EXPECT_EQ(spy.count(), 1);
     QList<QVariant> arguments = spy.takeFirst();
-    request = qvariant_cast<Request>(arguments.at(0));
+    auto myrequest = qvariant_cast<Request>(arguments.at(0));
     Response response = qvariant_cast<Response>(arguments.at(1));
 
     EXPECT_EQ(Error::kNoError, response.error());
     EXPECT_FALSE(response.isException());
-    auto access = any::any_cast<SingleBitAccess>(request.userData());
+    auto access = any::any_cast<SingleBitAccess>(myrequest.userData());
     access.unmarshalReadResponse(response.data());
-    EXPECT_EQ(access.value(kStartAddress), BitValue::kOn);
-    EXPECT_EQ(access.value(kStartAddress + 1), BitValue::kOff);
-    EXPECT_EQ(access.value(kStartAddress + 2), BitValue::kOn);
+    EXPECT_EQ(access.value(kStartAddress), true);
+    EXPECT_EQ(access.value(kStartAddress + 1), false);
+    EXPECT_EQ(access.value(kStartAddress + 2), true);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -795,11 +801,11 @@ TEST(ModbusSerialClient,
     /// send the request
     for (int i = 0; i < 5; i++) {
       QTimer::singleShot(10, [&]() {
-        Request request;
-        request.setServerAddress(0x01);
-        request.setFunctionCode(FunctionCode::kReadCoils);
-        request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
-        request.setData({0x00, 0x0a, 0x00, 0x03});
+        std::unique_ptr<Request> request(new Request);
+        request->setServerAddress(0x01);
+        request->setFunctionCode(FunctionCode::kReadCoils);
+        request->setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+        request->setData({0x00, 0x0a, 0x00, 0x03});
         serialClient.sendRequest(request);
       });
     }
@@ -846,13 +852,16 @@ TEST(ModbusSerialClient, readRegisters_success) {
     Error error = qvariant_cast<Error>(arguments.at(5));
     EXPECT_EQ(error, Error::kNoError);
 
-    QVector<SixteenBitValue> valueList =
-        qvariant_cast<QVector<SixteenBitValue>>(arguments.at(4));
-    EXPECT_EQ(valueList.size(), 4);
-    EXPECT_EQ(valueList[0].toUint16(), 0x01);
-    EXPECT_EQ(valueList[1].toUint16(), 0x02);
-    EXPECT_EQ(valueList[2].toUint16(), 0x03);
-    EXPECT_EQ(valueList[3].toUint16(), 0x04);
+    auto data = qvariant_cast<ByteArray>(arguments.at(4));
+    EXPECT_EQ(data.size(), 8U);
+    EXPECT_EQ(data[0], 0x00);
+    EXPECT_EQ(data[1], 0x01);
+    EXPECT_EQ(data[2], 0x00);
+    EXPECT_EQ(data[3], 0x02);
+    EXPECT_EQ(data[4], 0x00);
+    EXPECT_EQ(data[5], 0x03);
+    EXPECT_EQ(data[6], 0x00);
+    EXPECT_EQ(data[7], 0x04);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -966,10 +975,9 @@ TEST(ModbusClient, readSingleBits_success) {
     Quantity quantity = qvariant_cast<Quantity>(arguments.at(3));
     EXPECT_EQ(quantity, 3);
 
-    QVector<BitValue> valueList =
-        qvariant_cast<QVector<BitValue>>(arguments.at(4));
-    EXPECT_THAT(valueList,
-                ElementsAre(BitValue::kOn, BitValue::kOff, BitValue::kOn));
+    std::vector<uint8_t> valueList =
+        qvariant_cast<std::vector<uint8_t>>(arguments.at(4));
+    EXPECT_THAT(valueList, ElementsAre(true, false, true));
 
     Error error = qvariant_cast<Error>(arguments.at(5));
     EXPECT_EQ(error, Error::kNoError);
@@ -995,7 +1003,7 @@ TEST(ModbusClient, writeSingleCoil_success) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    serialClient.writeSingleCoil(kServerAddress, Address(0x05), BitValue::kOn);
+    serialClient.writeSingleCoil(kServerAddress, Address(0x05), true);
 
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
@@ -1035,16 +1043,16 @@ TEST(ModbusClient, writeMultipleCoils_success) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<BitValue> valueList;
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
+    QVector<uint8_t> valueList;
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
     serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
@@ -1082,16 +1090,16 @@ TEST(ModbusClient, writeMultipleCoils_failed) {
     EXPECT_EQ(serialClient.isOpened(), true);
 
     /// send the request
-    QVector<BitValue> valueList;
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
-    valueList.push_back(BitValue::kOff);
-    valueList.push_back(BitValue::kOn);
+    QVector<uint8_t> valueList;
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
+    valueList.push_back(false);
+    valueList.push_back(true);
     serialClient.writeMultipleCoils(kServerAddress, Address(0x05), valueList);
 
     /// wait for the operation can work done, because
@@ -1229,22 +1237,22 @@ static void createReadCoils(ServerAddress serverAddress, Address startAddress,
   access.setQuantity(kQuantity);
 
   for (int i = 0; i < access.quantity(); i++) {
-    access.setValue(access.startAddress() + i,
-                    i % 2 == 0 ? BitValue::kOn : BitValue::kOff);
+    access.setValue(access.startAddress() + i, i % 2 == 0);
   }
 
-  session.request.setServerAddress(kServerAddress);
-  session.request.setFunctionCode(FunctionCode::kReadCoils);
-  session.request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  session.request.setData(access.marshalReadRequest());
-  session.request.setUserData(access);
+  session.request.reset(new Request());
+  session.request->setServerAddress(kServerAddress);
+  session.request->setFunctionCode(FunctionCode::kReadCoils);
+  session.request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  session.request->setData(access.marshalReadRequest());
+  session.request->setUserData(access);
 
   session.response.setServerAddress(kServerAddress);
   session.response.setFunctionCode(FunctionCode::kReadCoils);
   session.response.setData(access.marshalReadResponse());
   session.response.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
 
-  ByteArray aduWithoutCrcRequest = session.request.marshalAduWithoutCrc();
+  ByteArray aduWithoutCrcRequest = session.request->marshalAduWithoutCrc();
   ByteArray aduWithoutCrcResponse = session.response.marshalAduWithoutCrc();
   if (mode == TransferMode::kRtu) {
     session.requestRaw = marshalRtuFrame(aduWithoutCrcRequest);
@@ -1255,34 +1263,34 @@ static void createReadCoils(ServerAddress serverAddress, Address startAddress,
   }
 }
 
-static Request createSingleBitAccessRequest() {
+static std::unique_ptr<Request> createSingleBitAccessRequest() {
   SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
-  Request request;
+  std::unique_ptr<Request> request(new Request);
 
-  request.setServerAddress(kServerAddress);
-  request.setFunctionCode(FunctionCode::kReadCoils);
-  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  request.setData(access.marshalReadRequest());
-  request.setUserData(access);
+  request->setServerAddress(kServerAddress);
+  request->setFunctionCode(FunctionCode::kReadCoils);
+  request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  request->setData(access.marshalReadRequest());
+  request->setUserData(access);
   return request;
 }
 
-static Request createBrocastRequest() {
+static std::unique_ptr<Request> createBrocastRequest() {
   SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
   access.setQuantity(kQuantity);
 
-  Request request;
+  std::unique_ptr<Request> request(new Request);
 
-  request.setServerAddress(Adu::kBrocastAddress);
-  request.setFunctionCode(FunctionCode::kReadCoils);
-  request.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
-  request.setData(access.marshalReadRequest());
-  request.setUserData(access);
+  request->setServerAddress(Adu::kBrocastAddress);
+  request->setFunctionCode(FunctionCode::kReadCoils);
+  request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
+  request->setData(access.marshalReadRequest());
+  request->setUserData(access);
   return request;
 }

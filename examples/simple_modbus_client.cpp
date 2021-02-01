@@ -1,16 +1,14 @@
 #include <QCoreApplication>
 #include <modbus/tools/modbus_client.h>
 
-static void processFunctionCode3(
-    modbus::ServerAddress serverAddress, modbus::FunctionCode functionCode,
-    modbus::Address address, modbus::Quantity quantity,
-    const QVector<modbus::SixteenBitValue> &valueList, modbus::Error error) {
+static void processFunctionCode3(modbus::ServerAddress serverAddress,
+                                 modbus::FunctionCode functionCode,
+                                 modbus::Address address,
+                                 modbus::Quantity quantity,
+                                 const std::vector<uint8_t> &data,
+                                 modbus::Error error) {
   if (error != modbus::Error::kNoError) {
     return;
-  }
-
-  for (const auto &value : valueList) {
-    qDebug() << "value is:" << value.toUint16();
   }
 }
 

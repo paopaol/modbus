@@ -42,18 +42,18 @@ inline std::ostream &operator<<(std::ostream &output,
 }
 
 struct Element {
-  Request request;
+  std::unique_ptr<Request> request = nullptr;
   Response response;
   size_t bytesWritten = 0;
   ByteArray dataRecived; // recived data from serial or socket or other
   int retryTimes = 0;
-  std::shared_ptr<Frame> requestFrame;
-  std::shared_ptr<Frame> responseFrame;
+  std::unique_ptr<Frame> requestFrame;
+  std::unique_ptr<Frame> responseFrame;
 };
-using ElementQueue = std::deque<Element>;
-inline void createElement(const Request &request, Element *element) {
-  element->request = request;
-  element->response.setDataChecker(request.dataChecker());
+using ElementQueue = std::deque<Element *>;
+inline void createElement(std::unique_ptr<Request> &request, Element *element) {
+  element->request.swap(request);
+  element->response.setDataChecker(element->request->dataChecker());
 }
 
 } // namespace modbus

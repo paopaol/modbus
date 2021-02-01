@@ -40,6 +40,8 @@ public:
     value_array_[i + 1] = v.secondByte();
   }
 
+  ByteArray value() const { return value_array_; }
+
   SixteenBitValue value(Address address, bool *ok = nullptr) const {
     Address start_address = startAddress();
     Quantity quan = quantity();
