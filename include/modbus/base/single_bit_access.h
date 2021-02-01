@@ -23,15 +23,6 @@ public:
   void setQuantity(Quantity quantity) { quantity_ = quantity; }
   Quantity quantity() const { return quantity_; }
 
-  void setDeviceName(const std::string &name) { deviceName_ = name; }
-  std::string deviceName() const { return deviceName_; }
-
-  void setDescription(Address address, const std::string &description) {
-    BitValueEx valueEx;
-
-    valueEx.description = description;
-    valueMap_[address] = valueEx;
-  }
   /**
    * this will set the value to startAddress
    */
@@ -253,9 +244,8 @@ private:
     return true;
   }
 
-  Address startAddress_;
+  Address startAddress_ = 0xff;
   Quantity quantity_ = 0;
-  std::string deviceName_;
   mutable std::unordered_map<Address, BitValueEx> valueMap_;
 };
 

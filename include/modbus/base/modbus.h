@@ -44,7 +44,7 @@ template <int index>
 static inline DataChecker::Result
 bytesRequiredStoreInArrayIndex(size_t &size, const ByteArray &data) {
   int preSize = index + 1;
-  if (data.size() < preSize) {
+  if (static_cast<int>(data.size()) < preSize) {
     return DataChecker::Result::kNeedMoreData;
   }
   size_t bytes = data[index];
@@ -222,7 +222,7 @@ public:
   Request(ServerAddress serverAddress, FunctionCode functionCode,
           const DataChecker &dataChecker, const any &userData,
           const ByteArray &data)
-      : userData_(userData), Adu(serverAddress, functionCode, dataChecker) {
+      : Adu(serverAddress, functionCode, dataChecker), userData_(userData) {
     setData(data);
   }
   Request(const Adu &adu) : Adu(adu) {}
@@ -239,8 +239,8 @@ private:
  */
 class Response : public Adu {
 public:
-  Response() : errorCode_(Error::kNoError), Adu() {}
-  Response(const Adu &adu) : errorCode_(Error::kNoError), Adu(adu) {}
+  Response() : Adu(), errorCode_(Error::kNoError) {}
+  Response(const Adu &adu) : Adu(adu), errorCode_(Error::kNoError) {}
   void setError(Error errorCode) { errorCode_ = errorCode; }
 
   Error error() const { return errorCode_; }

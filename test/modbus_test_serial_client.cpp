@@ -3,6 +3,7 @@
 #include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
+#include <cstddef>
 #include <modbus/base/single_bit_access.h>
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus_frame.h>
@@ -130,13 +131,13 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
     serialClient.sendRequest(session.request);
     serialClient.sendRequest(session.request);
     serialClient.sendRequest(session.request);
-    EXPECT_EQ(serialClient.pendingRequestSize(), 3);
+    EXPECT_EQ(serialClient.pendingRequestSize(), static_cast<size_t>(3));
 
     spy.wait(300);
     EXPECT_EQ(spy.count(), 1);
     EXPECT_EQ(serialClient.isClosed(), true);
     /// after serial client closed, no pending request exists
-    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
+    EXPECT_EQ(serialClient.pendingRequestSize(), static_cast<size_t>(0));
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -188,7 +189,7 @@ TEST(ModbusSerialClient, setTimeout) {
     QModbusClient serialClient(serialPort);
 
     serialClient.setTimeout(2000);
-    EXPECT_EQ(2000, serialClient.timeout());
+    EXPECT_EQ(2000U, serialClient.timeout());
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -595,7 +596,7 @@ TEST(ModbusSerialClient, clientIsClosed_sendRequest_requestWillDroped) {
 
     /// send the request
     serialClient.sendRequest(request);
-    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
+    EXPECT_EQ(serialClient.pendingRequestSize(), 0U);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -634,7 +635,7 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
     serialClient.sendRequest(session.request);
     spy.wait(10000);
     EXPECT_EQ(spy.count(), 0);
-    EXPECT_EQ(serialClient.pendingRequestSize(), 0);
+    EXPECT_EQ(serialClient.pendingRequestSize(), 0U);
   }
   QTimer::singleShot(1, [&]() { app.quit(); });
   app.exec();
@@ -1201,16 +1202,16 @@ TEST(ModbusClient, frame_diagnostics) {
     RuntimeDiagnosis diagnosis = serialClient.runtimeDiagnosis();
 
     /// timout(1) + + retry-success(1) + failed(1)
-    EXPECT_EQ(diagnosis.totalFrameNumbers(), 3);
+    EXPECT_EQ(diagnosis.totalFrameNumbers(), 3U);
 
-    EXPECT_EQ(diagnosis.successedFrameNumbers(), 1);
-    EXPECT_EQ(diagnosis.failedFrameNumbers(), 2);
-    EXPECT_EQ(diagnosis.servers().size(), 1);
+    EXPECT_EQ(diagnosis.successedFrameNumbers(), 1U);
+    EXPECT_EQ(diagnosis.failedFrameNumbers(), 2U);
+    EXPECT_EQ(diagnosis.servers().size(), 1U);
 
     auto servers = diagnosis.servers();
     EXPECT_NE(servers.find(kServerAddress), servers.end());
     const auto &server = servers[kServerAddress];
-    EXPECT_EQ(server.errorRecords().size(), 2);
+    EXPECT_EQ(server.errorRecords().size(), 2U);
     EXPECT_EQ(server.errorRecords()[0].error(), Error::kTimeout);
     EXPECT_EQ(server.errorRecords()[1].error(), Error::kSlaveDeviceBusy);
   }

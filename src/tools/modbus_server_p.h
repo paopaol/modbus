@@ -170,11 +170,11 @@ public:
 
   bool updateValue(FunctionCode functionCode, Address address,
                    const SixteenBitValue &newValue) {
-    smart_assert(functionCode == FunctionCode::kWriteSingleRegister ||
-                 functionCode == FunctionCode::kWriteMultipleRegisters ||
-                 functionCode == FunctionCode::kReadInputRegister ||
-                 functionCode == FunctionCode::kReadHoldingRegisters &&
-                     "invalud function code")(functionCode);
+    smart_assert((functionCode == FunctionCode::kWriteSingleRegister ||
+                  functionCode == FunctionCode::kWriteMultipleRegisters ||
+                  functionCode == FunctionCode::kReadInputRegister ||
+                  functionCode == FunctionCode::kReadHoldingRegisters) &&
+                 "invalud function code")(functionCode);
 
     auto entry = handleFuncRouter_.find(functionCode);
     if (entry == handleFuncRouter_.end()) {
@@ -255,8 +255,8 @@ public:
   void incomingConnection(AbstractConnection *connection) {
     connect(connection, &AbstractConnection::disconnected, this,
             &QModbusServerPrivate::removeClient);
-    bool ok = connect(connection, &AbstractConnection::messageArrived, this,
-                      &QModbusServerPrivate::onMessageArrived);
+    connect(connection, &AbstractConnection::messageArrived, this,
+            &QModbusServerPrivate::onMessageArrived);
 
     ClientSession session;
     session.client = connection;

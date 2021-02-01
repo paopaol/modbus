@@ -41,25 +41,13 @@ TEST(SingleBitAccess, set_get) {
 TEST(SingleBitAccess, setValue_getValue) {
   modbus::SingleBitAccess access;
 
-  access.setDescription(access.startAddress(), "temperature");
   access.setValue(modbus::BitValue::kOn);
   modbus::BitValueEx valueEx = access.valueEx(access.startAddress());
   EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
-  EXPECT_EQ(valueEx.description, "temperature");
 
-  access.setDescription(modbus::Address(0x03), "temperature");
   access.setValue(modbus::Address(0x03), modbus::BitValue::kOn);
   valueEx = access.valueEx(0x03);
   EXPECT_EQ(valueEx.value, modbus::BitValue::kOn);
-  EXPECT_EQ(valueEx.description, "temperature");
-}
-
-TEST(SingleBitAccess, setGetDeviceName) {
-  modbus::SingleBitAccess access;
-
-  EXPECT_EQ("", access.deviceName());
-  access.setDeviceName("device1");
-  EXPECT_EQ("device1", access.deviceName());
 }
 
 TEST(SingleBitAccess, marshalSingleWriteRequest) {
@@ -112,7 +100,6 @@ TEST(SingleBitAccess, unmarshalReadResponse_dataIsValid_unmarshalSuccess) {
 
   access.setStartAddress(0x13);
   access.setQuantity(0x13);
-  access.setDescription(0x13, "value1");
 
   modbus::ByteArray goodData(
       {0x03, 0xcd /*1100 1101*/, 0x6b, 0x05 /*0000 0101*/});
