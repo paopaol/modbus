@@ -65,7 +65,7 @@ size_t Buffer::Write(const std::vector<char> &p) {
 void Buffer::UnReadByte(/*error*/) { UnReadBytes(1); }
 
 void Buffer::UnReadBytes(size_t n /*,error &e*/) {
-  assert((lastRead() - begin()) >= n &&
+  assert(static_cast<size_t>(lastRead() - begin()) >= n &&
          "buffer::unreadbytes too much data size");
   ridx -= n;
 }
