@@ -1,6 +1,7 @@
 #ifndef __MODBUS_TOOL_H_
 #define __MODBUS_TOOL_H_
 
+#include "fmt/core.h"
 #include "modbus_types.h"
 #include <map>
 
@@ -10,10 +11,10 @@ public:
   static inline std::string dumpHex(const ByteArray &byteArray,
                                     const std::string &delimiter = " ") {
     std::string hexString;
+    const int size = byteArray.size();
+    hexString.reserve(size * 3);
     for (const auto &ch : byteArray) {
-      char hex[8192] = {0};
-      sprintf(hex, "%02x%s", static_cast<unsigned char>(ch), delimiter.c_str());
-      hexString += hex;
+      hexString.append(fmt::format("{}{:02x}", delimiter, ch));
     }
     return hexString;
   }
