@@ -9,5 +9,5 @@ TEST(TestData, dump_dumpByteArray_outputIsHexString) {
   modbus::ByteArray byteArray(binary, binary + 5);
 
   auto hexString = modbus::tool::dumpHex(byteArray);
-  EXPECT_EQ(hexString, "01 33 4b ab 3b ");
+  EXPECT_EQ(hexString, " 01 33 4b ab 3b");
 }
