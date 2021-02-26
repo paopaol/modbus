@@ -149,7 +149,7 @@ public:
     if (result != DataChecker::Result::kSizeOk) {
       return result;
     }
-    escapedData = tool::fromHexString(escapedData);
+    escapedData = tool::fromHexString(escapedData.data(), escapedData.size());
     return _unmarshalServerAddressFunctionCode(escapedData, serverAddress,
                                                functionCode);
   }
@@ -165,7 +165,7 @@ public:
       return result;
     }
 
-    subdata = tool::fromHexString(subdata);
+    subdata = tool::fromHexString(subdata.data(), subdata.size());
     result = unmarshalAdu(subdata, &adu_, error);
     if (result != DataChecker::Result::kSizeOk) {
       return result;

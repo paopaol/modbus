@@ -6,6 +6,15 @@
 #include <map>
 
 namespace modbus {
+struct CrcCtx {
+  uint16_t in = 0xFFFF;
+  uint16_t poly = 0x8005;
+
+  void clear();
+  void crc16(const uint8_t *data, size_t size);
+  uint16_t end();
+};
+
 class tool {
 public:
   static inline std::string dumpHex(const ByteArray &byteArray,
@@ -55,7 +64,7 @@ public:
         {'C', 12}, {'D', 13}, {'E', 14}, {'F', 15}};
 
     ByteArray array;
-    for (size_t i = 0; i < hexString.size() && hexString.size() >= 2; i += 2) {
+    for (int i = 0; i < size && size >= 2; i += 2) {
       auto first = table.find(hexString[i]);
       auto second = table.find(hexString[i + 1]);
       if (first == table.end() || second == table.end()) {
