@@ -126,6 +126,47 @@ private:
   CheckSizeFunc function_;
 };
 
+class ModbusAsciiFrameDecoder {
+  enum class State {
+    kStartChar,
+    kServerAddress,
+    kFunctionCode,
+    kData,
+    LRC,
+    kEndChar,
+    kEnd
+  };
+
+public:
+  DataChecker::Result Decode(pp::bytes::Buffer & /**/) {
+    assert("ascii mode:not support yet");
+
+    return DataChecker::Result::kSizeOk;
+  }
+
+  void SetAduRef(Adu *adu) { adu_ = adu; }
+
+  bool IsDone() const { return isDone_; }
+
+  void Clear() {
+    state_ = State::kServerAddress;
+    adu_ = nullptr;
+    isDone_ = false;
+    crcCtx_.clear();
+    error_ = Error::kNoError;
+  }
+
+  Error LasError() const { return error_; }
+
+private:
+  State state_ = State::kServerAddress;
+  Adu *adu_ = nullptr;
+  bool isDone_ = false;
+  CrcCtx crcCtx_;
+  Error error_ = Error::kNoError;
+  CheckSizeFunc function_;
+};
+
 class ModbusMbapFrameDecoder {
   enum class State { kMBap, kServerAddress, kFunctionCode, kData, kEnd };
 
