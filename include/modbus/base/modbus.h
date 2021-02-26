@@ -1,7 +1,11 @@
 #ifndef __MODBUS_H_
 #define __MODBUS_H_
 
+#include "bytes/buffer.h"
+#include "modbus/base/modbus_types.h"
 #include "modbus_data.h"
+#include <bits/stdint-uintn.h>
+#include <cstddef>
 #include <functional>
 #include <mutex>
 
@@ -21,6 +25,9 @@ public:
   calculateRequiredSizeFunc calculateSize;
 };
 
+using CheckSizeFunc = std::function<DataChecker::Result(
+    size_t &size, const uint8_t *buffer, int len)>;
+
 /**
  * some function code, data is [byte0,byte1|...|byte-n]
  * so, the expected size is n
@@ -29,6 +36,16 @@ template <int nbytes>
 static inline DataChecker::Result bytesRequired(size_t &size,
                                                 const ByteArray &data) {
   if (data.size() < nbytes) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size = nbytes;
+  return DataChecker::Result::kSizeOk;
+}
+
+template <int nbytes>
+static inline DataChecker::Result
+bytesRequired2(size_t &size, const uint8_t *buffer, int len) {
+  if (len < nbytes) {
     return DataChecker::Result::kNeedMoreData;
   }
   size = nbytes;
@@ -48,7 +65,22 @@ bytesRequiredStoreInArrayIndex(size_t &size, const ByteArray &data) {
     return DataChecker::Result::kNeedMoreData;
   }
   size_t bytes = data[index];
-  if (data.size() < bytes + preSize) {
+  if (static_cast<size_t>(data.size()) < bytes + preSize) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size = bytes + preSize;
+  return DataChecker::Result::kSizeOk;
+}
+
+template <int index>
+static inline DataChecker::Result
+bytesRequiredStoreInArrayIndex2(size_t &size, const uint8_t *buffer, int len) {
+  int preSize = index + 1;
+  if (len < preSize) {
+    return DataChecker::Result::kNeedMoreData;
+  }
+  size_t bytes = buffer[index];
+  if ((size_t)len < bytes + preSize) {
     return DataChecker::Result::kNeedMoreData;
   }
   size = bytes + preSize;
@@ -75,9 +107,21 @@ public:
   void setDataChecker(const DataChecker &dataChecker) {
     dataChecker_ = dataChecker;
   }
+
+  void setCheckSizeFun(const CheckSizeFunc &calculateSize) {
+    calculateSize_ = calculateSize;
+  }
+
   DataChecker dataChecker() const { return dataChecker_; }
+  const CheckSizeFunc &checkSizeFunc() const { return calculateSize_; }
   bool isException() const { return functionCode_ & kExceptionByte; }
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
+  void setData(const uint8_t *data, int n) {
+    data_.resize(n);
+    for (int i = 0; i < n; ++i) {
+      data_[i] = data[i];
+    }
+  }
 
   /**
    * @brief this data is only payload, not include function code
@@ -91,6 +135,7 @@ public:
 private:
   FunctionCode functionCode_ = FunctionCode::kInvalidCode;
   DataChecker dataChecker_;
+  CheckSizeFunc calculateSize_;
   ByteArray data_;
 };
 
@@ -126,10 +171,16 @@ public:
   void setDataChecker(const DataChecker &dataChecker) {
     pdu_.setDataChecker(dataChecker);
   }
+
+  void setCheckSizeFun(const CheckSizeFunc &dataChecker) {
+    pdu_.setCheckSizeFun(dataChecker);
+  }
   DataChecker dataChecker() const { return pdu_.dataChecker(); }
+  const CheckSizeFunc &checkSizeFunc() const { return pdu_.checkSizeFunc(); }
 
   void setData(const ByteArray &byteArray) { pdu_.setData(byteArray); }
-  ByteArray data() const { return pdu_.data(); }
+  void setData(const uint8_t *data, int n) { pdu_.setData(data, n); }
+  const ByteArray &data() const { return pdu_.data(); }
 
   bool isException() const { return pdu_.isException(); }
 
@@ -185,6 +236,11 @@ public:
    */
   virtual DataChecker::Result unmarshal(const ByteArray &data,
                                         Error *error) = 0;
+
+  virtual DataChecker::Result unmarshal(const pp::bytes::Buffer &data,
+                                        Error *error) {
+    return DataChecker::Result::kNeedMoreData;
+  }
 
   /** only unmarshal server address and the functioncode
    * if success return DataChecker::Result::kSizeOk

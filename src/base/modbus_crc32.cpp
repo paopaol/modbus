@@ -1,3 +1,4 @@
+#include <bits/stdint-uintn.h>
 #include <modbus/base/modbus_tool.h>
 
 namespace modbus {
@@ -21,6 +22,32 @@ uint16_t tool::crc16_modbus(const uint8_t *data, size_t size) {
         in = in << 1;
     }
   }
+  invert_uint16(&in, &in);
+  return (in);
+}
+
+void CrcCtx::clear() {
+  in = 0xFFFF;
+  poly = 0x8005;
+}
+
+void CrcCtx::crc16(const uint8_t *data, size_t size) {
+  uint8_t ch = 0;
+
+  while (size--) {
+    ch = *(data++);
+    invert_uint8(&ch, &ch);
+    in ^= (ch << 8);
+    for (int i = 0; i < 8; i++) {
+      if (in & 0x8000)
+        in = (in << 1) ^ poly;
+      else
+        in = in << 1;
+    }
+  }
+}
+
+uint16_t CrcCtx::end() {
   invert_uint16(&in, &in);
   return (in);
 }

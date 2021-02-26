@@ -2,6 +2,7 @@
 #define HHT_BYTES_BUFFER_H
 #include <algorithm>
 #include <assert.h>
+#include <cstddef>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -51,6 +52,8 @@ public:
   bool ZeroCopyPeekAt(char **p, size_t index, size_t size) const;
 
   void Optimization();
+
+  void Resize(size_t len);
 
   // ReadFrom
   // WriteTo

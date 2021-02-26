@@ -1,4 +1,5 @@
 #include <bytes/buffer.h>
+#include <cstddef>
 
 namespace pp {
 namespace bytes {
@@ -125,6 +126,16 @@ void Buffer::Optimization() {
   ridx = 0;
   widx = ridx + len;
   assert(widx < b.size());
+}
+
+void Buffer::Resize(size_t len) {
+  if (leftSpace() < len) {
+    Optimization();
+  }
+  if (leftSpace() < len) {
+    growSpace(static_cast<size_t>(b.size() + len));
+  }
+  hasWritten(len);
 }
 
 // ReadFrom
