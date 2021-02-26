@@ -28,10 +28,11 @@ static std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
 
 static std::string dump(TransferMode transferMode,
                         const pp::bytes::Buffer &buffer) {
-  ByteArray array =
-      byteArrayFromBuffer(const_cast<pp::bytes::Buffer &>(buffer));
-  return transferMode == TransferMode::kAscii ? tool::dumpRaw(array)
-                                              : tool::dumpHex(array);
+  char *data = nullptr;
+  buffer.ZeroCopyPeekAt(&data, 0, buffer.Len());
+  return transferMode == TransferMode::kAscii
+             ? tool::dumpRaw((uint8_t *)data, buffer.Len())
+             : tool::dumpHex((uint8_t *)data, buffer.Len());
 }
 
 #define sessionIteratorOrReturn(it, fd)                                        \
@@ -94,6 +95,8 @@ public:
   void setServerAddress(ServerAddress serverAddress) {
     serverAddress_ = serverAddress;
   }
+
+  void enableDump(bool enable) { enableDump_ = enable; }
 
   // read write
   void handleCoils(Address startAddress, Quantity quantity) {
@@ -298,8 +301,10 @@ public:
   void onMessageArrived(quintptr fd, const BytesBufferPtr &buffer) {
     sessionIteratorOrReturn(sessionIt, fd);
     auto &session = sessionIt.value();
-    log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
-        dump(transferMode_, *buffer));
+    if (enableDump_) {
+      log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
+          dump(transferMode_, *buffer));
+    }
 
     std::unique_ptr<Frame> requestFrame;
     std::unique_ptr<Frame> responseFrame;
@@ -430,8 +435,10 @@ public:
     auto array = frame->marshal(&id);
     session.client->write((const char *)array.data(), array.size());
 
-    log(LogLevel::kDebug, "S[{}]:[{}]", session.client->fullName(),
-        dump(transferMode_, array));
+    if (enableDump_) {
+      log(LogLevel::kDebug, "S[{}]:[{}]", session.client->fullName(),
+          dump(transferMode_, array));
+    }
   }
 
   void processBrocastRequest(const Request &request) {}
@@ -898,6 +905,7 @@ public:
   SingleBitAccess coils_;
   SixteenBitAccess inputRegister_;
   SixteenBitAccess holdingRegister_;
+  bool enableDump_ = true;
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {

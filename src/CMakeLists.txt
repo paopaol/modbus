@@ -26,8 +26,9 @@ target_link_libraries(modbus PUBLIC Qt5::Core)
 target_link_libraries(modbus PUBLIC Qt5::SerialPort)
 target_link_libraries(modbus PUBLIC Qt5::Network)
 
-target_include_directories(modbus
-                           PUBLIC "${PROJECT_BINARY_DIR}/thrd/fmtlib/include")
+target_include_directories(
+  modbus PUBLIC "${PROJECT_BINARY_DIR}/thrd/fmtlib/include"
+                "${PROJECT_SOURCE_DIR}/include")
 target_link_directories(
   modbus PUBLIC ${PROJECT_BINARY_DIR}/thrd/fmtlib/${CMAKE_INSTALL_LIBDIR})
 if(WIN32)

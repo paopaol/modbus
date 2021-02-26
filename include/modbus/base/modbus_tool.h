@@ -19,15 +19,35 @@ public:
     return hexString;
   }
 
+  static inline std::string dumpHex(const uint8_t *data, int size,
+                                    const std::string &delimiter = " ") {
+    std::string hexString;
+    hexString.reserve(size * 3);
+    for (int i = 0; i < size; i++) {
+      hexString.append(fmt::format("{}{:02x}", delimiter, data[i]));
+    }
+    return hexString;
+  }
+
   static inline std::string dumpRaw(const ByteArray &byteArray) {
     std::string output;
+    output.reserve(byteArray.size());
     for (const auto &ch : byteArray) {
       output += ch;
     }
     return output;
   }
 
-  static inline ByteArray fromHexString(const ByteArray &hexString) {
+  static inline std::string dumpRaw(const uint8_t *data, int size) {
+    std::string output;
+    output.reserve(size);
+    for (int i = 0; i < size; i++) {
+      output += data[i];
+    }
+    return output;
+  }
+
+  static inline ByteArray fromHexString(const uint8_t *hexString, int size) {
     static std::map<char, int> table = {
         {'0', 0},  {'1', 1},  {'2', 2},  {'3', 3},  {'4', 4},  {'5', 5},
         {'6', 6},  {'7', 7},  {'8', 8},  {'9', 9},  {'a', 10}, {'b', 11},

@@ -75,6 +75,7 @@ public:
   void setTransferMode(TransferMode transferMode);
   void addBlacklist(const QString &clientIp);
   void setServerAddress(ServerAddress serverAddress);
+  void enableDump(bool enable);
 
   /**
    *for write request, 0x05, 0x0f, 0x06,0x16,0x23

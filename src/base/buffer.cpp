@@ -71,16 +71,16 @@ void Buffer::UnReadBytes(size_t n /*,error &e*/) {
 }
 
 // return unreaded data size
-size_t Buffer::Len() { return widx - ridx; }
+size_t Buffer::Len() const { return widx - ridx; }
 
-size_t Buffer::Cap() { return b.size(); }
+size_t Buffer::Cap() const { return b.size(); }
 
 void Buffer::Reset() {
   ridx = 0;
   widx = 0;
 }
 
-bool Buffer::PeekAt(std::vector<char> &p, size_t index, size_t size) {
+bool Buffer::PeekAt(std::vector<char> &p, size_t index, size_t size) const {
   if (index < 0 || index >= Len()) {
     return false;
   }
@@ -95,6 +95,23 @@ bool Buffer::PeekAt(std::vector<char> &p, size_t index, size_t size) {
 
   p.clear();
   std::copy(b.data() + index, b.data() + index + size, std::back_inserter(p));
+  return true;
+}
+
+bool Buffer::ZeroCopyPeekAt(char **p, size_t index, size_t size) const {
+  if (index < 0 || index >= Len()) {
+    return false;
+  }
+  if (size <= 0) {
+    return false;
+  }
+  index = ridx + index;
+  size_t len = widx - index;
+  if (size > len) {
+    return false;
+  }
+
+  *p = (char *)b.data() + index;
   return true;
 }
 

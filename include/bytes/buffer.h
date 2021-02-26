@@ -41,13 +41,14 @@ public:
   void UnReadBytes(size_t n /*,error &e*/);
 
   // return unreaded data size
-  size_t Len();
+  size_t Len() const;
 
-  size_t Cap();
+  size_t Cap() const;
 
   void Reset();
 
-  bool PeekAt(std::vector<char> &p, size_t index, size_t size);
+  bool PeekAt(std::vector<char> &p, size_t index, size_t size) const;
+  bool ZeroCopyPeekAt(char **p, size_t index, size_t size) const;
 
   void Optimization();
 
