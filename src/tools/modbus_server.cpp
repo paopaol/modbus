@@ -44,6 +44,11 @@ void QModbusServer::setServerAddress(ServerAddress serverAddress) {
   d->setServerAddress(serverAddress);
 }
 
+void QModbusServer::enableDump(bool enable) {
+  Q_D(QModbusServer);
+  d->enableDump(enable);
+}
+
 ServerAddress QModbusServer::serverAddress() const {
   const Q_D(QModbusServer);
   return d->serverAddress();
