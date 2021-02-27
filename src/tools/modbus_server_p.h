@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
+#include <bits/stdint-uintn.h>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <modbus/base/smart_assert.h>
@@ -18,7 +19,8 @@ enum class StorageKind {
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
-static void appendByteArray(ByteArray &array, const std::vector<char> &carray);
+static void appendByteArray(ByteArray &array,
+                            const std::vector<uint8_t> &carray);
 static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer);
 
 static std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
@@ -387,7 +389,7 @@ public:
      *discard the already parsed data
      */
     char *unused;
-    buffer->ZeroCopyRead(unused, requestFrame->marshalSize());
+    buffer->ZeroCopyRead(&unused, requestFrame->marshalSize());
 
     Request request(requestFrame->adu());
     if (serverAddress == Adu::kBrocastAddress) {
@@ -926,13 +928,14 @@ static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {
              : DataChecker();
 }
 
-static void appendByteArray(ByteArray &array, const std::vector<char> &carray) {
+static void appendByteArray(ByteArray &array,
+                            const std::vector<uint8_t> &carray) {
   array.insert(array.end(), carray.begin(), carray.end());
 }
 
 static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer) {
   ByteArray data;
-  std::vector<char> d;
+  std::vector<uint8_t> d;
 
   buffer.PeekAt(d, 0, buffer.Len());
   appendByteArray(data, d);

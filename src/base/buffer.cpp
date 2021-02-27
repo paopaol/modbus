@@ -1,3 +1,4 @@
+#include <bits/stdint-uintn.h>
 #include <bytes/buffer.h>
 #include <cstddef>
 
@@ -7,17 +8,17 @@ namespace bytes {
 Buffer::Buffer() : b(8192), ridx(0), widx(0) {}
 
 // Read All
-size_t Buffer::Read(std::vector<char> &p) { return ReadBytes(p, Len()); }
+size_t Buffer::Read(std::vector<uint8_t> &p) { return ReadBytes(p, Len()); }
 
 // Read One Byte
-char Buffer::ReadByte() {
-  char *ch = lastRead();
+uint8_t Buffer::ReadByte() {
+  uint8_t *ch = lastRead();
   hasReaded(1);
   return *ch;
 }
 
 // Read N Bytes from buffer
-size_t Buffer::ReadBytes(std::vector<char> &p, size_t n) {
+size_t Buffer::ReadBytes(std::vector<uint8_t> &p, size_t n) {
   assert(n >= 0 && "buffer::readbytes(), bad input paramer");
 
   p.clear();
@@ -27,7 +28,7 @@ size_t Buffer::ReadBytes(std::vector<char> &p, size_t n) {
   return n;
 }
 
-size_t Buffer::Read(char *buffer, size_t n) {
+size_t Buffer::Read(uint8_t *buffer, size_t n) {
   assert(n >= 0 && "buffer::read(), bad input paramer");
   n = n > Len() ? Len() : n;
   std::copy(lastRead(), lastRead() + n, buffer);
@@ -35,16 +36,26 @@ size_t Buffer::Read(char *buffer, size_t n) {
   return n;
 }
 
-size_t Buffer::ZeroCopyRead(char *&ptr, size_t n) {
+size_t Buffer::Read(char *buffer, size_t n) {
+  return Read(reinterpret_cast<uint8_t *>(buffer), n);
+}
+
+size_t Buffer::ZeroCopyRead(uint8_t **ptr, size_t n) {
   assert(n >= 0 && "buffer::read(), bad input paramer");
   n = n > Len() ? Len() : n;
-  ptr = lastRead();
+  *ptr = lastRead();
   hasReaded(n);
   return n;
 }
 
+size_t Buffer::ZeroCopyRead(char **ptr, size_t n) {
+  return ZeroCopyRead(reinterpret_cast<uint8_t **>(ptr), n);
+}
+
+size_t Buffer::Write(const uint8_t d) { return Write(&d, 1); }
+
 // write data into buffer
-size_t Buffer::Write(const char *d, size_t len) {
+size_t Buffer::Write(const uint8_t *d, size_t len) {
   if (leftSpace() < len) {
     Optimization();
   }
@@ -55,8 +66,16 @@ size_t Buffer::Write(const char *d, size_t len) {
   hasWritten(len);
   return len;
 }
+
+size_t Buffer ::Write(const char *d, size_t len) {
+  return Write(reinterpret_cast<const uint8_t *>(d), len);
+}
 size_t Buffer::Write(const std::string &s) {
   return Write(s.c_str(), static_cast<size_t>(s.size()));
+}
+
+size_t Buffer::Write(const std::vector<uint8_t> &p) {
+  return Write(p.data(), static_cast<size_t>(p.size()));
 }
 
 size_t Buffer::Write(const std::vector<char> &p) {
@@ -81,7 +100,7 @@ void Buffer::Reset() {
   widx = 0;
 }
 
-bool Buffer::PeekAt(std::vector<char> &p, size_t index, size_t size) const {
+bool Buffer::PeekAt(std::vector<uint8_t> &p, size_t index, size_t size) const {
   if (index < 0 || index >= Len()) {
     return false;
   }
@@ -99,7 +118,7 @@ bool Buffer::PeekAt(std::vector<char> &p, size_t index, size_t size) const {
   return true;
 }
 
-bool Buffer::ZeroCopyPeekAt(char **p, size_t index, size_t size) const {
+bool Buffer::ZeroCopyPeekAt(uint8_t **p, size_t index, size_t size) const {
   if (index < 0 || index >= Len()) {
     return false;
   }
@@ -112,8 +131,12 @@ bool Buffer::ZeroCopyPeekAt(char **p, size_t index, size_t size) const {
     return false;
   }
 
-  *p = (char *)b.data() + index;
+  *p = (uint8_t *)b.data() + index;
   return true;
+}
+
+bool Buffer::ZeroCopyPeekAt(char **p, size_t index, size_t size) const {
+  return ZeroCopyPeekAt(reinterpret_cast<uint8_t **>(p), index, size);
 }
 
 void Buffer::Optimization() {
@@ -151,17 +174,17 @@ void Buffer::hasWritten(size_t len) {
 }
 void Buffer::hasReaded(size_t len) { ridx += len; }
 
-char *Buffer::beginWrite() { return begin() + widx; }
+uint8_t *Buffer::beginWrite() { return begin() + widx; }
 
-const char *Buffer::beginWrite() const { return begin() + widx; }
+const uint8_t *Buffer::beginWrite() const { return begin() + widx; }
 
-char *Buffer::lastRead() { return begin() + ridx; }
+uint8_t *Buffer::lastRead() { return begin() + ridx; }
 
-const char *Buffer::beginRead() const { return begin() + ridx; }
+const uint8_t *Buffer::beginRead() const { return begin() + ridx; }
 
-char *Buffer::begin() { return &*b.begin(); }
+uint8_t *Buffer::begin() { return &*(b.begin()); }
 
-const char *Buffer::begin() const { return &*b.begin(); }
+const uint8_t *Buffer::begin() const { return &*(b.begin()); }
 
 // BufferRef NewBuffer();
 //  {

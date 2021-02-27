@@ -1,7 +1,9 @@
 #ifndef MODBUS_SERIAL_CLIENT_P_H
 #define MODBUS_SERIAL_CLIENT_P_H
 
+#include "modbus/base/modbus.h"
 #include "modbus_client_types.h"
+#include "modbus_frame.h"
 #include <QTimer>
 #include <base/modbus_logger.h>
 #include <modbus/base/modbus_tool.h>
@@ -38,6 +40,9 @@ public:
       : QObject(parent) {
     device_ = new ReconnectableIoDevice(serialPort, this);
     waitResponseTimer_ = new QTimer(this);
+    checkSizeFuncTable_ = creatDefaultCheckSizeFuncTableForClient();
+    decoder_ = createModbusFrameDecoder(transferMode_, checkSizeFuncTable_);
+    encoder_ = createModbusFrameEncoder(transferMode_);
   }
   ~QModbusClientPrivate() {}
 
@@ -71,17 +76,39 @@ public:
        * take out the first request,send it out,
        */
       auto &ele = elementQueue_.front();
-      auto data = ele->requestFrame->marshal();
+
+      encoder_->Encode(ele->request.get(), writerBuffer_);
+      ele->totalBytes = writerBuffer_.Len();
       if (enableDump_) {
-        log(LogLevel::kDebug, "{} will send: {}", device_->name(), dump(data));
+        log(LogLevel::kDebug, "{} will send: {}", device_->name(),
+            dump(writerBuffer_));
       }
-      device_->write((const char *)data.data(), data.size());
+
+      char *p = nullptr;
+      int len = writerBuffer_.Len();
+      writerBuffer_.ZeroCopyRead(&p, len);
+      device_->write(p, len);
     });
   }
 
   std::string dump(const ByteArray &byteArray) {
     return transferMode_ == TransferMode::kAscii ? tool::dumpRaw(byteArray)
                                                  : tool::dumpHex(byteArray);
+  }
+
+  std::string dump(const QByteArray &array) {
+    return transferMode_ == TransferMode::kAscii
+               ? tool::dumpRaw((uint8_t *)array.data(), array.size())
+               : tool::dumpHex((uint8_t *)array.data(), array.size());
+  }
+
+  std::string dump(const pp::bytes::Buffer &buffer) {
+    char *p;
+    int len = buffer.Len();
+    buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
+    return transferMode_ == TransferMode::kAscii
+               ? tool::dumpRaw((uint8_t *)p, len)
+               : tool::dumpHex((uint8_t *)p, len);
   }
 
   /**
@@ -111,6 +138,13 @@ public:
   bool enableDiagnosis_ = false;
   RuntimeDiagnosis runtimeDiagnosis_;
   bool enableDump_ = true;
+
+  CheckSizeFuncTable checkSizeFuncTable_;
+  std::unique_ptr<ModbusFrameDecoder> decoder_;
+  std::unique_ptr<ModbusFrameEncoder> encoder_;
+
+  pp::bytes::Buffer readBuffer_;
+  pp::bytes::Buffer writerBuffer_;
 };
 
 class ReconnectableIoDevicePrivate : public QObject {

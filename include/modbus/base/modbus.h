@@ -4,6 +4,7 @@
 #include "bytes/buffer.h"
 #include "modbus/base/modbus_types.h"
 #include "modbus_data.h"
+#include <array>
 #include <bits/stdint-uintn.h>
 #include <cstddef>
 #include <functional>
@@ -149,9 +150,12 @@ public:
   Adu() {}
   Adu(ServerAddress serverAddress, FunctionCode functionCode,
       const DataChecker &dataChecker)
-      : serverAddress_(serverAddress), pdu_(functionCode, dataChecker) {}
+      : serverAddress_(serverAddress), functionCode_(functionCode),
+        dataChecker_(dataChecker) {}
+
   Adu(ServerAddress serverAddress, const Pdu &pdu)
-      : serverAddress_(serverAddress), pdu_(pdu) {}
+      : serverAddress_(serverAddress), functionCode_(pdu.functionCode()),
+        dataChecker_(pdu.dataChecker()) {}
   ~Adu() {}
 
   void setServerAddress(ServerAddress serverAddress) {
@@ -161,47 +165,57 @@ public:
   bool isBrocast() { return serverAddress_ == kBrocastAddress; }
 
   void setFunctionCode(FunctionCode functionCode) {
-    pdu_.setFunctionCode(functionCode);
+    functionCode_ = functionCode;
   }
-  FunctionCode functionCode() const { return pdu_.functionCode(); }
-
-  void setPdu(const Pdu &pdu) { pdu_ = pdu; }
-  Pdu pdu() const { return pdu_; }
+  FunctionCode functionCode() const {
+    return FunctionCode(uint8_t(functionCode_) & ~kExceptionByte);
+  }
 
   void setDataChecker(const DataChecker &dataChecker) {
-    pdu_.setDataChecker(dataChecker);
+    dataChecker_ = dataChecker;
   }
 
   void setCheckSizeFun(const CheckSizeFunc &dataChecker) {
-    pdu_.setCheckSizeFun(dataChecker);
+    calculateSize_ = dataChecker;
   }
-  DataChecker dataChecker() const { return pdu_.dataChecker(); }
-  const CheckSizeFunc &checkSizeFunc() const { return pdu_.checkSizeFunc(); }
 
-  void setData(const ByteArray &byteArray) { pdu_.setData(byteArray); }
-  void setData(const uint8_t *data, int n) { pdu_.setData(data, n); }
-  const ByteArray &data() const { return pdu_.data(); }
+  DataChecker dataChecker() const { return dataChecker_; }
+  const CheckSizeFunc &checkSizeFunc() const { return calculateSize_; }
 
-  bool isException() const { return pdu_.isException(); }
+  void setData(const ByteArray &byteArray) { data_ = byteArray; }
+  void setData(const uint8_t *data, int n) {
+    if (data_.capacity() < static_cast<size_t>(n)) {
+      data_.resize(n);
+    }
+    std::copy(data, data + n, data_.begin());
+  }
 
-  size_t marshalSize() const { return 1 + 1 + pdu_.size(); }
+  const ByteArray &data() const { return data_; }
+
+  bool isException() const { return functionCode_ & kExceptionByte; }
+
+  size_t marshalSize() const { return 1 + 1 + data_.size(); }
+
+  void setTransactionId(uint16_t transactionId) {
+    transactionId_ = transactionId;
+  }
+
+  uint16_t transactionId() const { return transactionId_; }
   /**
    * @brief marshalAduWithoutCrc,that is: serveraddress + fuction code + payload
    */
   ByteArray marshalAduWithoutCrc() {
-    const auto &data = pdu_.data();
-
     ByteArray array;
-    array.reserve(2 + data.size());
+    array.reserve(2 + data_.size());
 
     array.push_back(serverAddress());
     if (isException()) {
-      array.push_back(FunctionCode(pdu_.functionCode() | Pdu::kExceptionByte));
+      array.push_back(FunctionCode(functionCode() | kExceptionByte));
     } else {
-      array.push_back(pdu_.functionCode());
+      array.push_back(functionCode());
     }
-    for (int i = 0, size = data.size(); i < size; i++) {
-      array.push_back(data[i]);
+    for (int i = 0, size = data_.size(); i < size; i++) {
+      array.push_back(data_[i]);
     }
     return array;
   }
@@ -209,8 +223,16 @@ public:
   static const ServerAddress kBrocastAddress = 0;
 
 private:
+  static const uint8_t kExceptionByte = 0x80;
+
   ServerAddress serverAddress_;
-  Pdu pdu_;
+  // Pdu pdu_;
+  FunctionCode functionCode_ = FunctionCode::kInvalidCode;
+  DataChecker dataChecker_;
+  CheckSizeFunc calculateSize_;
+  ByteArray data_;
+
+  uint16_t transactionId_ = 0;
 };
 
 /**
@@ -267,6 +289,32 @@ protected:
 
   Adu adu_;
   TransactionId id_ = 0;
+};
+
+// the index of array will be used as the functionCode
+using CheckSizeFuncTable = std::array<CheckSizeFunc, 256>;
+
+class ModbusFrameDecoder {
+public:
+  explicit ModbusFrameDecoder(const CheckSizeFuncTable &table)
+      : checkSizeFuncTable_(table) {}
+
+  virtual ~ModbusFrameDecoder() = default;
+
+  virtual DataChecker::Result Decode(pp::bytes::Buffer &buffer, Adu *adu) = 0;
+  virtual bool IsDone() const = 0;
+  virtual void Clear() = 0;
+  virtual Error LasError() const = 0;
+
+protected:
+  CheckSizeFuncTable checkSizeFuncTable_;
+};
+
+class ModbusFrameEncoder {
+public:
+  virtual ~ModbusFrameEncoder() = default;
+
+  virtual void Encode(const Adu *adu, pp::bytes::Buffer &buffer) = 0;
 };
 
 /**

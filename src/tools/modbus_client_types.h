@@ -4,6 +4,7 @@
 #include <deque>
 #include <memory>
 #include <modbus/base/modbus.h>
+#include <QByteArray>
 
 namespace modbus {
 
@@ -42,14 +43,14 @@ inline std::ostream &operator<<(std::ostream &output,
 }
 
 struct Element {
-  std::unique_ptr<Request> request = nullptr;
   Response response;
+  QByteArray dumpReadArray;
   size_t bytesWritten = 0;
-  ByteArray dataRecived; // recived data from serial or socket or other
+  size_t totalBytes = 0;
   int retryTimes = 0;
-  std::unique_ptr<Frame> requestFrame;
-  std::unique_ptr<Frame> responseFrame;
+  std::unique_ptr<Request> request = nullptr;
 };
+
 using ElementQueue = std::deque<Element *>;
 inline void createElement(std::unique_ptr<Request> &request, Element *element) {
   element->request.swap(request);
