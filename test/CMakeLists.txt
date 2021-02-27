@@ -12,6 +12,8 @@ set(src-list
     "./modbus_test_subarray.cpp"
     "./modbus_test_pdu.cpp"
     "./modbus_test_adu.cpp"
+    "./modbus_test_rtu_frame_decoder_client_decode.cpp"
+    "./modbus_test_mbap_frame_decoder_client_decode.cpp"
     "./modbus_test_mocker.h"
     "./modbus_test_single_bit_access.cpp"
     "./modbus_test_sixteen_value_test.cpp"

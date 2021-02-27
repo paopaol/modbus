@@ -19,22 +19,27 @@ public:
   ~Buffer() {}
 
   // Read All
-  size_t Read(std::vector<char> &p);
+  size_t Read(std::vector<uint8_t> &p);
 
   // Read One Byte
-  char ReadByte();
+  uint8_t ReadByte();
 
   // Read N Bytes from buffer
-  size_t ReadBytes(std::vector<char> &p, size_t n);
+  size_t ReadBytes(std::vector<uint8_t> &p, size_t n);
 
+  size_t Read(uint8_t *buffer, size_t n);
   size_t Read(char *buffer, size_t n);
-  size_t ZeroCopyRead(char *&ptr, size_t n);
+  size_t ZeroCopyRead(uint8_t **ptr, size_t n);
+  size_t ZeroCopyRead(char **ptr, size_t n);
 
   // write data into buffer
+  size_t Write(const uint8_t d);
+  size_t Write(const uint8_t *d, size_t len);
   size_t Write(const char *d, size_t len);
 
   size_t Write(const std::string &s);
 
+  size_t Write(const std::vector<uint8_t> &p);
   size_t Write(const std::vector<char> &p);
 
   void UnReadByte(/*error*/);
@@ -48,7 +53,8 @@ public:
 
   void Reset();
 
-  bool PeekAt(std::vector<char> &p, size_t index, size_t size) const;
+  bool PeekAt(std::vector<uint8_t> &p, size_t index, size_t size) const;
+  bool ZeroCopyPeekAt(uint8_t **p, size_t index, size_t size) const;
   bool ZeroCopyPeekAt(char **p, size_t index, size_t size) const;
 
   void Optimization();
@@ -67,19 +73,19 @@ private:
 
   void hasReaded(size_t len);
 
-  char *beginWrite();
+  uint8_t *beginWrite();
 
-  const char *beginWrite() const;
+  const uint8_t *beginWrite() const;
 
-  char *lastRead();
+  uint8_t *lastRead();
 
-  const char *beginRead() const;
+  const uint8_t *beginRead() const;
 
-  char *begin();
+  uint8_t *begin();
 
-  const char *begin() const;
+  const uint8_t *begin() const;
 
-  std::vector<char> b;
+  std::vector<uint8_t> b;
   size_t ridx;
   size_t widx;
 };

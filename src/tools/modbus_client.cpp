@@ -11,7 +11,6 @@
 
 namespace modbus {
 
-static void appendQByteArray(ByteArray &array, const QByteArray &qarray);
 static QVector<SixteenBitValue>
 toSixteenBitValueList(const SixteenBitAccess &access);
 static ByteArray toBitValueList(const SingleBitAccess &access);
@@ -63,12 +62,6 @@ void QModbusClient::sendRequest(std::unique_ptr<Request> &request) {
    * out*/
   auto *element = d->enqueueAndPeekLastElement();
   createElement(request, element);
-
-  element->requestFrame = createModbusFrame(d->transferMode_);
-  element->requestFrame->setAdu(*element->request);
-
-  element->responseFrame = createModbusFrame(d->transferMode_);
-  element->responseFrame->setAdu(element->response);
 
   element->retryTimes = d->retryTimes_;
   d->scheduleNextRequest(d->t3_5_);
@@ -288,6 +281,8 @@ void QModbusClient::setTransferMode(TransferMode transferMode) {
   Q_D(QModbusClient);
 
   d->transferMode_ = transferMode;
+  d->decoder_ = createModbusFrameDecoder(transferMode, d->checkSizeFuncTable_);
+  d->encoder_ = createModbusFrameEncoder(transferMode);
 }
 
 TransferMode QModbusClient::transferMode() const {
@@ -389,7 +384,8 @@ void QModbusClient::onIoDeviceResponseTimeout() {
 
   auto &element = d->elementQueue_.front();
   element->bytesWritten = 0;
-  element->dataRecived.clear();
+  element->dumpReadArray.clear();
+  d->decoder_->Clear();
 
   /**
    *  An error occurs when the response times out but no response is
@@ -436,35 +432,40 @@ void QModbusClient::onIoDeviceReadyRead() {
    * then this data is not what we want,discard them
    */
   auto qdata = d->device_->readAll();
+  d->readBuffer_.Write(qdata.data(), qdata.size());
   if (d->sessionState_.state() != SessionState::kWaitingResponse) {
-    ByteArray data;
-    appendQByteArray(data, qdata);
+    d->readBuffer_.Reset();
+
     std::stringstream stream;
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
         "{} now state is in {}.got unexpected data, discard them.[{}]",
-        d->device_->name(), stream.str(), d->dump(data));
+        d->device_->name(), stream.str(), d->dump(qdata));
 
     d->device_->clear();
     return;
   }
 
   auto &element = d->elementQueue_.front();
-  auto &dataRecived = element->dataRecived;
   auto &request = element->request;
 
-  appendQByteArray(dataRecived, qdata);
-
-  Error error = Error::kNoError;
-  auto result = element->responseFrame->unmarshal(dataRecived, &error);
-  if (result != DataChecker::Result::kSizeOk) {
-    log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
-                                d->dump(dataRecived) + "]");
-    return;
+  if (d->enableDump_) {
+    element->dumpReadArray.append(qdata);
   }
 
-  Response response(element->responseFrame->adu());
-  response.setError(error);
+  d->decoder_->Decode(d->readBuffer_, &element->response);
+  if (!d->decoder_->IsDone()) {
+    log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
+                                d->dump(element->dumpReadArray) + "]");
+    return;
+  }
+  const auto lastError = d->decoder_->LasError();
+  d->decoder_->Clear();
+
+  element->response.setError(lastError);
+
+  // replace with swap/move
+  Response response = element->response;
 
   /**
    * When receiving a response from an undesired child node,
@@ -475,9 +476,10 @@ void QModbusClient::onIoDeviceReadyRead() {
     log(LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
-            d->dump(dataRecived) + "]");
+            d->dump(qdata) + "]");
 
-    dataRecived.clear();
+    d->readBuffer_.Reset();
+
     return;
   }
 
@@ -486,7 +488,7 @@ void QModbusClient::onIoDeviceReadyRead() {
 
   if (d->enableDump_) {
     log(LogLevel::kDebug,
-        d->device_->name() + " recived " + d->dump(dataRecived));
+        d->device_->name() + " recived " + d->dump(element->dumpReadArray));
   }
 
   /**
@@ -510,7 +512,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
   auto &element = d->elementQueue_.front();
   auto &request = element->request;
   element->bytesWritten += bytes;
-  if (element->bytesWritten != element->requestFrame->marshalSize()) {
+  if (element->bytesWritten != element->totalBytes) {
     return;
   }
 
@@ -519,6 +521,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
     d->elementQueue_.pop_front();
     delete e;
     d->sessionState_.setState(SessionState::kIdle);
+    d->decoder_->Clear();
     d->scheduleNextRequest(d->waitConversionDelay_);
 
     log(LogLevel::kWarning,
@@ -552,6 +555,7 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
   }
 
   d->sessionState_.setState(SessionState::kIdle);
+  d->decoder_->Clear();
   emit errorOccur(errorString);
 }
 
@@ -617,7 +621,6 @@ void QModbusClient::processFunctionCode(const Request &request,
     if (!response.isException()) {
       processReadRegisters(request, response, &access);
     }
-    const auto &data = access.value();
     emit readRegistersFinished(request.serverAddress(), request.functionCode(),
                                access.startAddress(), access.quantity(),
                                access.value(), response.error());
@@ -649,12 +652,6 @@ void QModbusClient::processFunctionCode(const Request &request,
   default:
     return;
   }
-}
-
-static void appendQByteArray(ByteArray &array, const QByteArray &qarray) {
-  uint8_t *data = (uint8_t *)qarray.constData();
-  size_t size = qarray.size();
-  array.insert(array.end(), data, data + size);
 }
 
 static QVector<SixteenBitValue>
