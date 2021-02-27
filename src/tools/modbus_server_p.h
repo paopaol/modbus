@@ -450,7 +450,7 @@ public:
 
     response.setError(errorCode);
     response.setServerAddress(serverAddress_);
-    response.setFunctionCode(FunctionCode(functionCode | Pdu::kExceptionByte));
+    response.setFunctionCode(FunctionCode(functionCode | Adu::kExceptionByte));
     response.setData(ByteArray({uint8_t(errorCode)}));
     response.setDataChecker(expectionResponseDataChecker);
 
