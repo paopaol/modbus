@@ -89,73 +89,21 @@ bytesRequiredStoreInArrayIndex2(size_t &size, const uint8_t *buffer, int len) {
 }
 
 /**
- * Protocol data unit
- * in modbus frame, it is function Code + data
- */
-class Pdu {
-public:
-  Pdu() {}
-  Pdu(FunctionCode functionCode, const DataChecker &dataChecker)
-      : functionCode_(functionCode), dataChecker_(dataChecker) {}
-  static const uint8_t kExceptionByte = 0x80;
-
-  void setFunctionCode(FunctionCode functionCode) {
-    functionCode_ = functionCode;
-  }
-  FunctionCode functionCode() const {
-    return FunctionCode(uint8_t(functionCode_) & ~kExceptionByte);
-  }
-  void setDataChecker(const DataChecker &dataChecker) {
-    dataChecker_ = dataChecker;
-  }
-
-  void setCheckSizeFun(const CheckSizeFunc &calculateSize) {
-    calculateSize_ = calculateSize;
-  }
-
-  DataChecker dataChecker() const { return dataChecker_; }
-  const CheckSizeFunc &checkSizeFunc() const { return calculateSize_; }
-  bool isException() const { return functionCode_ & kExceptionByte; }
-  void setData(const ByteArray &byteArray) { data_ = byteArray; }
-  void setData(const uint8_t *data, int n) {
-    data_.resize(n);
-    for (int i = 0; i < n; ++i) {
-      data_[i] = data[i];
-    }
-  }
-
-  /**
-   * @brief this data is only payload, not include function code
-   */
-  const ByteArray &data() const { return data_; }
-  /**
-   * @brief return the size of payload
-   */
-  size_t size() const { return data_.size(); }
-
-private:
-  FunctionCode functionCode_ = FunctionCode::kInvalidCode;
-  DataChecker dataChecker_;
-  CheckSizeFunc calculateSize_;
-  ByteArray data_;
-};
-
-/**
  * Application data unit
  * in modbus frame, it is address field + pdu + error checking.
  * but our adu not include error checking
  */
 class Adu {
 public:
+  static const ServerAddress kBrocastAddress = 0;
+  static const uint8_t kExceptionByte = 0x80;
+
   Adu() {}
   Adu(ServerAddress serverAddress, FunctionCode functionCode,
       const DataChecker &dataChecker)
       : serverAddress_(serverAddress), functionCode_(functionCode),
         dataChecker_(dataChecker) {}
 
-  Adu(ServerAddress serverAddress, const Pdu &pdu)
-      : serverAddress_(serverAddress), functionCode_(pdu.functionCode()),
-        dataChecker_(pdu.dataChecker()) {}
   ~Adu() {}
 
   void setServerAddress(ServerAddress serverAddress) {
@@ -220,11 +168,7 @@ public:
     return array;
   }
 
-  static const ServerAddress kBrocastAddress = 0;
-
 private:
-  static const uint8_t kExceptionByte = 0x80;
-
   ServerAddress serverAddress_;
   // Pdu pdu_;
   FunctionCode functionCode_ = FunctionCode::kInvalidCode;

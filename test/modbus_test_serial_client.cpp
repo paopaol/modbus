@@ -367,7 +367,7 @@ TEST(ModbusSerialClient,
     createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
                                         kQuantity, session);
     FunctionCode functionCode =
-        FunctionCode(session.response.functionCode() | Pdu::kExceptionByte);
+        FunctionCode(session.response.functionCode() | Adu::kExceptionByte);
     session.response.setFunctionCode(functionCode);
     session.response.setError(Error::kSlaveDeviceBusy);
     session.responseRaw =
@@ -387,7 +387,7 @@ TEST(ModbusSerialClient,
          * use FunctionCode::kReadCoils | Pdu::kExceptionByte
          * simulated exception return
          */
-        FunctionCode::kReadCoils | Pdu::kExceptionByte,
+        FunctionCode::kReadCoils | Adu::kExceptionByte,
         static_cast<uint8_t>(Error::kSlaveDeviceBusy)};
 
     ByteArray responseWithCrc = tool::appendCrc(responseWithoutCrc);
@@ -426,7 +426,7 @@ TEST(ModbusSerialClient,
     createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
                                         kQuantity, session);
     FunctionCode functionCode =
-        FunctionCode(session.response.functionCode() | Pdu::kExceptionByte);
+        FunctionCode(session.response.functionCode() | Adu::kExceptionByte);
     session.response.setServerAddress(0x00);
     session.response.setFunctionCode(functionCode);
     session.response.setError(Error::kTimeout);

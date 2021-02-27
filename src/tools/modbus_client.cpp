@@ -22,13 +22,11 @@ struct ReadWriteRegistersAccess {
 
 QModbusClient::QModbusClient(AbstractIoDevice *iodevice, QObject *parent)
     : QObject(parent), d_ptr(new QModbusClientPrivate(iodevice, this)) {
-  initMemberValues();
   setupEnvironment();
 }
 
 QModbusClient::QModbusClient(QObject *parent)
     : QObject(parent), d_ptr(new QModbusClientPrivate(nullptr, parent)) {
-  initMemberValues();
   setupEnvironment();
 }
 
@@ -365,17 +363,6 @@ void QModbusClient::enableDump(bool enable) {
 RuntimeDiagnosis QModbusClient::runtimeDiagnosis() const {
   const Q_D(QModbusClient);
   return d->runtimeDiagnosis_;
-}
-
-void QModbusClient::initMemberValues() {
-  Q_D(QModbusClient);
-
-  d->sessionState_.setState(SessionState::kIdle);
-  d->waitConversionDelay_ = 200;
-  d->t3_5_ = 60;
-  d->waitResponseTimeout_ = 1000;
-  d->retryTimes_ = 0; /// default no retry
-  d->transferMode_ = TransferMode::kRtu;
 }
 
 void QModbusClient::onIoDeviceResponseTimeout() {

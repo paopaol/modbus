@@ -604,7 +604,7 @@ public:
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
     buffer.Write(adu->serverAddress());
     if (adu->isException()) {
-      buffer.Write(FunctionCode(adu->functionCode() | Pdu::kExceptionByte));
+      buffer.Write(FunctionCode(adu->functionCode() | Adu::kExceptionByte));
     } else {
       buffer.Write(adu->functionCode());
     }
@@ -639,7 +639,7 @@ public:
     buffer.Write(adu->serverAddress());
 
     if (adu->isException()) {
-      buffer.Write(FunctionCode(adu->functionCode() | Pdu::kExceptionByte));
+      buffer.Write(FunctionCode(adu->functionCode() | Adu::kExceptionByte));
     } else {
       buffer.Write(adu->functionCode());
     }

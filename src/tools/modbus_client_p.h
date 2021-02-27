@@ -38,11 +38,8 @@ class QModbusClientPrivate : public QObject {
 public:
   QModbusClientPrivate(AbstractIoDevice *serialPort, QObject *parent = nullptr)
       : QObject(parent) {
+    initMemberValues();
     device_ = new ReconnectableIoDevice(serialPort, this);
-    waitResponseTimer_ = new QTimer(this);
-    checkSizeFuncTable_ = creatDefaultCheckSizeFuncTableForClient();
-    decoder_ = createModbusFrameDecoder(transferMode_, checkSizeFuncTable_);
-    encoder_ = createModbusFrameEncoder(transferMode_);
   }
   ~QModbusClientPrivate() {}
 
@@ -109,6 +106,20 @@ public:
     return transferMode_ == TransferMode::kAscii
                ? tool::dumpRaw((uint8_t *)p, len)
                : tool::dumpHex((uint8_t *)p, len);
+  }
+
+  void initMemberValues() {
+    sessionState_.setState(SessionState::kIdle);
+    waitConversionDelay_ = 200;
+    t3_5_ = 60;
+    waitResponseTimeout_ = 1000;
+    retryTimes_ = 0; /// default no retry
+    transferMode_ = TransferMode::kRtu;
+
+    waitResponseTimer_ = new QTimer(this);
+    checkSizeFuncTable_ = creatDefaultCheckSizeFuncTableForClient();
+    decoder_ = createModbusFrameDecoder(transferMode_, checkSizeFuncTable_);
+    encoder_ = createModbusFrameEncoder(transferMode_);
   }
 
   /**

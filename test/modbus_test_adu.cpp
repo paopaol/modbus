@@ -31,12 +31,6 @@ TEST(TestModbusAdu, modbusAduConstructor) {
   EXPECT_EQ(FunctionCode::kReadCoils, adu.functionCode());
 }
 
-TEST(TestModbusAdu, modbusAduConstructor2) {
-  auto dataChecker = MockReadCoilsDataChecker::newDataChecker();
-  Adu adu(ServerAddress(1), Pdu(FunctionCode::kReadCoils, dataChecker));
-  EXPECT_EQ(FunctionCode::kReadCoils, adu.functionCode());
-}
-
 TEST(TestAdu, modbusAduMarshalData) {
   struct Result {
     int size;

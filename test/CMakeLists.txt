@@ -10,7 +10,6 @@ set(src-list
     "./modbus_test_bytearray_dump.cpp"
     "./modbus_test_data_checker.cpp"
     "./modbus_test_subarray.cpp"
-    "./modbus_test_pdu.cpp"
     "./modbus_test_adu.cpp"
     "./modbus_test_rtu_frame_decoder_client_decode.cpp"
     "./modbus_test_mbap_frame_decoder_client_decode.cpp"
