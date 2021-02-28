@@ -4,11 +4,12 @@
 int main(int argc, char *argv[]) {
   QCoreApplication app(argc, argv);
 
-  auto modbusServer = modbus::createServer("modbus.tcp://:502");
+  auto modbusServer = modbus::createServer("modbus.tcp://:33333");
   // auto modbusServer = modbus::createServer("modbus.file:///COM1?9600-8-n-1");
 
   modbusServer->setServerAddress(0x01);
   modbusServer->setTransferMode(modbus::TransferMode::kMbap);
+  modbusServer->enableDump(false);
 
   modbusServer->handleCoils(0x00, 100);
   modbusServer->handleDiscreteInputs(0x00, 0x10);

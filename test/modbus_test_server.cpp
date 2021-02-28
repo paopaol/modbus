@@ -1,4 +1,8 @@
 #include "../src/tools/modbus_server_p.h"
+#include "bytes/buffer.h"
+#include "modbus_frame.h"
+#include "modbusserver_client_session.h"
+#include "gmock/gmock-spec-builders.h"
 #include <QObject>
 #include <QScopedPointer>
 #include <QSignalSpy>
@@ -12,10 +16,6 @@
 
 using namespace testing;
 using namespace modbus;
-
-static Adu createAdu(ServerAddress serverAddress, FunctionCode functionCode,
-                     const ByteArray &data,
-                     const DataChecker::calculateRequiredSizeFunc &func);
 
 class TestConnection : public AbstractConnection {
   Q_OBJECT
@@ -96,15 +96,17 @@ TEST(QModbusServer,
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  pp::bytes::Buffer requestBuffer;
   ByteArray raw({0x02, 0x01, 0x00, 0x00, 0x00, 0x01});
   raw = tool::appendCrc(raw);
-  requestBuffer->Write((char *)raw.data(), raw.size());
+  requestBuffer.Write(raw);
 
-  std::unique_ptr<Frame> request;
-  std::unique_ptr<Frame> response;
-  auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadServerAddress);
+  auto *mockConn = new TestConnection();
+  ClientSession session(&d, mockConn,
+                        creatDefaultCheckSizeFuncTableForServer());
+
+  EXPECT_CALL(*mockConn, write).Times(0);
+  session.handleModbusRequest(requestBuffer);
 }
 
 TEST(QModbusServer, recivedRequest_needMoreData) {
@@ -116,14 +118,16 @@ TEST(QModbusServer, recivedRequest_needMoreData) {
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  pp::bytes::Buffer requestBuffer;
   ByteArray raw({0x01});
-  requestBuffer->Write((char *)raw.data(), raw.size());
+  requestBuffer.Write(raw);
 
-  std::unique_ptr<Frame> request;
-  std::unique_ptr<Frame> response;
-  auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kNeedMoreData);
+  auto *mockConn = new TestConnection();
+  ClientSession session(&d, mockConn,
+                        creatDefaultCheckSizeFuncTableForServer());
+
+  EXPECT_CALL(*mockConn, write).Times(0);
+  session.handleModbusRequest(requestBuffer);
 }
 
 TEST(
@@ -137,15 +141,17 @@ TEST(
   d.setServerAddress(1);
   d.setTransferMode(TransferMode::kRtu);
 
-  BytesBufferPtr requestBuffer(new pp::bytes::Buffer);
+  pp::bytes::Buffer requestBuffer;
   ByteArray raw({0x01, 0x01, 0x00, 0x00, 0x00, 0x01});
   raw = tool::appendCrc(raw);
-  requestBuffer->Write((char *)raw.data(), raw.size());
+  requestBuffer.Write((char *)raw.data(), raw.size());
 
-  std::unique_ptr<Frame> request;
-  std::unique_ptr<Frame> response;
-  auto result = d.processModbusRequest(requestBuffer, request, response);
-  EXPECT_EQ(result, QModbusServerPrivate::ProcessResult::kBadFunctionCode);
+  auto *mockConn = new TestConnection();
+  ClientSession session(&d, mockConn,
+                        creatDefaultCheckSizeFuncTableForServer());
+
+  EXPECT_CALL(*mockConn, write).Times(1);
+  session.handleModbusRequest(requestBuffer);
 }
 
 TEST(QModbusServer, processReadCoils_success) {
@@ -165,14 +171,15 @@ TEST(QModbusServer, processReadCoils_success) {
   access.setStartAddress(0x01);
   access.setQuantity(0x3);
 
-  Request request;
+  Adu request;
+  Adu response;
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadCoils);
   request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
-  request.setData({0x00, 0x01, 0x00, 0x03});
+  request.setData(access.marshalReadRequest());
 
-  auto response = d.processRequest(request);
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.serverAddress(), 0x01);
   EXPECT_EQ(response.functionCode(), FunctionCode::kReadCoils);
@@ -196,11 +203,15 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   access.setStartAddress(0x06);
   access.setQuantity(0x10);
 
-  Request request(createAdu(0x01, FunctionCode::kReadCoils,
-                            access.marshalReadRequest(),
-                            bytesRequiredStoreInArrayIndex<0>));
+  Adu request;
+  Adu response;
 
-  auto response = d.processRequest(request);
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kReadCoils);
+  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  request.setData({0x00, 0x01, 0x00, 0x03});
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
 }
@@ -221,11 +232,15 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
   access.setQuantity(0x01);
   access.setValue(true);
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
-                            access.marshalSingleWriteRequest(),
-                            bytesRequired<4>));
+  Adu request;
+  Adu response;
 
-  auto response = d.processRequest(request);
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData({access.marshalSingleWriteRequest()});
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.serverAddress(), 0x01);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
@@ -248,11 +263,15 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
   access.setQuantity(0x01);
   access.setValue(true);
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
-                            access.marshalSingleWriteRequest(),
-                            bytesRequired<4>));
+  Adu request;
+  Adu response;
 
-  auto response = d.processRequest(request);
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(access.marshalSingleWriteRequest());
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
@@ -269,11 +288,15 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
 
   d.handleCoils(0x01, 10);
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
-                            ByteArray({0x00, 0x01, 0xff, 0xff}),
-                            bytesRequired<4>));
+  Adu request;
+  Adu response;
 
-  auto response = d.processRequest(request);
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x01, 0xff, 0xff}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kStorageParityError);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
@@ -292,11 +315,15 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
 
   d.handleCoils(0x01, 10);
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleCoil,
-                            ByteArray({0x00, 0x01, 0x00, 0x00}),
-                            bytesRequired<4>));
+  Adu request;
+  Adu response;
 
-  auto response = d.processRequest(request);
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleCoil);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x01, 0x00, 0x00}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kSlaveDeviceBusy);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.functionCode(), FunctionCode::kWriteSingleCoil);
@@ -313,10 +340,15 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
 
   d.handleCoils(0x00, 0x10);
 
-  Request request(createAdu(
-      0x01, FunctionCode::kWriteMultipleCoils,
-      ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}), bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteMultipleCoils);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x00, 0x00, 0x09}));
@@ -332,10 +364,15 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
 
   d.handleCoils(0x00, 0x10);
 
-  Request request(createAdu(
-      0x01, FunctionCode::kWriteMultipleCoils,
-      ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}), bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteMultipleCoils);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
@@ -354,10 +391,15 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
   d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
-                            ByteArray({0x00, 0x00, 0x00, 0x03}),
-                            bytesRequiredStoreInArrayIndex<0>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kReadInputRegister);
+  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  request.setData(ByteArray({0x00, 0x00, 0x00, 0x03}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(),
@@ -377,10 +419,15 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
   d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
-                            ByteArray({0x00, 0x99, 0x00, 0x03}),
-                            bytesRequiredStoreInArrayIndex<0>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kReadInputRegister);
+  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  request.setData(ByteArray({0x00, 0x99, 0x00, 0x03}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
@@ -399,10 +446,15 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
   d.writeInputRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeInputRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kReadInputRegister,
-                            ByteArray({0x00, 0x08, 0x00, 0x09}),
-                            bytesRequiredStoreInArrayIndex<0>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kReadInputRegister);
+  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
+  request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), ByteArray({uint8_t(Error::kIllegalDataAddress)}));
@@ -421,10 +473,15 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
   d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
-                            ByteArray({0x00, 0x08, 0x00, 0x09}),
-                            bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleRegister);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
   EXPECT_EQ(response.data(), ByteArray({0x00, 0x08, 0x00, 0x09}));
@@ -443,10 +500,15 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
   d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
-                            ByteArray({0x00, 0x88, 0x00, 0x09}),
-                            bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleRegister);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x88, 0x00, 0x09}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), ByteArray({0x02}));
@@ -469,10 +531,15 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
   d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(0x01, FunctionCode::kWriteSingleRegister,
-                            ByteArray({0x00, 0x08, 0x00, 0x09}),
-                            bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteSingleRegister);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
+
+  d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataValue);
   EXPECT_EQ(response.isException(), true);
   EXPECT_EQ(response.data(), ByteArray({0x03}));
@@ -494,10 +561,15 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
   d.writeHodingRegisters(0x01, {SixteenBitValue(0x5678)});
   d.writeHodingRegisters(0x02, {SixteenBitValue(0x9876)});
 
-  Request request(createAdu(
-      0x01, FunctionCode::kWriteMultipleRegisters,
-      ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}), bytesRequired<4>));
-  auto response = d.processRequest(request);
+  Adu request;
+  Adu response;
+
+  request.setServerAddress(0x01);
+  request.setFunctionCode(FunctionCode::kWriteMultipleRegisters);
+  request.setDataChecker({bytesRequired<4>});
+  request.setData(ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}));
+
+  d.processRequest(&request, &response);
 
   EXPECT_EQ(response.error(), Error::kNoError);
   EXPECT_EQ(response.isException(), false);
@@ -527,17 +599,6 @@ TEST(QModbusServer, writeValueSixteenValue_success) {
   bool ok = d.holdingRegisterValue(0x02, &value);
   EXPECT_EQ(ok, true);
   EXPECT_EQ(value.toUint16(), SixteenBitValue(0x9876).toUint16());
-}
-
-static Adu createAdu(ServerAddress serverAddress, FunctionCode functionCode,
-                     const ByteArray &data,
-                     const DataChecker::calculateRequiredSizeFunc &func) {
-  Adu adu;
-  adu.setServerAddress(serverAddress);
-  adu.setFunctionCode(functionCode);
-  adu.setData(data);
-  adu.setDataChecker(DataChecker({func}));
-  return adu;
 }
 
 #include "modbus_test_server.moc"

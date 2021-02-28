@@ -427,7 +427,7 @@ void QModbusClient::onIoDeviceReadyRead() {
     stream << d->sessionState_.state();
     log(LogLevel::kWarning,
         "{} now state is in {}.got unexpected data, discard them.[{}]",
-        d->device_->name(), stream.str(), d->dump(qdata));
+        d->device_->name(), stream.str(), dump(d->transferMode_, qdata));
 
     d->device_->clear();
     return;
@@ -443,7 +443,8 @@ void QModbusClient::onIoDeviceReadyRead() {
   d->decoder_->Decode(d->readBuffer_, &element->response);
   if (!d->decoder_->IsDone()) {
     log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
-                                d->dump(element->dumpReadArray) + "]");
+                                dump(d->transferMode_, element->dumpReadArray) +
+                                "]");
     return;
   }
   const auto lastError = d->decoder_->LasError();
@@ -463,7 +464,7 @@ void QModbusClient::onIoDeviceReadyRead() {
     log(LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
-            d->dump(qdata) + "]");
+            dump(d->transferMode_, qdata) + "]");
 
     d->readBuffer_.Reset();
 
@@ -474,8 +475,8 @@ void QModbusClient::onIoDeviceReadyRead() {
   d->sessionState_.setState(SessionState::kIdle);
 
   if (d->enableDump_) {
-    log(LogLevel::kDebug,
-        d->device_->name() + " recived " + d->dump(element->dumpReadArray));
+    log(LogLevel::kDebug, d->device_->name() + " recived " +
+                              dump(d->transferMode_, element->dumpReadArray));
   }
 
   /**

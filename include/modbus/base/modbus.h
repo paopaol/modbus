@@ -132,15 +132,22 @@ public:
 
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
   void setData(const uint8_t *data, int n) {
-    if (data_.capacity() < static_cast<size_t>(n)) {
-      data_.resize(n);
-    }
+    data_.resize(n);
     std::copy(data, data + n, data_.begin());
   }
 
   const ByteArray &data() const { return data_; }
 
   bool isException() const { return functionCode_ & kExceptionByte; }
+
+  Error error() const {
+    if (!isException()) {
+      return Error::kNoError;
+    }
+    return Error(data_[0]);
+  }
+
+  bool isValid() const { return !data_.empty(); }
 
   size_t marshalSize() const { return 1 + 1 + data_.size(); }
 

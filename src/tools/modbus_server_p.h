@@ -1,6 +1,7 @@
 #ifndef __MODBUS_SERVER_P_H_
 #define __MODBUS_SERVER_P_H_
 
+#include "modbusserver_client_session.h"
 #include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
@@ -19,23 +20,6 @@ enum class StorageKind {
 };
 
 static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
-static void appendByteArray(ByteArray &array,
-                            const std::vector<uint8_t> &carray);
-static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer);
-
-static std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
-  return transferMode == TransferMode::kAscii ? tool::dumpRaw(byteArray)
-                                              : tool::dumpHex(byteArray);
-}
-
-static std::string dump(TransferMode transferMode,
-                        const pp::bytes::Buffer &buffer) {
-  char *data = nullptr;
-  buffer.ZeroCopyPeekAt(&data, 0, buffer.Len());
-  return transferMode == TransferMode::kAscii
-             ? tool::dumpRaw((uint8_t *)data, buffer.Len())
-             : tool::dumpHex((uint8_t *)data, buffer.Len());
-}
 
 #define sessionIteratorOrReturn(it, fd)                                        \
   auto it = sessionList_.find(fd);                                             \
@@ -45,10 +29,6 @@ static std::string dump(TransferMode transferMode,
 
 #define DeferRun(functor)                                                      \
   std::shared_ptr<void> _##__LINE__(nullptr, std::bind(functor))
-
-struct ClientSession {
-  AbstractConnection *client = nullptr;
-};
 
 struct HandleFuncEntry {
   FunctionCode functionCode;
@@ -255,229 +235,86 @@ public:
     connect(connection, &AbstractConnection::messageArrived, this,
             &QModbusServerPrivate::onMessageArrived);
 
-    ClientSession session;
-    session.client = connection;
+    auto session = std::make_shared<ClientSession>(
+        this, connection, creatDefaultCheckSizeFuncTableForServer());
     sessionList_[connection->fd()] = session;
   }
 
   void removeClient(qintptr fd) {
     sessionIteratorOrReturn(it, fd);
-    log(LogLevel::kInfo, "{} closed", it.value().client->fullName());
-    it.value().client->deleteLater();
+    log(LogLevel::kInfo, "{} closed", it.value()->fullName());
     sessionList_.erase(it);
-  }
-
-  void checkProcessRequestResult(const ClientSession &session,
-                                 ProcessResult result,
-                                 const std::unique_ptr<Frame> &frame,
-                                 const pp::bytes::Buffer &buffer) {
-    switch (result) {
-    case ProcessResult::kNeedMoreData: {
-      log(LogLevel::kDebug, "{} need more data R[{}]",
-          session.client->fullName(), dump(transferMode_, buffer));
-      break;
-    }
-    case ProcessResult::kBadServerAddress: {
-      log(LogLevel::kError,
-          "{} unexpected server address,my "
-          "address[{}]",
-          session.client->fullName(), serverAddress_);
-      break;
-    }
-    case ProcessResult::kBadFunctionCode: {
-      log(LogLevel::kError, "{} unsupported function code",
-          session.client->fullName());
-      break;
-    }
-    case ProcessResult::kBroadcast: {
-    }
-    case ProcessResult::kStorageParityError: {
-      log(LogLevel::kError, "{} invalid request", session.client->fullName());
-      break;
-    }
-    case ProcessResult::kSuccess: {
-    }
-    }
   }
 
   void onMessageArrived(quintptr fd, const BytesBufferPtr &buffer) {
     sessionIteratorOrReturn(sessionIt, fd);
     auto &session = sessionIt.value();
     if (enableDump_) {
-      log(LogLevel::kDebug, "R[{}]:[{}]", session.client->fullName(),
+      log(LogLevel::kDebug, "R[{}]:[{}]", session->fullName(),
           dump(transferMode_, *buffer));
     }
-
-    std::unique_ptr<Frame> requestFrame;
-    std::unique_ptr<Frame> responseFrame;
-    auto result = processModbusRequest(buffer, requestFrame, responseFrame);
-    checkProcessRequestResult(session, result, requestFrame, *buffer);
-    // if requestFrame and responseFrame is not null
-    // that is need reply somthing to client
-    if (requestFrame && responseFrame) {
-      writeFrame(session, responseFrame, requestFrame->frameId());
-    }
+    session->handleModbusRequest(*buffer);
   }
 
-  ProcessResult processModbusRequest(const BytesBufferPtr &buffer,
-                                     std::unique_ptr<Frame> &requestFrame,
-                                     std::unique_ptr<Frame> &responseFrame) {
-    requestFrame = createModbusFrame(transferMode_);
-    auto data = byteArrayFromBuffer(*buffer);
-
-    /**
-     *first, try decode server address, function code
-     */
-    ServerAddress serverAddress;
-    FunctionCode functionCode;
-    auto result = requestFrame->unmarshalServerAddressFunctionCode(
-        data, &serverAddress, &functionCode);
-    if (result != DataChecker::Result::kSizeOk) {
-      return ProcessResult::kNeedMoreData;
-    }
-
-    auto adu = requestFrame->adu();
-    adu.setServerAddress(serverAddress);
-    adu.setFunctionCode(functionCode);
-    requestFrame->setAdu(adu);
-    /**
-     *if the requested server address is not self server address, and is
-     *not brocast too, discard the recived buffer.
-     */
-    if (serverAddress != serverAddress_ &&
-        serverAddress != Adu::kBrocastAddress) {
-      buffer->Reset();
-      return ProcessResult::kBadServerAddress;
-    }
-
-    /**
-     *if the function code is not supported,
-     *discard the recive buffer,
-     */
-    if (!handleFuncRouter_.contains(functionCode)) {
-      buffer->Reset();
-      responseFrame = createModbusFrame(transferMode_);
-      responseFrame->setAdu(
-          createErrorReponse(functionCode, Error::kIllegalFunctionCode));
-      return ProcessResult::kBadFunctionCode;
-    }
-
-    /**
-     *now, handle the supported function code
-     *call user defined handlers
-     */
-    auto &entry = handleFuncRouter_[functionCode];
-    adu = requestFrame->adu();
-    adu.setDataChecker(entry.requestDataChecker);
-    requestFrame->setAdu(adu);
-
-    Error error = Error::kNoError;
-    result = requestFrame->unmarshal(data, &error);
-    if (result == DataChecker::Result::kNeedMoreData) {
-      return ProcessResult::kNeedMoreData;
-    }
-
-    if (result == DataChecker::Result::kFailed) {
-      buffer->Reset();
-      responseFrame = createModbusFrame(transferMode_);
-      responseFrame->setAdu(
-          createErrorReponse(functionCode, Error::kStorageParityError));
-      return ProcessResult::kStorageParityError;
-    }
-
-    /*
-     *discard the already parsed data
-     */
-    char *unused;
-    buffer->ZeroCopyRead(&unused, requestFrame->marshalSize());
-
-    Request request(requestFrame->adu());
-    if (serverAddress == Adu::kBrocastAddress) {
-      processBrocastRequest(request);
-      return ProcessResult::kBroadcast;
-    }
-
-    responseFrame = createModbusFrame(transferMode_);
-    responseFrame->setAdu(processRequest(request));
-    return ProcessResult::kSuccess;
-  }
-
-  Response processRequest(const Request &request) {
+  void processRequest(const Adu *request, Adu *response) {
     using modbus::FunctionCode;
-    switch (request.functionCode()) {
+    switch (request->functionCode()) {
     case kReadCoils:
     case kReadInputDiscrete: {
-      return processReadSingleBitRequest(request, request.functionCode());
-    }
+      processReadSingleBitRequest(request, response);
+    } break;
     case kWriteSingleCoil: {
-      return processWriteCoilRequest(request);
-    }
+      processWriteCoilRequest(request, response);
+    } break;
     case kWriteMultipleCoils: {
-      return processWriteCoilsRequest(request);
-    }
+      processWriteCoilsRequest(request, response);
+    } break;
     case kReadHoldingRegisters:
     case kReadInputRegister: {
-      return processReadMultipleRegisters(request, request.functionCode());
-    }
+      processReadMultipleRegisters(request, response);
+    } break;
     case kWriteSingleRegister: {
-      return processWriteHoldingRegisterRequest(request);
-    }
+      processWriteHoldingRegisterRequest(request, response);
+    } break;
     case kWriteMultipleRegisters: {
-      return processWriteHoldingRegistersRequest(request);
-    }
+      processWriteHoldingRegistersRequest(request, response);
+    } break;
     default:
-      smart_assert(0 && "unsuported function")(request.functionCode());
+      smart_assert(0 && "unsuported function")(request->functionCode());
       break;
     }
-    return Response();
   }
 
-  void writeFrame(ClientSession &session, const std::unique_ptr<Frame> &frame,
-                  uint16_t id) {
-    auto array = frame->marshal(&id);
-    session.client->write((const char *)array.data(), array.size());
+  void processBrocastRequest(const Adu *request) {}
 
-    if (enableDump_) {
-      log(LogLevel::kDebug, "S[{}]:[{}]", session.client->fullName(),
-          dump(transferMode_, array));
-    }
+  void createErrorReponse(FunctionCode functionCode, Error errorCode,
+                          Adu *response) {
+    response->setServerAddress(serverAddress_);
+    response->setFunctionCode(FunctionCode(functionCode | Adu::kExceptionByte));
+    response->setData(ByteArray({uint8_t(errorCode)}));
+    response->setDataChecker(expectionResponseDataChecker);
   }
 
-  void processBrocastRequest(const Request &request) {}
-
-  Response createErrorReponse(FunctionCode functionCode, Error errorCode) {
-    Response response;
-
-    response.setError(errorCode);
-    response.setServerAddress(serverAddress_);
-    response.setFunctionCode(FunctionCode(functionCode | Adu::kExceptionByte));
-    response.setData(ByteArray({uint8_t(errorCode)}));
-    response.setDataChecker(expectionResponseDataChecker);
-
-    return response;
-  }
-
-  Response processWriteCoilsRequest(const Request &request) {
-    FunctionCode functionCode = FunctionCode::kWriteMultipleCoils;
+  void processWriteCoilsRequest(const Adu *request, Adu *response) {
+    FunctionCode functionCode = request->functionCode();
 
     SingleBitAccess access;
-    bool ok = access.unmarshalMultipleWriteRequest(request.data());
+    bool ok = access.unmarshalMultipleWriteRequest(request->data());
     if (!ok) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(functionCode, Error::kStorageParityError, response);
+      return;
     }
 
     auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
+      createErrorReponse(functionCode, error, response);
+      return;
     }
 
-    Response response;
-    response.setError(Error::kNoError);
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setData(access.marshalAddressQuantity());
-    return response;
+    response->setFunctionCode(functionCode);
+    response->setServerAddress(serverAddress_);
+    response->setData(access.marshalAddressQuantity());
   }
 
   Error writeCoilsInternal(StorageKind kind, SingleBitAccess *my,
@@ -509,8 +346,8 @@ public:
     return Error::kNoError;
   }
 
-  Error handleClientwriteCoils(FunctionCode functionCode,
-                               const Request &request, SingleBitAccess &my,
+  Error handleClientwriteCoils(FunctionCode functionCode, const Adu *request,
+                               SingleBitAccess &my,
                                const SingleBitAccess &you) {
     Q_Q(QModbusServer);
     auto error = validateSingleBitAccess(you, my);
@@ -562,26 +399,25 @@ public:
   }
 
   // coils
-  Response processWriteCoilRequest(const Request &request) {
+  void processWriteCoilRequest(const Adu *request, Adu *response) {
     FunctionCode functionCode = FunctionCode::kWriteSingleCoil;
     SingleBitAccess access;
 
-    bool ok = access.unmarshalSingleWriteRequest(request.data());
+    bool ok = access.unmarshalSingleWriteRequest(request->data());
     if (!ok) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(functionCode, Error::kStorageParityError, response);
+      return;
     }
     auto error = handleClientwriteCoils(functionCode, request, coils_, access);
     if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
+      createErrorReponse(functionCode, error, response);
+      return;
     }
 
-    Response response;
-    response.setError(Error::kNoError);
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setData(access.marshalSingleWriteRequest());
-    return response;
+    response->setFunctionCode(functionCode);
+    response->setServerAddress(serverAddress_);
+    response->setData(access.marshalSingleWriteRequest());
   }
 
   void setCanWriteSingleBitValueFunc(const canWriteSingleBitValueFunc &func) {
@@ -608,25 +444,27 @@ public:
     return Error::kNoError;
   }
 
-  Response processReadSingleBitRequest(const Request &request,
-                                       FunctionCode functionCode) {
+  void processReadSingleBitRequest(const Adu *request, Adu *response) {
     SingleBitAccess access;
-    bool ok = access.unmarshalReadRequest(request.data());
+    bool ok = access.unmarshalReadRequest(request->data());
     if (!ok) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(request->functionCode(), Error::kStorageParityError,
+                         response);
+      return;
     }
 
-    auto &entry = handleFuncRouter_[functionCode];
+    auto &entry = handleFuncRouter_[request->functionCode()];
     const auto &my = *entry.singleBitAccess;
     auto error = validateSingleBitAccess(access, my);
     if (error != Error::kNoError) {
       log(LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
-          functionCode, my.startAddress(), my.quantity(), access.startAddress(),
-          my.quantity());
-      return createErrorReponse(functionCode, error);
+          request->functionCode(), my.startAddress(), my.quantity(),
+          access.startAddress(), my.quantity());
+      createErrorReponse(request->functionCode(), error, response);
+      return;
     }
 
     auto requestStartAddress = access.startAddress();
@@ -640,33 +478,32 @@ public:
       responseAccess.setValue(address, entry.singleBitAccess->value(address));
     }
 
-    Response response;
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setError(Error::kNoError);
-    response.setData(responseAccess.marshalReadResponse());
-    return response;
+    response->setFunctionCode(request->functionCode());
+    response->setServerAddress(serverAddress_);
+    response->setData(responseAccess.marshalReadResponse());
   }
 
-  Response processReadMultipleRegisters(const Request &request,
-                                        FunctionCode functionCode) {
+  void processReadMultipleRegisters(const Adu *request, Adu *response) {
     SixteenBitAccess access;
 
-    bool ok = access.unmarshalAddressQuantity(request.data());
+    bool ok = access.unmarshalAddressQuantity(request->data());
     if (ok == false) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(request->functionCode(), Error::kStorageParityError,
+                         response);
+      return;
     }
-    auto entry = handleFuncRouter_[functionCode];
+    auto entry = handleFuncRouter_[request->functionCode()];
     const auto &my = *entry.sixteenBitAccess;
     auto error = validateSixteenAccess(access, my);
     if (error != Error::kNoError) {
       log(LogLevel::kError,
           "invalid request ({}) :myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
-          functionCode, my.startAddress(), my.quantity(), access.startAddress(),
-          access.quantity());
-      return createErrorReponse(functionCode, error);
+          request->functionCode(), my.startAddress(), my.quantity(),
+          access.startAddress(), access.quantity());
+      createErrorReponse(request->functionCode(), error, response);
+      return;
     }
 
     Address reqStartAddress = access.startAddress();
@@ -679,13 +516,9 @@ public:
       auto value = entry.sixteenBitAccess->value(address);
       responseAccess.setValue(address, value.toUint16());
     }
-
-    Response response;
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setError(Error::kNoError);
-    response.setData(responseAccess.marshalMultipleReadResponse());
-    return response;
+    response->setFunctionCode(request->functionCode());
+    response->setServerAddress(serverAddress_);
+    response->setData(responseAccess.marshalMultipleReadResponse());
   }
 
   Error writeRegisterValuesInternal(StorageKind kind, SixteenBitAccess *set,
@@ -814,50 +647,48 @@ public:
     return Error::kNoError;
   }
 
-  Response processWriteHoldingRegisterRequest(const Request &request) {
+  void processWriteHoldingRegisterRequest(const Adu *request, Adu *response) {
     SixteenBitAccess access;
-    auto functionCode = kWriteSingleRegister;
 
-    bool ok = access.unmarshalSingleWriteRequest(request.data());
+    bool ok = access.unmarshalSingleWriteRequest(request->data());
     if (ok == false) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(request->functionCode(), Error::kStorageParityError,
+                         response);
+      return;
     }
 
     auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
     if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
+      createErrorReponse(request->functionCode(), error, response);
+      return;
     }
 
-    Response response;
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setError(Error::kNoError);
-    response.setData(request.data());
-    return response;
+    response->setFunctionCode(request->functionCode());
+    response->setServerAddress(serverAddress_);
+    response->setData(request->data());
   }
 
-  Response processWriteHoldingRegistersRequest(const Request &request) {
+  void processWriteHoldingRegistersRequest(const Adu *request, Adu *response) {
     SixteenBitAccess access;
-    auto functionCode = kWriteMultipleRegisters;
 
-    bool ok = access.unmarshalMulitpleWriteRequest(request.data());
+    bool ok = access.unmarshalMulitpleWriteRequest(request->data());
     if (ok == false) {
       log(LogLevel::kError, "invalid request");
-      return createErrorReponse(functionCode, Error::kStorageParityError);
+      createErrorReponse(request->functionCode(), Error::kStorageParityError,
+                         response);
+      return;
     }
 
     auto error = handleClientWriteHodingRegisters(access, holdingRegister_);
     if (error != Error::kNoError) {
-      return createErrorReponse(functionCode, error);
+      createErrorReponse(request->functionCode(), error, response);
+      return;
     }
 
-    Response response;
-    response.setFunctionCode(functionCode);
-    response.setServerAddress(serverAddress_);
-    response.setError(Error::kNoError);
-    response.setData(access.marshalMultipleReadRequest());
-    return response;
+    response->setFunctionCode(request->functionCode());
+    response->setServerAddress(serverAddress_);
+    response->setData(access.marshalMultipleReadRequest());
   }
 
   Error validateSixteenAccess(const SixteenBitAccess &access,
@@ -896,7 +727,7 @@ public:
   QMap<QString, QString> blacklist_;
   TransferMode transferMode_ = TransferMode::kMbap;
   QMap<FunctionCode, HandleFuncEntry> handleFuncRouter_;
-  QMap<qintptr, ClientSession> sessionList_;
+  QMap<qintptr, ClientSessionPtr> sessionList_;
   AbstractServer *server_ = nullptr;
   ServerAddress serverAddress_ = 1;
   canWriteSingleBitValueFunc canWriteSingleBitValue_;
@@ -926,20 +757,6 @@ static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {
   return requestDataCheckerMap.contains(functionCode)
              ? requestDataCheckerMap[functionCode]
              : DataChecker();
-}
-
-static void appendByteArray(ByteArray &array,
-                            const std::vector<uint8_t> &carray) {
-  array.insert(array.end(), carray.begin(), carray.end());
-}
-
-static ByteArray byteArrayFromBuffer(pp::bytes::Buffer &buffer) {
-  ByteArray data;
-  std::vector<uint8_t> d;
-
-  buffer.PeekAt(d, 0, buffer.Len());
-  appendByteArray(data, d);
-  return data;
 }
 
 } // namespace modbus

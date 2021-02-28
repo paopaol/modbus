@@ -78,34 +78,14 @@ public:
       ele->totalBytes = writerBuffer_.Len();
       if (enableDump_) {
         log(LogLevel::kDebug, "{} will send: {}", device_->name(),
-            dump(writerBuffer_));
+            dump(transferMode_, writerBuffer_));
       }
 
-      char *p = nullptr;
+      uint8_t *p = nullptr;
       int len = writerBuffer_.Len();
       writerBuffer_.ZeroCopyRead(&p, len);
-      device_->write(p, len);
+      device_->write((const char *)p, len);
     });
-  }
-
-  std::string dump(const ByteArray &byteArray) {
-    return transferMode_ == TransferMode::kAscii ? tool::dumpRaw(byteArray)
-                                                 : tool::dumpHex(byteArray);
-  }
-
-  std::string dump(const QByteArray &array) {
-    return transferMode_ == TransferMode::kAscii
-               ? tool::dumpRaw((uint8_t *)array.data(), array.size())
-               : tool::dumpHex((uint8_t *)array.data(), array.size());
-  }
-
-  std::string dump(const pp::bytes::Buffer &buffer) {
-    char *p;
-    int len = buffer.Len();
-    buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
-    return transferMode_ == TransferMode::kAscii
-               ? tool::dumpRaw((uint8_t *)p, len)
-               : tool::dumpHex((uint8_t *)p, len);
   }
 
   void initMemberValues() {
