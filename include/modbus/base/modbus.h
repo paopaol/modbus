@@ -176,7 +176,7 @@ public:
   }
 
 private:
-  ServerAddress serverAddress_;
+  ServerAddress serverAddress_ = 0;
   // Pdu pdu_;
   FunctionCode functionCode_ = FunctionCode::kInvalidCode;
   DataChecker dataChecker_;

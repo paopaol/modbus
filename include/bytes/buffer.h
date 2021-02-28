@@ -88,6 +88,7 @@ private:
   std::vector<uint8_t> b;
   size_t ridx;
   size_t widx;
+  size_t size_;
 };
 
 } // namespace bytes

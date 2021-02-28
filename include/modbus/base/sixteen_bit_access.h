@@ -116,6 +116,8 @@ public:
   ByteArray marshalSingleWriteRequest() const {
     ByteArray array;
 
+    array.reserve(4);
+
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
 
@@ -127,6 +129,7 @@ public:
 
   ByteArray marshalMultipleWriteRequest() const {
     ByteArray array;
+    array.reserve(5 + value_array_.size());
 
     array.push_back(startAddress_ / 256);
     array.push_back(startAddress_ % 256);
@@ -142,6 +145,7 @@ public:
 
   ByteArray marshalMultipleReadResponse() {
     ByteArray array;
+    array.reserve(1 + value_array_.size());
 
     array.push_back(quantity() * 2);
     array.insert(array.end(), value_array_.begin(), value_array_.end());

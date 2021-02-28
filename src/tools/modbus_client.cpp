@@ -662,11 +662,11 @@ toSixteenBitValueList(const SixteenBitAccess &access) {
 static ByteArray toBitValueList(const SingleBitAccess &access) {
   ByteArray valueList;
 
+  valueList.reserve(access.quantity());
+
   for (size_t i = 0; i < access.quantity(); i++) {
     Address address = access.startAddress() + i;
-
-    auto value = access.value(address);
-    valueList.push_back(value);
+    valueList.emplace_back(access.value(address));
   }
   return valueList;
 }
