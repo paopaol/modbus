@@ -8,7 +8,7 @@ namespace modbus {
 class SerialConnection : public AbstractConnection {
   Q_OBJECT
 public:
-  SerialConnection(QSerialPort *serialPort, QObject *parent = nullptr)
+  explicit SerialConnection(QSerialPort *serialPort, QObject *parent = nullptr)
       : AbstractConnection(parent), serialPort_(serialPort),
         readBuffer_(new pp::bytes::Buffer()) {
     connect(serialPort_, &QSerialPort::aboutToClose, this,
@@ -16,7 +16,7 @@ public:
     connect(serialPort_, &QSerialPort::readyRead, this,
             &SerialConnection::onClientReadyRead);
   }
-  virtual ~SerialConnection() {}
+  ~SerialConnection() override = default;
 
   bool open() {
     bool success = serialPort_->open(QIODevice::ReadWrite);
@@ -58,7 +58,7 @@ private:
 class SerialServer : public AbstractServer {
   Q_OBJECT
 public:
-  SerialServer(QSerialPort *serialPort, QObject *parent = nullptr)
+  explicit SerialServer(QSerialPort *serialPort, QObject *parent = nullptr)
       : AbstractServer(parent),
         serialConnection_(new SerialConnection(serialPort, this)) {}
 

@@ -1,17 +1,17 @@
 #ifndef MODBUS_CLIENT_TYPES_H
 #define MODBUS_CLIENT_TYPES_H
 
+#include <QByteArray>
 #include <deque>
 #include <memory>
 #include <modbus/base/modbus.h>
-#include <QByteArray>
 
 namespace modbus {
 
 template <typename StateType> class StateManager {
 public:
-  StateManager() {}
-  StateManager(StateType state) : state_(state) {}
+  StateManager() = default;
+  explicit StateManager(StateType state) : state_(state) {}
   void setState(StateType state) { state_ = state; }
   StateType state() { return state_; }
 

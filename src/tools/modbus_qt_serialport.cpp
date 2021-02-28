@@ -1,4 +1,3 @@
-
 #include <QtSerialPort/QSerialPort>
 
 #include <modbus/tools/modbus_client.h>
@@ -10,7 +9,7 @@ public:
   explicit QtSerialPort(QObject *parent = nullptr) : AbstractIoDevice(parent) {
     setupEnvironment();
   }
-  ~QtSerialPort() {}
+  ~QtSerialPort() override = default;
 
   bool
   setBaudRate(qint32 baudRate,

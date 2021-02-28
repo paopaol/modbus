@@ -30,13 +30,12 @@ QModbusClient::QModbusClient(QObject *parent)
   setupEnvironment();
 }
 
-QModbusClient::~QModbusClient() {}
+QModbusClient::~QModbusClient() = default;
 
 void QModbusClient::open() {
   Q_D(QModbusClient);
 
   d->device_->open();
-  return;
 }
 
 /**

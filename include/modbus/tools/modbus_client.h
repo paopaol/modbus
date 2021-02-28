@@ -17,8 +17,8 @@ namespace modbus {
 class AbstractIoDevice : public QObject {
   Q_OBJECT
 public:
-  AbstractIoDevice(QObject *parent = nullptr) : QObject(parent) {}
-  virtual ~AbstractIoDevice() {}
+  explicit AbstractIoDevice(QObject *parent = nullptr) : QObject(parent) {}
+  ~AbstractIoDevice() override = default;
   virtual void open() = 0;
   virtual void close() = 0;
   virtual void write(const char *data, size_t size) = 0;
@@ -40,9 +40,10 @@ class ReconnectableIoDevice : public QObject {
 
 public:
   static const int kBrokenLineReconnection = -1;
-  ReconnectableIoDevice(QObject *parent = nullptr);
-  ReconnectableIoDevice(AbstractIoDevice *iodevice, QObject *parent = nullptr);
-  ~ReconnectableIoDevice();
+  explicit ReconnectableIoDevice(QObject *parent = nullptr);
+  explicit ReconnectableIoDevice(AbstractIoDevice *iodevice,
+                                 QObject *parent = nullptr);
+  ~ReconnectableIoDevice() override;
   void setOpenRetryTimes(int retryTimes, int delay);
   int openRetryTimes();
   int openRetryDelay();
@@ -81,9 +82,9 @@ class QModbusClient : public QObject {
   Q_DECLARE_PRIVATE(QModbusClient);
 
 public:
-  QModbusClient(AbstractIoDevice *iodevice, QObject *parent = nullptr);
-  QModbusClient(QObject *parent = nullptr);
-  ~QModbusClient();
+  explicit QModbusClient(AbstractIoDevice *iodevice, QObject *parent = nullptr);
+  explicit QModbusClient(QObject *parent = nullptr);
+  ~QModbusClient() override;
 
   void open();
   void close();
@@ -172,7 +173,7 @@ public:
    *enable collection diagnosis
    *default is disabled
    */
-  void enableDiagnosis(bool flag);
+  void enableDiagnosis(bool enable);
   void enableDump(bool enable);
 
   RuntimeDiagnosis runtimeDiagnosis() const;
@@ -225,8 +226,7 @@ private:
 };
 
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const any &userData,
-                      const ByteArray &data);
+                      const any &userData, const ByteArray &data);
 
 QModbusClient *
 newQtSerialClient(const QString &serialName,

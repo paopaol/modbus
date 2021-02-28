@@ -143,7 +143,7 @@ void ReconnectableIoDevice::onIoDeviceClosed() {
   /// do reconnect
   log(LogLevel::kError, d->ioDevice_->name() + " closed, try reconnect after " +
                             std::to_string(d->reopenDelay_) + "ms");
-  d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : (int)0;
+  d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : 0;
   QTimer::singleShot(d->reopenDelay_, this, &ReconnectableIoDevice::open);
 }
 

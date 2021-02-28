@@ -20,10 +20,11 @@ using namespace testing;
 class MockSerialPort : public modbus::AbstractIoDevice {
   Q_OBJECT
 public:
-  MockSerialPort(QObject *parent = nullptr) : modbus::AbstractIoDevice(parent) {
+  explicit MockSerialPort(QObject *parent = nullptr)
+      : modbus::AbstractIoDevice(parent) {
     setupCallName();
   }
-  ~MockSerialPort() {}
+  ~MockSerialPort() override = default;
   MOCK_METHOD0(open, void());
   MOCK_METHOD0(close, void());
   MOCK_METHOD2(write, void(const char *data, size_t size));
@@ -80,6 +81,5 @@ public:
   /*       })); */
   /* } */
 };
-
 
 #endif /* MODBUS_TEST_MOCKER_H */

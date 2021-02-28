@@ -36,12 +36,13 @@ inline std::ostream &operator<<(std::ostream &output,
 class QModbusClientPrivate : public QObject {
   Q_OBJECT
 public:
-  QModbusClientPrivate(AbstractIoDevice *serialPort, QObject *parent = nullptr)
+  explicit QModbusClientPrivate(AbstractIoDevice *serialPort,
+                                QObject *parent = nullptr)
       : QObject(parent) {
     initMemberValues();
     device_ = new ReconnectableIoDevice(serialPort, this);
   }
-  ~QModbusClientPrivate() {}
+  ~QModbusClientPrivate() override = default;
 
   Element *enqueueAndPeekLastElement() {
     elementQueue_.push_back(new Element());
@@ -84,7 +85,7 @@ public:
       uint8_t *p = nullptr;
       int len = writerBuffer_.Len();
       writerBuffer_.ZeroCopyRead(&p, len);
-      device_->write((const char *)p, len);
+      device_->write(reinterpret_cast<const char *>(p), len);
     });
   }
 
@@ -141,12 +142,12 @@ public:
 class ReconnectableIoDevicePrivate : public QObject {
   Q_OBJECT
 public:
-  ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
-                               QObject *parent = nullptr)
+  explicit ReconnectableIoDevicePrivate(AbstractIoDevice *iodevice,
+                                        QObject *parent = nullptr)
       : QObject(parent), ioDevice_(iodevice) {
     ioDevice_->setParent(this);
   }
-  ~ReconnectableIoDevicePrivate() {}
+  ~ReconnectableIoDevicePrivate() override = default;
 
   int openRetryTimes_ = 0;
   int openRetryTimesBack_ = 0;

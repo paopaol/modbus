@@ -13,7 +13,7 @@ static QList<QString> localIpList();
 class TcpConnection : public AbstractConnection {
   Q_OBJECT
 public:
-  TcpConnection(quintptr fd, QObject *parent = nullptr)
+  explicit TcpConnection(quintptr fd, QObject *parent = nullptr)
       : AbstractConnection(parent), fd_(fd),
         readBuffer_(new pp::bytes::Buffer()) {
     socket_.setSocketDescriptor(fd);
@@ -22,7 +22,7 @@ public:
     connect(&socket_, &QTcpSocket::readyRead, this,
             &TcpConnection::onClientReadyRead);
   }
-  virtual ~TcpConnection() {}
+  ~TcpConnection() override = default;
 
   quintptr fd() const override { return socket_.socketDescriptor(); }
 
@@ -64,13 +64,13 @@ private:
 class PrivateTcpServer : public QTcpServer {
   Q_OBJECT
 public:
-  PrivateTcpServer(QObject *parent = nullptr) : QTcpServer(parent) {}
-  ~PrivateTcpServer() {}
+  explicit PrivateTcpServer(QObject *parent = nullptr) : QTcpServer(parent) {}
+  ~PrivateTcpServer() override = default;
 signals:
-  void newConnectionArrived(qintptr socketDescriptor);
+  void newConnectionArrived(qintptr _t1);
 
 protected:
-  void incomingConnection(qintptr socketDescriptor) {
+  void incomingConnection(qintptr socketDescriptor) override {
     emit newConnectionArrived(socketDescriptor);
   }
 };
@@ -78,7 +78,7 @@ protected:
 class TcpServer : public AbstractServer {
   Q_OBJECT
 public:
-  TcpServer(QObject *parent = nullptr) : AbstractServer(parent) {
+  explicit TcpServer(QObject *parent = nullptr) : AbstractServer(parent) {
     connect(&tcpServer_, &PrivateTcpServer::newConnectionArrived, this,
             &TcpServer::incomingConnection);
   }
