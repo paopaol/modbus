@@ -76,16 +76,6 @@ void QModbusServer::setCanWriteSixteenBitValueFunc(
   d->setCanWriteSixteenBitValueFunc(func);
 }
 
-Response QModbusServer::processRequest(const Request &request) {
-  Q_D(QModbusServer);
-  return d->processRequest(request);
-}
-
-void QModbusServer::processBrocastRequest(const Request &request) {
-  Q_D(QModbusServer);
-  d->processBrocastRequest(request);
-}
-
 // read write
 void QModbusServer::handleHoldingRegisters(Address startAddress,
                                            Quantity quantity) {

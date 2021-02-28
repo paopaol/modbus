@@ -16,6 +16,8 @@ set(src-files
     "${modbus_root_dir}/include/modbus/tools/modbus_server.h"
     "./tools/modbus_tcp_server.cpp"
     "./tools/modbus_serial_server.cpp"
+    "./tools/modbusserver_client_session.cpp"
+    "./tools/modbusserver_client_session.h"
     "./tools/modbus_server_p.h")
 
 add_library(modbus ${src-files})

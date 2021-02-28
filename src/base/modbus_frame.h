@@ -312,6 +312,33 @@ inline std::unique_ptr<Frame> createModbusFrame(TransferMode mode) {
   }
 }
 
+inline std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
+  return transferMode == TransferMode::kAscii ? tool::dumpRaw(byteArray)
+                                              : tool::dumpHex(byteArray);
+}
+
+inline std::string dump(TransferMode transferMode, const char *p, int len) {
+  return transferMode == TransferMode::kAscii
+             ? tool::dumpRaw((uint8_t *)p, len)
+             : tool::dumpHex((uint8_t *)p, len);
+}
+
+inline std::string dump(TransferMode transferMode, const QByteArray &array) {
+  return transferMode == TransferMode::kAscii
+             ? tool::dumpRaw((uint8_t *)array.data(), array.size())
+             : tool::dumpHex((uint8_t *)array.data(), array.size());
+}
+
+inline std::string dump(TransferMode transferMode,
+                        const pp::bytes::Buffer &buffer) {
+  char *p;
+  int len = buffer.Len();
+  buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
+  return transferMode == TransferMode::kAscii
+             ? tool::dumpRaw((uint8_t *)p, len)
+             : tool::dumpHex((uint8_t *)p, len);
+}
+
 inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
   static const CheckSizeFuncTable table = {
       nullptr,
@@ -329,6 +356,29 @@ inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
       nullptr,                            //  kWriteFileRecords = 0x15,
       nullptr,                            //  kMaskWriteRegister = 0x16,
       bytesRequiredStoreInArrayIndex2<0>, //  kReadWriteMultipleRegisters =
+                                          //  0x17,
+      nullptr, //  kReadDeviceIdentificationCode = 0x2b
+  };
+  return table;
+}
+
+inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForServer() {
+  static const CheckSizeFuncTable table = {
+      nullptr,
+      bytesRequired2<4>, // kReadCoils 0x01
+      bytesRequired2<4>, // kReadInputDiscrete 0x02
+      bytesRequired2<4>, // kReadHoldingRegisters 0x03
+      bytesRequired2<4>, // kReadInputRegister 0x04
+      bytesRequired2<4>, // kWriteSingleCoil 0x05
+      bytesRequired2<4>, // kWriteSingleRegister 0x06
+      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+      bytesRequiredStoreInArrayIndex2<4>, //  kWriteMultipleCoils = 0x0f,
+      bytesRequiredStoreInArrayIndex2<4>, //  kWriteMultipleRegisters = 0x10,
+      nullptr, nullptr, nullptr,
+      nullptr,                            //  kReadFileRecords = 0x14,
+      nullptr,                            //  kWriteFileRecords = 0x15,
+      nullptr,                            //  kMaskWriteRegister = 0x16,
+      bytesRequiredStoreInArrayIndex2<9>, //  kReadWriteMultipleRegisters =
                                           //  0x17,
       nullptr, //  kReadDeviceIdentificationCode = 0x2b
   };
@@ -507,7 +557,7 @@ public:
         if (buffer.Len() < 6) {
           goto exit_function;
         }
-        char *p;
+        uint8_t *p;
         buffer.ZeroCopyRead(&p, 6);
 
         // transaction id
@@ -558,7 +608,7 @@ public:
 
         adu->setData((uint8_t *)p, expectSize);
         if (adu->isException()) {
-            error_ = Error(adu->data()[0]);
+          error_ = Error(adu->data()[0]);
         }
 
         state_ = State::kEnd;

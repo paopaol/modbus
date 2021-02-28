@@ -127,10 +127,6 @@ signals:
   void writeCoilsRequested(Address address, bool value);
   void writeHodingRegistersRequested(Address address, const ByteArray &values);
 
-protected:
-  virtual Response processRequest(const Request &request);
-  virtual void processBrocastRequest(const Request &request);
-
 private:
   QScopedPointer<QModbusServerPrivate> d_ptr;
 };
