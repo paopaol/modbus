@@ -5,7 +5,7 @@
 namespace pp {
 namespace bytes {
 
-Buffer::Buffer() : b(8192), ridx(0), widx(0) {}
+Buffer::Buffer() : b(8192), ridx(0), widx(0), size_(b.size()) {}
 
 // Read All
 size_t Buffer::Read(std::vector<uint8_t> &p) { return ReadBytes(p, Len()); }
@@ -60,7 +60,7 @@ size_t Buffer::Write(const uint8_t *d, size_t len) {
     Optimization();
   }
   if (leftSpace() < len) {
-    growSpace(static_cast<size_t>(b.size() + len));
+    growSpace(static_cast<size_t>(size_ + len));
   }
   std::copy(d, d + len, beginWrite());
   hasWritten(len);
@@ -93,7 +93,7 @@ void Buffer::UnReadBytes(size_t n /*,error &e*/) {
 // return unreaded data size
 size_t Buffer::Len() const { return widx - ridx; }
 
-size_t Buffer::Cap() const { return b.size(); }
+size_t Buffer::Cap() const { return size_; }
 
 void Buffer::Reset() {
   ridx = 0;
@@ -148,7 +148,7 @@ void Buffer::Optimization() {
   std::copy(begin() + ridx, begin() + widx, begin());
   ridx = 0;
   widx = ridx + len;
-  assert(widx < b.size());
+  assert(widx < size_);
 }
 
 void Buffer::Resize(size_t len) {
@@ -156,7 +156,7 @@ void Buffer::Resize(size_t len) {
     Optimization();
   }
   if (leftSpace() < len) {
-    growSpace(static_cast<size_t>(b.size() + len));
+    growSpace(static_cast<size_t>(size_ + len));
   }
   hasWritten(len);
 }
@@ -164,13 +164,16 @@ void Buffer::Resize(size_t len) {
 // ReadFrom
 // WriteTo
 
-void Buffer::growSpace(size_t len) { b.resize(widx + len); }
+void Buffer::growSpace(size_t len) {
+  b.resize(widx + len);
+  size_ = b.size();
+}
 
-size_t Buffer::leftSpace() { return b.size() - widx; }
+size_t Buffer::leftSpace() { return size_ - widx; }
 
 void Buffer::hasWritten(size_t len) {
   widx += len;
-  assert(widx <= b.size());
+  assert(widx <= size_);
 }
 void Buffer::hasReaded(size_t len) { ridx += len; }
 
@@ -182,9 +185,9 @@ uint8_t *Buffer::lastRead() { return begin() + ridx; }
 
 const uint8_t *Buffer::beginRead() const { return begin() + ridx; }
 
-uint8_t *Buffer::begin() { return &*(b.begin()); }
+uint8_t *Buffer::begin() { return &b[0]; }
 
-const uint8_t *Buffer::begin() const { return &*(b.begin()); }
+const uint8_t *Buffer::begin() const { return &b[0]; }
 
 // BufferRef NewBuffer();
 //  {

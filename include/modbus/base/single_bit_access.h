@@ -64,6 +64,8 @@ public:
   ByteArray marshalSingleWriteRequest() const {
     ByteArray data;
 
+    data.reserve(4);
+
     auto it = valueMap_.find(startAddress_);
     smart_assert(it != valueMap_.end() && "has no value set")(startAddress_);
 
@@ -82,6 +84,8 @@ public:
    */
   ByteArray marshalMultipleWriteRequest() {
     ByteArray data;
+
+    data.reserve(48);
 
     data.push_back(startAddress_ / 256);
     data.push_back(startAddress_ % 256);
