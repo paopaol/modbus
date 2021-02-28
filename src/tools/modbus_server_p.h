@@ -19,8 +19,6 @@ enum class StorageKind {
   kInputRegisters
 };
 
-static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
-
 #define sessionIteratorOrReturn(it, fd)                                        \
   auto it = sessionList_.find(fd);                                             \
   if (it == sessionList_.end()) {                                              \
@@ -32,7 +30,6 @@ static DataChecker defaultRequestDataChecker(FunctionCode functionCode);
 
 struct HandleFuncEntry {
   FunctionCode functionCode;
-  DataChecker requestDataChecker;
   SingleBitAccess *singleBitAccess;
   SixteenBitAccess *sixteenBitAccess;
 };
@@ -113,44 +110,30 @@ public:
     handleFunc(kReadWriteMultipleRegisters, &holdingRegister_);
   }
 
-  void handleFunc(FunctionCode functionCode, SingleBitAccess *access,
-                  DataChecker *requestDataChecker = nullptr) {
+  void handleFunc(FunctionCode functionCode, SingleBitAccess *access) {
     HandleFuncEntry entry;
 
     entry.functionCode = functionCode;
     smart_assert(access && "invalid access")(functionCode);
     entry.singleBitAccess = access;
-    entry.requestDataChecker = requestDataChecker
-                                   ? *requestDataChecker
-                                   : defaultRequestDataChecker(functionCode);
+
     handleFuncRouter_[functionCode] = entry;
 
     log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
         functionCode, access->startAddress(), access->quantity());
-    if (!entry.requestDataChecker.calculateSize) {
-      log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
-          functionCode);
-    }
   }
 
-  void handleFunc(FunctionCode functionCode, SixteenBitAccess *access,
-                  DataChecker *requestDataChecker = nullptr) {
+  void handleFunc(FunctionCode functionCode, SixteenBitAccess *access) {
     HandleFuncEntry entry;
 
     entry.functionCode = functionCode;
     smart_assert(access && "invalid access")(functionCode);
     entry.sixteenBitAccess = access;
-    entry.requestDataChecker = requestDataChecker
-                                   ? *requestDataChecker
-                                   : defaultRequestDataChecker(functionCode);
+
     handleFuncRouter_[functionCode] = entry;
 
     log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
         functionCode, access->startAddress(), access->quantity());
-    if (!entry.requestDataChecker.calculateSize) {
-      log(LogLevel::kInfo, "Function[{}] invalud request data size checker",
-          functionCode);
-    }
   }
 
   bool updateValue(FunctionCode functionCode, Address address,
@@ -292,7 +275,6 @@ public:
     response->setServerAddress(serverAddress_);
     response->setFunctionCode(FunctionCode(functionCode | Adu::kExceptionByte));
     response->setData(ByteArray({uint8_t(errorCode)}));
-    response->setDataChecker(expectionResponseDataChecker);
   }
 
   void processWriteCoilsRequest(const Adu *request, Adu *response) {
@@ -740,25 +722,6 @@ public:
   SixteenBitAccess holdingRegister_;
   bool enableDump_ = true;
 };
-
-static DataChecker defaultRequestDataChecker(FunctionCode functionCode) {
-  using modbus::FunctionCode;
-  static QMap<FunctionCode, DataChecker> requestDataCheckerMap = {
-      {kReadCoils, {bytesRequired<4>}},
-      {kReadInputDiscrete, {bytesRequired<4>}},
-      {kReadHoldingRegisters, {bytesRequired<4>}},
-      {kReadInputRegister, {bytesRequired<4>}},
-      {kWriteSingleCoil, {bytesRequired<4>}},
-      {kWriteSingleRegister, {bytesRequired<4>}},
-      {kWriteMultipleCoils, {bytesRequiredStoreInArrayIndex<4>}},
-      {kWriteMultipleRegisters, {bytesRequiredStoreInArrayIndex<4>}},
-      {kReadWriteMultipleRegisters, {bytesRequiredStoreInArrayIndex<9>}}};
-
-  return requestDataCheckerMap.contains(functionCode)
-             ? requestDataCheckerMap[functionCode]
-             : DataChecker();
-}
-
 } // namespace modbus
 
 #endif // __MODBUS_SERVER_P_H_

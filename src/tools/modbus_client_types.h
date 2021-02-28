@@ -54,7 +54,6 @@ struct Element {
 using ElementQueue = std::deque<Element *>;
 inline void createElement(std::unique_ptr<Request> &request, Element *element) {
   element->request.swap(request);
-  element->response.setDataChecker(element->request->dataChecker());
 }
 
 } // namespace modbus

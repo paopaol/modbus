@@ -1,6 +1,5 @@
 #include "base/modbus_frame.h"
 #include "modbus/base/modbus.h"
-#include "modbus/base/modbus_exception_datachecket.h"
 #include "modbus/base/modbus_types.h"
 #include "modbus_test_mocker.h"
 #include <atomic>
@@ -84,7 +83,9 @@ TEST(ModbusMbapFrameDecoder, client_decode_readInputDiscrete_response_success) {
 TEST(ModbusMbapFrameDecoder,
      client_decode_readHoldingRegisters_response_success) {
   pp::bytes::Buffer buffer;
-  buffer.Write("\x01\x02\x00\x00\x00\x0b\x01\x03\x08\x00\x01\x00\x02\x00\x03\x00\x04", 17);
+  buffer.Write(
+      "\x01\x02\x00\x00\x00\x0b\x01\x03\x08\x00\x01\x00\x02\x00\x03\x00\x04",
+      17);
 
   Adu adu;
   ModbusMbapFrameDecoder decoder(creatDefaultCheckSizeFuncTableForClient());
@@ -136,7 +137,8 @@ TEST(ModbusMbapFrameDecoder,
 TEST(ModbusMbapFrameDecoder,
      client_decode_readWriteMultipleRegisters_response_success) {
   pp::bytes::Buffer buffer;
-  buffer.Write("\x01\x02\x00\x00\x00\x09\x01\x17\x06\x00\x01\x00\x02\x00\x03", 15);
+  buffer.Write("\x01\x02\x00\x00\x00\x09\x01\x17\x06\x00\x01\x00\x02\x00\x03",
+               15);
 
   Adu adu;
   ModbusMbapFrameDecoder decoder(creatDefaultCheckSizeFuncTableForClient());
@@ -152,7 +154,7 @@ TEST(ModbusMbapFrameDecoder,
 }
 
 TEST(ModbusMbapFrameDecoder, client_decode_response_error_response) {
-  const ByteArray expect({0x01,002,0x00,0x00,0x00,0x03,0x01, 0x8f, 0x06});
+  const ByteArray expect({0x01, 002, 0x00, 0x00, 0x00, 0x03, 0x01, 0x8f, 0x06});
   pp::bytes::Buffer buffer;
   buffer.Write(expect);
 
@@ -168,8 +170,6 @@ TEST(ModbusMbapFrameDecoder, client_decode_response_error_response) {
   EXPECT_THAT(adu.data(), ::testing::ElementsAre(0x06));
 }
 
-
-
 TEST(ModbusMbapFrameDecoder,
      client_decode_readWriteMultipleRegisters_response_needmordata) {
   // complete frame:\x01\x17\x06\x00\x01\x00\x02\x00\x03\xfd\x8b
@@ -181,13 +181,14 @@ TEST(ModbusMbapFrameDecoder,
 
   decoder.Clear();
 
-  EXPECT_EQ(DataChecker::Result::kNeedMoreData, decoder.Decode(buffer, &adu));
+  EXPECT_EQ(CheckSizeResult::kNeedMoreData, decoder.Decode(buffer, &adu));
   EXPECT_EQ(false, decoder.IsDone());
 }
 
 TEST(ModbusMbapFrameDecoder, decode_bad_funtioncode) {
   pp::bytes::Buffer buffer;
-  buffer.Write("\x01\x02\x00\x00\x00\x09\x01\x55\x06\x00\x01\x00\x02\x00\x03", 15);
+  buffer.Write("\x01\x02\x00\x00\x00\x09\x01\x55\x06\x00\x01\x00\x02\x00\x03",
+               15);
 
   Adu adu;
   ModbusMbapFrameDecoder decoder(creatDefaultCheckSizeFuncTableForClient());

@@ -17,75 +17,34 @@ namespace modbus {
  *use this class to check whether the size of the data in the received request
  *or response is valid
  */
-struct DataChecker {
-public:
-  enum class Result { kNeedMoreData, kSizeOk, kFailed };
-  using calculateRequiredSizeFunc =
-      std::function<Result(size_t &size, const ByteArray &byteArray)>;
+enum class CheckSizeResult { kNeedMoreData, kSizeOk, kFailed };
 
-  calculateRequiredSizeFunc calculateSize;
-};
-
-using CheckSizeFunc = std::function<DataChecker::Result(
+using CheckSizeFunc = std::function<CheckSizeResult(
     size_t &size, const uint8_t *buffer, int len)>;
 
-/**
- * some function code, data is [byte0,byte1|...|byte-n]
- * so, the expected size is n
- */
 template <int nbytes>
-static inline DataChecker::Result bytesRequired(size_t &size,
-                                                const ByteArray &data) {
-  if (data.size() < nbytes) {
-    return DataChecker::Result::kNeedMoreData;
-  }
-  size = nbytes;
-  return DataChecker::Result::kSizeOk;
-}
-
-template <int nbytes>
-static inline DataChecker::Result
-bytesRequired2(size_t &size, const uint8_t *buffer, int len) {
+static inline CheckSizeResult bytesRequired(size_t &size, const uint8_t *buffer,
+                                            int len) {
   if (len < nbytes) {
-    return DataChecker::Result::kNeedMoreData;
+    return CheckSizeResult::kNeedMoreData;
   }
   size = nbytes;
-  return DataChecker::Result::kSizeOk;
-}
-
-/**
- * some function code, data is [byte-number | byte-1|byte-2|...|byte-n]
- * the byte-number == n.
- * so, the expected size is byte-number + 1
- */
-template <int index>
-static inline DataChecker::Result
-bytesRequiredStoreInArrayIndex(size_t &size, const ByteArray &data) {
-  int preSize = index + 1;
-  if (static_cast<int>(data.size()) < preSize) {
-    return DataChecker::Result::kNeedMoreData;
-  }
-  size_t bytes = data[index];
-  if (static_cast<size_t>(data.size()) < bytes + preSize) {
-    return DataChecker::Result::kNeedMoreData;
-  }
-  size = bytes + preSize;
-  return DataChecker::Result::kSizeOk;
+  return CheckSizeResult::kSizeOk;
 }
 
 template <int index>
-static inline DataChecker::Result
-bytesRequiredStoreInArrayIndex2(size_t &size, const uint8_t *buffer, int len) {
+static inline CheckSizeResult
+bytesRequiredStoreInArrayIndex(size_t &size, const uint8_t *buffer, int len) {
   int preSize = index + 1;
   if (len < preSize) {
-    return DataChecker::Result::kNeedMoreData;
+    return CheckSizeResult::kNeedMoreData;
   }
   size_t bytes = buffer[index];
   if ((size_t)len < bytes + preSize) {
-    return DataChecker::Result::kNeedMoreData;
+    return CheckSizeResult::kNeedMoreData;
   }
   size = bytes + preSize;
-  return DataChecker::Result::kSizeOk;
+  return CheckSizeResult::kSizeOk;
 }
 
 /**
@@ -99,10 +58,8 @@ public:
   static const uint8_t kExceptionByte = 0x80;
 
   Adu() {}
-  Adu(ServerAddress serverAddress, FunctionCode functionCode,
-      const DataChecker &dataChecker)
-      : serverAddress_(serverAddress), functionCode_(functionCode),
-        dataChecker_(dataChecker) {}
+  Adu(ServerAddress serverAddress, FunctionCode functionCode)
+      : serverAddress_(serverAddress), functionCode_(functionCode) {}
 
   ~Adu() {}
 
@@ -118,17 +75,6 @@ public:
   FunctionCode functionCode() const {
     return FunctionCode(uint8_t(functionCode_) & ~kExceptionByte);
   }
-
-  void setDataChecker(const DataChecker &dataChecker) {
-    dataChecker_ = dataChecker;
-  }
-
-  void setCheckSizeFun(const CheckSizeFunc &dataChecker) {
-    calculateSize_ = dataChecker;
-  }
-
-  DataChecker dataChecker() const { return dataChecker_; }
-  const CheckSizeFunc &checkSizeFunc() const { return calculateSize_; }
 
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
   void setData(const uint8_t *data, int n) {
@@ -179,67 +125,8 @@ private:
   ServerAddress serverAddress_ = 0;
   // Pdu pdu_;
   FunctionCode functionCode_ = FunctionCode::kInvalidCode;
-  DataChecker dataChecker_;
-  CheckSizeFunc calculateSize_;
   ByteArray data_;
-
   uint16_t transactionId_ = 0;
-};
-
-/**
- * Frame is a complete modbus frame.
- * in rtu mode:
- *      frame is adu + crc
- * in ascii mode:
- *      frame is ":" + ascii(adu) + lrc + "\r\n"
- * in mbap(tcp) mode:
- *     frame is mbap + adu
- */
-class Frame {
-public:
-  virtual ~Frame() {}
-  /**
-   * marshal the adu to a complete modbus frame.
-   */
-  virtual ByteArray marshal(const uint16_t *frameId = nullptr) = 0;
-  virtual size_t marshalSize() = 0;
-  /**
-   * unmarshal a bytearray to modbus::Adu
-   * the Frame error stored in error
-   */
-  virtual DataChecker::Result unmarshal(const ByteArray &data,
-                                        Error *error) = 0;
-
-  virtual DataChecker::Result unmarshal(const pp::bytes::Buffer &data,
-                                        Error *error) {
-    return DataChecker::Result::kNeedMoreData;
-  }
-
-  /** only unmarshal server address and the functioncode
-   * if success return DataChecker::Result::kSizeOk
-   */
-  virtual DataChecker::Result
-  unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                     ServerAddress *serverAddress,
-                                     FunctionCode *functionCode) = 0;
-
-  void setAdu(const Adu &adu) { adu_ = adu; }
-  Adu adu() const { return adu_; }
-  uint16_t frameId() const { return id_; }
-
-protected:
-  using TransactionId = uint16_t;
-
-  static TransactionId nextTransactionId() {
-    static std::mutex mutex_;
-    static TransactionId nextId = 0;
-
-    std::lock_guard<std::mutex> l(mutex_);
-    return nextId++;
-  }
-
-  Adu adu_;
-  TransactionId id_ = 0;
 };
 
 // the index of array will be used as the functionCode
@@ -252,7 +139,7 @@ public:
 
   virtual ~ModbusFrameDecoder() = default;
 
-  virtual DataChecker::Result Decode(pp::bytes::Buffer &buffer, Adu *adu) = 0;
+  virtual CheckSizeResult Decode(pp::bytes::Buffer &buffer, Adu *adu) = 0;
   virtual bool IsDone() const = 0;
   virtual void Clear() = 0;
   virtual Error LasError() const = 0;
@@ -275,9 +162,8 @@ class Request : public Adu {
 public:
   Request() {}
   Request(ServerAddress serverAddress, FunctionCode functionCode,
-          const DataChecker &dataChecker, const any &userData,
-          const ByteArray &data)
-      : Adu(serverAddress, functionCode, dataChecker), userData_(userData) {
+          const any &userData, const ByteArray &data)
+      : Adu(serverAddress, functionCode), userData_(userData) {
     setData(data);
   }
   Request(const Adu &adu) : Adu(adu) {}

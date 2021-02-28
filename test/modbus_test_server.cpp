@@ -176,7 +176,6 @@ TEST(QModbusServer, processReadCoils_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadCoils);
-  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
   request.setData(access.marshalReadRequest());
 
   d.processRequest(&request, &response);
@@ -198,18 +197,12 @@ TEST(QModbusServer, processReadCoils_badDataAddress_failed) {
   d.writeCoils(0x01, true);
   d.writeCoils(0x03, true);
 
-  SingleBitAccess access;
-
-  access.setStartAddress(0x06);
-  access.setQuantity(0x10);
-
   Adu request;
   Adu response;
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadCoils);
-  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
-  request.setData({0x00, 0x01, 0x00, 0x03});
+  request.setData({0x00, 0x06, 0x00, 0x10});
 
   d.processRequest(&request, &response);
   EXPECT_EQ(response.error(), Error::kIllegalDataAddress);
@@ -237,7 +230,6 @@ TEST(QModbusServer, processWriteSingleCoils_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleCoil);
-  request.setDataChecker({bytesRequired<4>});
   request.setData({access.marshalSingleWriteRequest()});
 
   d.processRequest(&request, &response);
@@ -268,7 +260,6 @@ TEST(QModbusServer, processWriteSingleCoils_badAddress_Failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleCoil);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(access.marshalSingleWriteRequest());
 
   d.processRequest(&request, &response);
@@ -293,7 +284,6 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_Failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleCoil);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x01, 0xff, 0xff}));
 
   d.processRequest(&request, &response);
@@ -320,7 +310,6 @@ TEST(QModbusServer, processWriteSingleCoils_badValue_checkWriteFailed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleCoil);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x01, 0x00, 0x00}));
 
   d.processRequest(&request, &response);
@@ -345,7 +334,6 @@ TEST(QModbusServer, processWriteMultipleCoils_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteMultipleCoils);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x00, 0x00, 0x09, 0x02, 0xff, 0x01}));
 
   d.processRequest(&request, &response);
@@ -369,7 +357,6 @@ TEST(QModbusServer, processWriteMultipleCoils_failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteMultipleCoils);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x00, 0x00, 0x19, 0x02, 0xff, 0x01}));
 
   d.processRequest(&request, &response);
@@ -396,7 +383,6 @@ TEST(QModbusServer, processReadMultipleRegisters_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadInputRegister);
-  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
   request.setData(ByteArray({0x00, 0x00, 0x00, 0x03}));
 
   d.processRequest(&request, &response);
@@ -424,7 +410,6 @@ TEST(QModbusServer, processReadMultipleRegisters_badAddress_failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadInputRegister);
-  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
   request.setData(ByteArray({0x00, 0x99, 0x00, 0x03}));
 
   d.processRequest(&request, &response);
@@ -451,7 +436,6 @@ TEST(QModbusServer, processReadMultipleRegisters_badQuantity_failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kReadInputRegister);
-  request.setDataChecker({bytesRequiredStoreInArrayIndex<0>});
   request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
 
   d.processRequest(&request, &response);
@@ -478,7 +462,6 @@ TEST(QModbusServer, processWriteSingleRegister_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleRegister);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
 
   d.processRequest(&request, &response);
@@ -505,7 +488,6 @@ TEST(QModbusServer, processWriteSingleRegister_badAddress_failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleRegister);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x88, 0x00, 0x09}));
 
   d.processRequest(&request, &response);
@@ -536,7 +518,6 @@ TEST(QModbusServer, processWriteSingleRegister_badValue_failed) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteSingleRegister);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x08, 0x00, 0x09}));
 
   d.processRequest(&request, &response);
@@ -566,7 +547,6 @@ TEST(QModbusServer, processWriteMultipleRegisters_success) {
 
   request.setServerAddress(0x01);
   request.setFunctionCode(FunctionCode::kWriteMultipleRegisters);
-  request.setDataChecker({bytesRequired<4>});
   request.setData(ByteArray({0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x01}));
 
   d.processRequest(&request, &response);

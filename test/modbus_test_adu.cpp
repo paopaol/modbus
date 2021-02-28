@@ -1,6 +1,5 @@
 #include "base/modbus_frame.h"
 #include "modbus/base/modbus.h"
-#include "modbus/base/modbus_exception_datachecket.h"
 #include "modbus/base/modbus_types.h"
 #include "modbus_test_mocker.h"
 #include <atomic>
@@ -26,9 +25,10 @@ using namespace modbus;
 //============================================================
 
 TEST(TestModbusAdu, modbusAduConstructor) {
-  auto dataChecker = MockReadCoilsDataChecker::newDataChecker();
-  Adu adu(ServerAddress(1), FunctionCode::kReadCoils, dataChecker);
+  Adu adu(ServerAddress(1), FunctionCode::kReadCoils);
   EXPECT_EQ(FunctionCode::kReadCoils, adu.functionCode());
+  EXPECT_EQ(adu.error(), Error::kNoError);
+  EXPECT_EQ(adu.isValid(), false);
 }
 
 TEST(TestAdu, modbusAduMarshalData) {

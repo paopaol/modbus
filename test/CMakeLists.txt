@@ -19,7 +19,6 @@ set(src-list
     "./modbus_test_sixteen_bit_access.cpp"
     "./modbus_test_sixteen_bit_access_process.cpp"
     "./modbus_test_single_bit_access_process.cpp"
-    "./modbus_test_frame.cpp"
     "./modbus_test_request_response.cpp"
     "./modbus_test_serial_client.cpp"
     "./modbus_test_server.cpp")
