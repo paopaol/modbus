@@ -81,13 +81,5 @@ public:
   /* } */
 };
 
-class MockReadCoilsDataChecker {
-public:
-  static modbus::DataChecker newDataChecker() {
-    modbus::DataChecker dataChecker;
-    dataChecker.calculateSize = modbus::bytesRequiredStoreInArrayIndex<0>;
-    return dataChecker;
-  };
-};
 
 #endif /* MODBUS_TEST_MOCKER_H */

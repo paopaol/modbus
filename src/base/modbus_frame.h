@@ -4,7 +4,6 @@
 #include <array>
 #include <memory>
 #include <modbus/base/modbus.h>
-#include <modbus/base/modbus_exception_datachecket.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
 #include <qmap.h>
@@ -34,282 +33,6 @@ inline ByteArray marshalAsciiFrame(const ByteArray &data) {
   appendStdString(ascii, toUpperHexString(binary));
   appendStdString(ascii, "\r\n");
   return ascii;
-}
-
-inline DataChecker::Result
-_unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                    ServerAddress *serverAddress,
-                                    FunctionCode *functionCode) {
-  /// make sure got serveraddress + function code
-  if (data.size() < 2) {
-    return DataChecker::Result::kNeedMoreData;
-  }
-
-  *serverAddress = data[0];
-  *functionCode = static_cast<FunctionCode>(data[1]);
-  return DataChecker::Result::kSizeOk;
-}
-
-inline DataChecker::Result unmarshalAdu(const ByteArray &data, Adu *adu,
-                                        Error *error) {
-  *error = Error::kNoError;
-  ServerAddress serverAddress;
-  FunctionCode functionCode;
-  auto result =
-      _unmarshalServerAddressFunctionCode(data, &serverAddress, &functionCode);
-  if (result != DataChecker::Result::kSizeOk) {
-    return result;
-  }
-
-  adu->setServerAddress(serverAddress);
-  adu->setFunctionCode(functionCode);
-
-  size_t expectSize = 0;
-  DataChecker dataChecker;
-  if (adu->isException()) {
-    dataChecker = expectionResponseDataChecker;
-  } else {
-    dataChecker = adu->dataChecker();
-  }
-
-  smart_assert(dataChecker.calculateSize && "not set data size checker");
-  result = dataChecker.calculateSize(expectSize, tool::subArray(data, 2));
-  if (result == DataChecker::Result::kNeedMoreData) {
-    return result;
-  }
-
-  adu->setData(tool::subArray(data, 2, expectSize));
-  if (adu->isException()) {
-    *error = Error(adu->data()[0]);
-  }
-  return DataChecker::Result::kSizeOk;
-}
-
-class RtuFrame final : public Frame {
-public:
-  RtuFrame(){};
-  ~RtuFrame(){};
-  ByteArray marshal(const uint16_t *frameId = nullptr) override {
-    return marshalRtuFrame(adu_.marshalAduWithoutCrc());
-  }
-  size_t marshalSize() override { return adu_.marshalSize() + 2 /*crc*/; }
-
-  DataChecker::Result
-  unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                     ServerAddress *serverAddress,
-                                     FunctionCode *functionCode) override {
-    return _unmarshalServerAddressFunctionCode(data, serverAddress,
-                                               functionCode);
-  }
-
-  DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
-    auto result = unmarshalAdu(data, &adu_, error);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-
-    /// server data(expectSize) + crc(2)
-    size_t expectSize = adu_.marshalSize();
-    size_t totalSize = expectSize + 2;
-    if (data.size() < totalSize) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-
-    auto dataWithCrc = tool::appendCrc(tool::subArray(data, 0, expectSize));
-
-    /**
-     * Received frame error
-     */
-    if (dataWithCrc != data) {
-      *error = Error::kStorageParityError;
-    }
-
-    return DataChecker::Result::kSizeOk;
-  }
-};
-
-class AsciiFrame final : public Frame {
-public:
-  AsciiFrame() {}
-  ~AsciiFrame() {}
-
-  ByteArray marshal(const uint16_t *frameId = nullptr) override {
-    return marshalAsciiFrame(adu_.marshalAduWithoutCrc());
-  }
-
-  size_t marshalSize() override {
-    //":" + hex(adu) + hex(lrc) + "\r\n"
-    return kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize;
-  }
-
-  DataChecker::Result
-  unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                     ServerAddress *serverAddress,
-                                     FunctionCode *functionCode) override {
-    ByteArray escapedData;
-
-    auto result = escapeColon(data, &escapedData);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-    escapedData = tool::fromHexString(escapedData.data(), escapedData.size());
-    return _unmarshalServerAddressFunctionCode(escapedData, serverAddress,
-                                               functionCode);
-  }
-
-  /**
-   * : + hex(adu) + hex(lrc) + \r\n
-   */
-  DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
-    ByteArray subdata;
-
-    auto result = escapeColon(data, &subdata);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-
-    subdata = tool::fromHexString(subdata.data(), subdata.size());
-    result = unmarshalAdu(subdata, &adu_, error);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-    if (data.size() <
-        kColonSize + 2 * adu_.marshalSize() + kLrcHexSize + kCRLRSize) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    ByteArray last2Bytes =
-        tool::subArray(data, kColonSize + 2 * adu_.marshalSize() + kLrcHexSize);
-    smart_assert(last2Bytes.size() == 2 &&
-                 "the modbus ascii data is invalid")(tool::dumpHex(last2Bytes));
-    if (last2Bytes[0] != '\r' || last2Bytes[1] != '\n') {
-      return DataChecker::Result::kFailed;
-    }
-    auto dataWithCrc = tool::appendCrc(adu_.marshalAduWithoutCrc());
-    if (dataWithCrc != tool::subArray(subdata, 0, adu_.marshalSize())) {
-      *error = Error::kStorageParityError;
-    }
-
-    return DataChecker::Result::kSizeOk;
-  }
-
-private:
-  DataChecker::Result escapeColon(const ByteArray &data,
-                                  ByteArray *escapedData) {
-    if (data.size() < kColonSize) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    if (data[0] != ':') {
-      return DataChecker::Result::kFailed;
-    }
-
-    *escapedData = tool::subArray(data, 1); /// skip ':'
-    return DataChecker::Result::kSizeOk;
-  }
-
-  static const int kColonSize = 1; //':'
-  static const int kLrcHexSize = 2;
-  static const int kCRLRSize = 2;
-};
-
-class MbapFrame final : public Frame {
-public:
-  MbapFrame() {}
-  ~MbapFrame() {}
-
-  size_t marshalSize() override {
-    return kTransactionMetaIdSize + kProtocolIdSize + kLenSize +
-           adu_.marshalSize();
-  }
-  ByteArray marshal(const uint16_t *frameId = nullptr) override {
-    ByteArray output;
-    output.reserve(6 + adu_.marshalSize());
-
-    id_ = frameId ? *frameId : nextTransactionId();
-
-    /// transaction meta id
-    output.push_back(id_ / 256);
-    output.push_back(id_ % 256);
-
-    /// protocol id
-    output.push_back(kProtocolId / 256);
-    output.push_back(kProtocolId % 256);
-
-    /// len
-    size_t aduSize = adu_.marshalSize();
-    output.push_back(aduSize / 256);
-    output.push_back(aduSize % 256);
-
-    ByteArray aduArray = adu_.marshalAduWithoutCrc();
-    for (int i = 0, size = aduArray.size(); i < size; i++) {
-      output.push_back(aduArray[i]);
-    }
-
-    return output;
-  }
-
-  DataChecker::Result
-  unmarshalServerAddressFunctionCode(const ByteArray &data,
-                                     ServerAddress *serverAddress,
-                                     FunctionCode *functionCode) override {
-    ByteArray escapedData;
-    auto result = escapeMbapHeader(data, escapedData);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-
-    return _unmarshalServerAddressFunctionCode(escapedData, serverAddress,
-                                               functionCode);
-  }
-
-  DataChecker::Result unmarshal(const ByteArray &data, Error *error) override {
-    ByteArray escapedData;
-    auto result = escapeMbapHeader(data, escapedData);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-    result = unmarshalAdu(escapedData, &adu_, error);
-    if (result != DataChecker::Result::kSizeOk) {
-      return result;
-    }
-    return DataChecker::Result::kSizeOk;
-  }
-
-private:
-  DataChecker::Result escapeMbapHeader(const ByteArray &data,
-                                       ByteArray &escapedData) {
-    if (data.size() < 6) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-    id_ = data[0] * 256 + data[1];
-    // uint16_t protocolId = data[2] * 256 + data[3];
-    uint16_t size = data[4] * 256 + data[5];
-    uint16_t totalSize = 6 + size;
-    if (data.size() < totalSize) {
-      return DataChecker::Result::kNeedMoreData;
-    }
-
-    escapedData = tool::subArray(data, 6);
-    return DataChecker::Result::kSizeOk;
-  }
-
-  static const int kTransactionMetaIdSize = 2;
-  static const int kProtocolIdSize = 2;
-  static const int kLenSize = 2;
-  static const int kProtocolId = 0;
-};
-
-inline std::unique_ptr<Frame> createModbusFrame(TransferMode mode) {
-  switch (mode) {
-  case TransferMode::kRtu:
-    return std::unique_ptr<Frame>(new RtuFrame());
-  case TransferMode::kAscii:
-    return std::unique_ptr<Frame>(new AsciiFrame());
-  case TransferMode::kMbap:
-    return std::unique_ptr<Frame>(new MbapFrame());
-  default:
-    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
-    return nullptr;
-  }
 }
 
 inline std::string dump(TransferMode transferMode, const ByteArray &byteArray) {
@@ -342,21 +65,21 @@ inline std::string dump(TransferMode transferMode,
 inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
   static const CheckSizeFuncTable table = {
       nullptr,
-      bytesRequiredStoreInArrayIndex2<0>, // kReadCoils 0x01
-      bytesRequiredStoreInArrayIndex2<0>, // kReadInputDiscrete 0x02
-      bytesRequiredStoreInArrayIndex2<0>, // kReadHoldingRegisters 0x03
-      bytesRequiredStoreInArrayIndex2<0>, // kReadInputRegister 0x04
-      bytesRequired2<4>,                  // kWriteSingleCoil 0x05
-      bytesRequired2<4>,                  // kWriteSingleRegister 0x06
+      bytesRequiredStoreInArrayIndex<0>, // kReadCoils 0x01
+      bytesRequiredStoreInArrayIndex<0>, // kReadInputDiscrete 0x02
+      bytesRequiredStoreInArrayIndex<0>, // kReadHoldingRegisters 0x03
+      bytesRequiredStoreInArrayIndex<0>, // kReadInputRegister 0x04
+      bytesRequired<4>,                  // kWriteSingleCoil 0x05
+      bytesRequired<4>,                  // kWriteSingleRegister 0x06
       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-      bytesRequired2<4>, //  kWriteMultipleCoils = 0x0f,
-      bytesRequired2<4>, //  kWriteMultipleRegisters = 0x10,
+      bytesRequired<4>, //  kWriteMultipleCoils = 0x0f,
+      bytesRequired<4>, //  kWriteMultipleRegisters = 0x10,
       nullptr, nullptr, nullptr,
-      nullptr,                            //  kReadFileRecords = 0x14,
-      nullptr,                            //  kWriteFileRecords = 0x15,
-      nullptr,                            //  kMaskWriteRegister = 0x16,
-      bytesRequiredStoreInArrayIndex2<0>, //  kReadWriteMultipleRegisters =
-                                          //  0x17,
+      nullptr,                           //  kReadFileRecords = 0x14,
+      nullptr,                           //  kWriteFileRecords = 0x15,
+      nullptr,                           //  kMaskWriteRegister = 0x16,
+      bytesRequiredStoreInArrayIndex<0>, //  kReadWriteMultipleRegisters =
+                                         //  0x17,
       nullptr, //  kReadDeviceIdentificationCode = 0x2b
   };
   return table;
@@ -365,21 +88,21 @@ inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
 inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForServer() {
   static const CheckSizeFuncTable table = {
       nullptr,
-      bytesRequired2<4>, // kReadCoils 0x01
-      bytesRequired2<4>, // kReadInputDiscrete 0x02
-      bytesRequired2<4>, // kReadHoldingRegisters 0x03
-      bytesRequired2<4>, // kReadInputRegister 0x04
-      bytesRequired2<4>, // kWriteSingleCoil 0x05
-      bytesRequired2<4>, // kWriteSingleRegister 0x06
+      bytesRequired<4>, // kReadCoils 0x01
+      bytesRequired<4>, // kReadInputDiscrete 0x02
+      bytesRequired<4>, // kReadHoldingRegisters 0x03
+      bytesRequired<4>, // kReadInputRegister 0x04
+      bytesRequired<4>, // kWriteSingleCoil 0x05
+      bytesRequired<4>, // kWriteSingleRegister 0x06
       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-      bytesRequiredStoreInArrayIndex2<4>, //  kWriteMultipleCoils = 0x0f,
-      bytesRequiredStoreInArrayIndex2<4>, //  kWriteMultipleRegisters = 0x10,
+      bytesRequiredStoreInArrayIndex<4>, //  kWriteMultipleCoils = 0x0f,
+      bytesRequiredStoreInArrayIndex<4>, //  kWriteMultipleRegisters = 0x10,
       nullptr, nullptr, nullptr,
-      nullptr,                            //  kReadFileRecords = 0x14,
-      nullptr,                            //  kWriteFileRecords = 0x15,
-      nullptr,                            //  kMaskWriteRegister = 0x16,
-      bytesRequiredStoreInArrayIndex2<9>, //  kReadWriteMultipleRegisters =
-                                          //  0x17,
+      nullptr,                           //  kReadFileRecords = 0x14,
+      nullptr,                           //  kWriteFileRecords = 0x15,
+      nullptr,                           //  kMaskWriteRegister = 0x16,
+      bytesRequiredStoreInArrayIndex<9>, //  kReadWriteMultipleRegisters =
+                                         //  0x17,
       nullptr, //  kReadDeviceIdentificationCode = 0x2b
   };
   return table;
@@ -396,8 +119,8 @@ public:
 
   ~ModbusRtuFrameDecoder() override = default;
 
-  DataChecker::Result Decode(pp::bytes::Buffer &buffer, Adu *adu) override {
-    DataChecker::Result result = DataChecker::Result::kNeedMoreData;
+  CheckSizeResult Decode(pp::bytes::Buffer &buffer, Adu *adu) override {
+    CheckSizeResult result = CheckSizeResult::kNeedMoreData;
     while (buffer.Len() > 0 || state_ == State::kEnd) {
       switch (state_) {
       case State::kServerAddress: {
@@ -415,7 +138,7 @@ public:
         state_ = State::kData;
 
         function_ = adu->isException()
-                        ? bytesRequired2<1>
+                        ? bytesRequired<1>
                         : checkSizeFuncTable_[adu->functionCode()];
 
         if (!function_) {
@@ -431,11 +154,11 @@ public:
         buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
 
         result = function_(expectSize, p, buffer.Len());
-        if (result == DataChecker::Result::kNeedMoreData) {
+        if (result == CheckSizeResult::kNeedMoreData) {
           goto exit_function;
         }
         // we need crc,
-        result = DataChecker::Result::kNeedMoreData;
+        result = CheckSizeResult::kNeedMoreData;
 
         buffer.ZeroCopyRead(&p, expectSize);
 
@@ -463,7 +186,7 @@ public:
       } break;
       case State::kEnd: {
 
-        result = DataChecker::Result::kSizeOk;
+        result = CheckSizeResult::kSizeOk;
         isDone_ = true;
         goto exit_function;
       } break;
@@ -512,10 +235,10 @@ public:
 
   ~ModbusAsciiFrameDecoder() override = default;
 
-  DataChecker::Result Decode(pp::bytes::Buffer & /**/, Adu *) override {
+  CheckSizeResult Decode(pp::bytes::Buffer & /**/, Adu *) override {
     assert("ascii mode:not support yet");
 
-    return DataChecker::Result::kSizeOk;
+    return CheckSizeResult::kSizeOk;
   }
 
   bool IsDone() const override { return isDone_; }
@@ -549,8 +272,8 @@ public:
 
   ~ModbusMbapFrameDecoder() override = default;
 
-  DataChecker::Result Decode(pp::bytes::Buffer &buffer, Adu *adu) override {
-    DataChecker::Result result = DataChecker::Result::kNeedMoreData;
+  CheckSizeResult Decode(pp::bytes::Buffer &buffer, Adu *adu) override {
+    CheckSizeResult result = CheckSizeResult::kNeedMoreData;
     while (buffer.Len() > 0 || state_ == State::kEnd) {
       switch (state_) {
       case State::kMBap: {
@@ -585,7 +308,7 @@ public:
         state_ = State::kData;
 
         function_ = adu->isException()
-                        ? bytesRequired2<1>
+                        ? bytesRequired<1>
                         : checkSizeFuncTable_[adu->functionCode()];
 
         if (!function_) {
@@ -600,7 +323,7 @@ public:
         buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
 
         result = function_(expectSize, p, buffer.Len());
-        if (result == DataChecker::Result::kNeedMoreData) {
+        if (result == CheckSizeResult::kNeedMoreData) {
           goto exit_function;
         }
 
@@ -616,7 +339,7 @@ public:
 
       case State::kEnd: {
 
-        result = DataChecker::Result::kSizeOk;
+        result = CheckSizeResult::kSizeOk;
         isDone_ = true;
         goto exit_function;
       } break;

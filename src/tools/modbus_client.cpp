@@ -74,38 +74,32 @@ void QModbusClient::readSingleBits(ServerAddress serverAddress,
                               std::to_string(functionCode) + ")");
   }
 
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
-
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
-  std::unique_ptr<Request> request(new Request(serverAddress, functionCode,
-                                               dataChecker, access,
-                                               access.marshalReadRequest()));
+  std::unique_ptr<Request> request(new Request(
+      serverAddress, functionCode, access, access.marshalReadRequest()));
   sendRequest(request);
 }
 
 void QModbusClient::writeSingleCoil(ServerAddress serverAddress,
                                     Address startAddress, bool value) {
-  static const DataChecker dataChecker = {bytesRequired<4>};
-
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(1);
   access.setValue(value);
   std::unique_ptr<Request> request(
-      new Request(serverAddress, FunctionCode::kWriteSingleCoil, dataChecker,
-                  access, access.marshalSingleWriteRequest()));
+      new Request(serverAddress, FunctionCode::kWriteSingleCoil, access,
+                  access.marshalSingleWriteRequest()));
   sendRequest(request);
 }
 
 void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
                                        Address startAddress,
                                        const QVector<uint8_t> &valueList) {
-  static const DataChecker dataChecker = {bytesRequired<4>};
   SingleBitAccess access;
 
   access.setStartAddress(startAddress);
@@ -116,8 +110,8 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
   }
 
   std::unique_ptr<Request> request(
-      new Request(serverAddress, FunctionCode::kWriteMultipleCoils, dataChecker,
-                  access, access.marshalMultipleWriteRequest()));
+      new Request(serverAddress, FunctionCode::kWriteMultipleCoils, access,
+                  access.marshalMultipleWriteRequest()));
   sendRequest(request);
 }
 
@@ -130,15 +124,13 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
                               std::to_string(functionCode));
   }
 
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
-
   SixteenBitAccess access;
 
   access.setStartAddress(startAddress);
   access.setQuantity(quantity);
 
   std::unique_ptr<Request> request(
-      new Request(serverAddress, functionCode, dataChecker, access,
+      new Request(serverAddress, functionCode, access,
                   access.marshalMultipleReadRequest()));
   sendRequest(request);
 }
@@ -146,22 +138,20 @@ void QModbusClient::readRegisters(ServerAddress serverAddress,
 void QModbusClient::writeSingleRegister(ServerAddress serverAddress,
                                         Address address,
                                         const SixteenBitValue &value) {
-  static const DataChecker dataChecker = {bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(address);
   access.setValue(value.toUint16());
 
   std::unique_ptr<Request> request(
-      new Request(serverAddress, FunctionCode::kWriteSingleRegister,
-                  dataChecker, access, access.marshalSingleWriteRequest()));
+      new Request(serverAddress, FunctionCode::kWriteSingleRegister, access,
+                  access.marshalSingleWriteRequest()));
   sendRequest(request);
 }
 
 void QModbusClient::writeMultipleRegisters(
     ServerAddress serverAddress, Address startAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequired<4>};
   SixteenBitAccess access;
 
   access.setStartAddress(startAddress);
@@ -174,8 +164,8 @@ void QModbusClient::writeMultipleRegisters(
     offset++;
   }
   std::unique_ptr<Request> request(
-      new Request(serverAddress, FunctionCode::kWriteMultipleRegisters,
-                  dataChecker, access, access.marshalMultipleWriteRequest()));
+      new Request(serverAddress, FunctionCode::kWriteMultipleRegisters, access,
+                  access.marshalMultipleWriteRequest()));
   sendRequest(request);
 }
 
@@ -183,8 +173,6 @@ void QModbusClient::readWriteMultipleRegisters(
     ServerAddress serverAddress, Address readStartAddress,
     Quantity readQuantity, Address writeStartAddress,
     const QVector<SixteenBitValue> &valueList) {
-  static const DataChecker dataChecker = {bytesRequiredStoreInArrayIndex<0>};
-
   ReadWriteRegistersAccess access;
 
   access.readAccess.setStartAddress(readStartAddress);
@@ -203,9 +191,8 @@ void QModbusClient::readWriteMultipleRegisters(
   ByteArray writeData = access.writeAccess.marshalMultipleWriteRequest();
 
   data.insert(data.end(), writeData.begin(), writeData.end());
-  std::unique_ptr<Request> request(
-      new Request(serverAddress, FunctionCode::kReadWriteMultipleRegisters,
-                  dataChecker, access, data));
+  std::unique_ptr<Request> request(new Request(
+      serverAddress, FunctionCode::kReadWriteMultipleRegisters, access, data));
   sendRequest(request);
 }
 
@@ -672,9 +659,8 @@ static ByteArray toBitValueList(const SingleBitAccess &access) {
 }
 
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const DataChecker &dataChecker, const any &userData,
-                      const ByteArray &data) {
-  return Request(serverAddress, functionCode, dataChecker, userData, data);
+                      const any &userData, const ByteArray &data) {
+  return Request(serverAddress, functionCode, userData, data);
 }
 
 QModbusClient *createClient(const QString &url, QObject *parent) {

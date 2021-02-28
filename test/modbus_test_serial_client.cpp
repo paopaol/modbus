@@ -299,7 +299,6 @@ TEST(ModbusSerialClient,
     req->setServerAddress(0x01);
     req->setFunctionCode(FunctionCode::kReadCoils);
     req->setData({0x00, 0x0a, 0x00, 0x03});
-    req->setDataChecker({bytesRequiredStoreInArrayIndex<0>});
     serialClient.sendRequest(req);
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5 delay
@@ -440,7 +439,7 @@ TEST(ModbusSerialClient,
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, write)
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char */*data*/, size_t size) {
           emit serialPort->bytesWritten(size);
           QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
         }));
@@ -804,7 +803,6 @@ TEST(ModbusSerialClient,
         std::unique_ptr<Request> request(new Request);
         request->setServerAddress(0x01);
         request->setFunctionCode(FunctionCode::kReadCoils);
-        request->setDataChecker({bytesRequiredStoreInArrayIndex<0>});
         request->setData({0x00, 0x0a, 0x00, 0x03});
         serialClient.sendRequest(request);
       });
@@ -1243,14 +1241,12 @@ static void createReadCoils(ServerAddress serverAddress, Address startAddress,
   session.request.reset(new Request());
   session.request->setServerAddress(kServerAddress);
   session.request->setFunctionCode(FunctionCode::kReadCoils);
-  session.request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   session.request->setData(access.marshalReadRequest());
   session.request->setUserData(access);
 
   session.response.setServerAddress(kServerAddress);
   session.response.setFunctionCode(FunctionCode::kReadCoils);
   session.response.setData(access.marshalReadResponse());
-  session.response.setDataChecker(MockReadCoilsDataChecker::newDataChecker());
 
   ByteArray aduWithoutCrcRequest = session.request->marshalAduWithoutCrc();
   ByteArray aduWithoutCrcResponse = session.response.marshalAduWithoutCrc();
@@ -1273,7 +1269,6 @@ static std::unique_ptr<Request> createSingleBitAccessRequest() {
 
   request->setServerAddress(kServerAddress);
   request->setFunctionCode(FunctionCode::kReadCoils);
-  request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   request->setData(access.marshalReadRequest());
   request->setUserData(access);
   return request;
@@ -1289,7 +1284,6 @@ static std::unique_ptr<Request> createBrocastRequest() {
 
   request->setServerAddress(Adu::kBrocastAddress);
   request->setFunctionCode(FunctionCode::kReadCoils);
-  request->setDataChecker(MockReadCoilsDataChecker::newDataChecker());
   request->setData(access.marshalReadRequest());
   request->setUserData(access);
   return request;

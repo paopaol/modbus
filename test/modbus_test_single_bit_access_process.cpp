@@ -3,22 +3,18 @@
 #include <modbus/tools/modbus_client.h>
 
 TEST(SingleBitAccessProcess, readSingleBitProcess) {
-  modbus::DataChecker dataChecker = {modbus::bytesRequiredStoreInArrayIndex<0>};
-
   modbus::SingleBitAccess access;
 
   access.setStartAddress(0x03);
   access.setQuantity(0x03);
 
-  auto request =
-      modbus::createRequest(0x01, modbus::FunctionCode::kReadCoils, dataChecker,
-                            access, access.marshalReadRequest());
+  auto request = modbus::createRequest(0x01, modbus::FunctionCode::kReadCoils,
+                                       access, access.marshalReadRequest());
   modbus::Response response;
 
   response.setServerAddress(0x01);
   response.setFunctionCode(modbus::FunctionCode::kReadCoils);
   response.setError(modbus::Error::kNoError);
-  response.setDataChecker(request.dataChecker());
   response.setData(modbus::ByteArray({0x01, 0x05}));
 
   bool ok = modbus::processReadSingleBit(request, response, &access);

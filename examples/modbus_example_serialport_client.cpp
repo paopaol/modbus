@@ -3,12 +3,6 @@
 #include <modbus/base/single_bit_access.h>
 #include <modbus/tools/modbus_client.h>
 
-static modbus::DataChecker newDataChecker() {
-  modbus::DataChecker dataChecker;
-  dataChecker.calculateSize = modbus::bytesRequiredStoreInArrayIndex<0>;
-  return dataChecker;
-}
-
 static void logMessage(modbus::LogLevel level, const std::string &msg) {
   switch (level) {
   case modbus::LogLevel::kDebug:
@@ -52,7 +46,6 @@ int main(int argc, char *argv[]) {
     request->setFunctionCode(modbus::FunctionCode::kReadCoils);
     request->setUserData(access);
     request->setData(access.marshalReadRequest());
-    request->setDataChecker(newDataChecker());
 
     client->sendRequest(request);
   });

@@ -225,7 +225,7 @@ private:
 };
 
 Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
-                      const DataChecker &dataChecker, const any &userData,
+                      const any &userData,
                       const ByteArray &data);
 
 QModbusClient *

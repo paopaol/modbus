@@ -1,6 +1,5 @@
 #include "base/modbus_frame.h"
 #include "modbus/base/modbus.h"
-#include "modbus/base/modbus_exception_datachecket.h"
 #include "modbus/base/modbus_types.h"
 #include "modbus_test_mocker.h"
 #include <atomic>
@@ -180,7 +179,7 @@ TEST(ModbusRtuFrameDecoder,
 
   decoder.Clear();
 
-  EXPECT_EQ(DataChecker::Result::kNeedMoreData, decoder.Decode(buffer, &adu));
+  EXPECT_EQ(CheckSizeResult::kNeedMoreData, decoder.Decode(buffer, &adu));
   EXPECT_EQ(false, decoder.IsDone());
 }
 

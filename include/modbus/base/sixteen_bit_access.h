@@ -72,8 +72,8 @@ public:
 
   bool unmarshalAddressQuantity(const ByteArray &data) {
     size_t size;
-    auto result = bytesRequired<4>(size, data);
-    if (result != DataChecker::Result::kSizeOk) {
+    auto result = bytesRequired<4>(size, data.data(), data.size());
+    if (result != CheckSizeResult::kSizeOk) {
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
@@ -83,8 +83,8 @@ public:
 
   bool unmarshalSingleWriteRequest(const ByteArray &data) {
     size_t size;
-    auto result = bytesRequired<4>(size, data);
-    if (result != DataChecker::Result::kSizeOk) {
+    auto result = bytesRequired<4>(size, data.data(), data.size());
+    if (result != CheckSizeResult::kSizeOk) {
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
@@ -96,8 +96,9 @@ public:
 
   bool unmarshalMulitpleWriteRequest(const ByteArray &data) {
     size_t size;
-    auto result = bytesRequiredStoreInArrayIndex<4>(size, data);
-    if (result != DataChecker::Result::kSizeOk) {
+    auto result =
+        bytesRequiredStoreInArrayIndex<4>(size, data.data(), data.size());
+    if (result != CheckSizeResult::kSizeOk) {
       return false;
     }
     startAddress_ = data[0] * 256 + data[1];
@@ -154,8 +155,8 @@ public:
 
   bool unmarshalReadResponse(const ByteArray &data) {
     size_t size = 0;
-    auto result = bytesRequiredStoreInArrayIndex<0>(size, data);
-    if (result != DataChecker::Result::kSizeOk) {
+    auto result = bytesRequiredStoreInArrayIndex<0>(size, data.data(), data.size());
+    if (result != CheckSizeResult::kSizeOk) {
       return false;
     }
 
