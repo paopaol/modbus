@@ -23,8 +23,8 @@ using CheckSizeFunc = std::function<CheckSizeResult(
     size_t &size, const uint8_t *buffer, int len)>;
 
 template <int nbytes>
-static inline CheckSizeResult bytesRequired(size_t &size, const uint8_t *buffer,
-                                            int len) {
+static inline CheckSizeResult
+bytesRequired(size_t &size, const uint8_t * /*buffer*/, int len) {
   if (len < nbytes) {
     return CheckSizeResult::kNeedMoreData;
   }

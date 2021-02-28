@@ -47,7 +47,7 @@ public:
     kStorageParityError
   };
 
-  QModbusServerPrivate(QModbusServer *q) : q_ptr(q) {}
+  explicit QModbusServerPrivate(QModbusServer *q) : q_ptr(q) {}
 
   int maxClients() const { return maxClient_; }
   TransferMode transferMode() const { return transferMode_; }
@@ -288,7 +288,7 @@ public:
       return;
     }
 
-    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, coils_, access);
     if (error != Error::kNoError) {
       createErrorReponse(functionCode, error, response);
       return;
@@ -328,8 +328,7 @@ public:
     return Error::kNoError;
   }
 
-  Error handleClientwriteCoils(FunctionCode functionCode, const Adu *request,
-                               SingleBitAccess &my,
+  Error handleClientwriteCoils(FunctionCode functionCode, SingleBitAccess &my,
                                const SingleBitAccess &you) {
     Q_Q(QModbusServer);
     auto error = validateSingleBitAccess(you, my);
@@ -391,7 +390,7 @@ public:
       createErrorReponse(functionCode, Error::kStorageParityError, response);
       return;
     }
-    auto error = handleClientwriteCoils(functionCode, request, coils_, access);
+    auto error = handleClientwriteCoils(functionCode, coils_, access);
     if (error != Error::kNoError) {
       createErrorReponse(functionCode, error, response);
       return;

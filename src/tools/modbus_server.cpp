@@ -17,7 +17,7 @@ QModbusServer::QModbusServer(AbstractServer *server, QObject *parent)
   d->setEnv();
 }
 
-QModbusServer::~QModbusServer() {}
+QModbusServer::~QModbusServer() = default;
 
 void QModbusServer::setMaxClients(int maxClients) {
   Q_D(QModbusServer);

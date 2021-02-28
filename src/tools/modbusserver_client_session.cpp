@@ -85,11 +85,11 @@ void ClientSession::ReplyResponse() {
   const int len = writeBuffer.Len();
   writeBuffer.ZeroCopyRead(&p, len);
 
-  client->write((const char *)p, len);
+  client->write(reinterpret_cast<const char *>(p), len);
 
   if (d_->enableDump_) {
     log(LogLevel::kDebug, "S[{}]:[{}]", client->fullName(),
-        dump(d_->transferMode_, (const char *)p, len));
+        dump(d_->transferMode_, reinterpret_cast<const char *>(p), len));
   }
 }
 

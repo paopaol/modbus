@@ -10,11 +10,11 @@ namespace modbus {
 class QtTcpSocket : public AbstractIoDevice {
   Q_OBJECT
 public:
-  QtTcpSocket(QObject *parent = nullptr)
+  explicit QtTcpSocket(QObject *parent = nullptr)
       : AbstractIoDevice(parent), socket_(new QTcpSocket(this)) {
     setupEnvironment();
   }
-  ~QtTcpSocket() {
+  ~QtTcpSocket() override {
     if (socket_->isOpen()) {
       socket_->close();
     }
@@ -59,7 +59,7 @@ private:
         socket_,
         static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
             &QAbstractSocket::error),
-        this, [&](QAbstractSocket::SocketError err) {
+        this, [&](QAbstractSocket::SocketError /*err*/) {
 #else
     connect(socket_, &QAbstractSocket::errorOccurred, this,
             [&](QAbstractSocket::SocketError err) {
@@ -80,11 +80,11 @@ private:
 class QtUdpSocket : public AbstractIoDevice {
   Q_OBJECT
 public:
-  QtUdpSocket(QObject *parent = nullptr)
+  explicit QtUdpSocket(QObject *parent = nullptr)
       : AbstractIoDevice(parent), socket_(new QUdpSocket(this)) {
     setupEnvironment();
   }
-  ~QtUdpSocket() { socket_->deleteLater(); }
+  ~QtUdpSocket() override { socket_->deleteLater(); }
 
   void setHostName(const QString &hostName) { hostName_ = hostName; }
 
@@ -94,10 +94,7 @@ public:
     return QString("%1:%2").arg(hostName_).arg(port_).toStdString();
   }
 
-  void open() override {
-    emit opened();
-    return;
-  }
+  void open() override { emit opened(); }
 
   void close() override {
     emit closed();
