@@ -1,4 +1,3 @@
-#include <bits/stdint-uintn.h>
 #include <modbus/base/modbus_tool.h>
 
 namespace modbus {
