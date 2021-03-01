@@ -182,7 +182,7 @@ TEST(ModbusMbapFrameDecoder,
   decoder.Clear();
 
   EXPECT_EQ(CheckSizeResult::kNeedMoreData, decoder.Decode(buffer, &adu));
-  EXPECT_EQ(false, decoder.IsDone());
+  EXPECT_FALSE(decoder.IsDone());
 }
 
 TEST(ModbusMbapFrameDecoder, decode_bad_funtioncode) {
@@ -196,6 +196,6 @@ TEST(ModbusMbapFrameDecoder, decode_bad_funtioncode) {
   decoder.Clear();
 
   decoder.Decode(buffer, &adu);
-  EXPECT_EQ(true, decoder.IsDone());
+  EXPECT_TRUE(decoder.IsDone());
   EXPECT_EQ(Error::kIllegalFunctionCode, decoder.LasError());
 }
