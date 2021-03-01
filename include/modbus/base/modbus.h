@@ -5,7 +5,6 @@
 #include "modbus/base/modbus_types.h"
 #include "modbus_data.h"
 #include <array>
-#include <bits/stdint-uintn.h>
 #include <cstddef>
 #include <functional>
 #include <mutex>

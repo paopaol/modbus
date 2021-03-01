@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <base/modbus_frame.h>
 #include <base/modbus_logger.h>
-#include <bits/stdint-uintn.h>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <modbus/base/smart_assert.h>
