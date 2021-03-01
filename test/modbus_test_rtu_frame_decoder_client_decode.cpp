@@ -180,7 +180,7 @@ TEST(ModbusRtuFrameDecoder,
   decoder.Clear();
 
   EXPECT_EQ(CheckSizeResult::kNeedMoreData, decoder.Decode(buffer, &adu));
-  EXPECT_EQ(false, decoder.IsDone());
+  EXPECT_FALSE(decoder.IsDone());
 }
 
 TEST(ModbusRtuFrameDecoder, decode_bad_funtioncode) {

@@ -24,7 +24,7 @@ TEST(SixteenBitAccess, setValue_outOfRange) {
   access.setValue(0x02, 4);
   bool ok;
   access.value(0x1000, &ok);
-  EXPECT_EQ(false, ok);
+  EXPECT_FALSE(ok);
 }
 
 TEST(SixteenBitAccess, setgetValue) {
@@ -44,7 +44,7 @@ TEST(SixteenBitAccess, setgetValue) {
   // test not exists values
   bool ok;
   access.value(0x1000, &ok);
-  EXPECT_EQ(false, ok);
+  EXPECT_FALSE(ok);
 }
 
 TEST(SixteenBitAccess, marshalMultipleReadRequest_success) {
@@ -106,9 +106,9 @@ TEST(SixteenBitAccess, unmarshalReadResponse_failed) {
 
   modbus::ByteArray badResponse({0x06, 0x02, 0x2b, 0x00, 0x00, 0x00});
   bool success = access.unmarshalReadResponse(badResponse);
-  EXPECT_EQ(false, success);
+  EXPECT_FALSE(success);
 
   modbus::ByteArray badResponse2({0x05, 0x02, 0x2b, 0x00, 0x00, 0x00});
   success = access.unmarshalReadResponse(badResponse2);
-  EXPECT_EQ(false, success);
+  EXPECT_FALSE(success);
 }

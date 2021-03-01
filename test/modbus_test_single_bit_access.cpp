@@ -34,7 +34,7 @@ TEST(SingleBitAccess, set_get) {
   {
     modbus::SingleBitAccess access;
     access.setValue(0x1234 /*no exists*/, true);
-    EXPECT_EQ(false, access.value(access.startAddress()));
+    EXPECT_FALSE(access.value(access.startAddress()));
   }
 }
 
