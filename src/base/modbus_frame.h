@@ -1,12 +1,12 @@
 #ifndef __MODBUS_FRAME_H_
 #define __MODBUS_FRAME_H_
 
-#include <array>
-#include <memory>
 #include <modbus/base/modbus.h>
 #include <modbus/base/modbus_tool.h>
 #include <modbus/base/smart_assert.h>
 #include <qmap.h>
+#include <array>
+#include <memory>
 #include <unordered_map>
 
 namespace modbus {
@@ -65,22 +65,22 @@ inline std::string dump(TransferMode transferMode,
 inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
   static const CheckSizeFuncTable table = {
       nullptr,
-      bytesRequiredStoreInArrayIndex<0>, // kReadCoils 0x01
-      bytesRequiredStoreInArrayIndex<0>, // kReadInputDiscrete 0x02
-      bytesRequiredStoreInArrayIndex<0>, // kReadHoldingRegisters 0x03
-      bytesRequiredStoreInArrayIndex<0>, // kReadInputRegister 0x04
-      bytesRequired<4>,                  // kWriteSingleCoil 0x05
-      bytesRequired<4>,                  // kWriteSingleRegister 0x06
+      bytesRequiredStoreInArrayIndex<0>,  // kReadCoils 0x01
+      bytesRequiredStoreInArrayIndex<0>,  // kReadInputDiscrete 0x02
+      bytesRequiredStoreInArrayIndex<0>,  // kReadHoldingRegisters 0x03
+      bytesRequiredStoreInArrayIndex<0>,  // kReadInputRegister 0x04
+      bytesRequired<4>,                   // kWriteSingleCoil 0x05
+      bytesRequired<4>,                   // kWriteSingleRegister 0x06
       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-      bytesRequired<4>, //  kWriteMultipleCoils = 0x0f,
-      bytesRequired<4>, //  kWriteMultipleRegisters = 0x10,
+      bytesRequired<4>,  //  kWriteMultipleCoils = 0x0f,
+      bytesRequired<4>,  //  kWriteMultipleRegisters = 0x10,
       nullptr, nullptr, nullptr,
-      nullptr,                           //  kReadFileRecords = 0x14,
-      nullptr,                           //  kWriteFileRecords = 0x15,
-      nullptr,                           //  kMaskWriteRegister = 0x16,
-      bytesRequiredStoreInArrayIndex<0>, //  kReadWriteMultipleRegisters =
-                                         //  0x17,
-      nullptr, //  kReadDeviceIdentificationCode = 0x2b
+      nullptr,                            //  kReadFileRecords = 0x14,
+      nullptr,                            //  kWriteFileRecords = 0x15,
+      nullptr,                            //  kMaskWriteRegister = 0x16,
+      bytesRequiredStoreInArrayIndex<0>,  //  kReadWriteMultipleRegisters =
+                                          //  0x17,
+      nullptr,  //  kReadDeviceIdentificationCode = 0x2b
   };
   return table;
 }
@@ -88,22 +88,22 @@ inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForClient() {
 inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForServer() {
   static const CheckSizeFuncTable table = {
       nullptr,
-      bytesRequired<4>, // kReadCoils 0x01
-      bytesRequired<4>, // kReadInputDiscrete 0x02
-      bytesRequired<4>, // kReadHoldingRegisters 0x03
-      bytesRequired<4>, // kReadInputRegister 0x04
-      bytesRequired<4>, // kWriteSingleCoil 0x05
-      bytesRequired<4>, // kWriteSingleRegister 0x06
+      bytesRequired<4>,  // kReadCoils 0x01
+      bytesRequired<4>,  // kReadInputDiscrete 0x02
+      bytesRequired<4>,  // kReadHoldingRegisters 0x03
+      bytesRequired<4>,  // kReadInputRegister 0x04
+      bytesRequired<4>,  // kWriteSingleCoil 0x05
+      bytesRequired<4>,  // kWriteSingleRegister 0x06
       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-      bytesRequiredStoreInArrayIndex<4>, //  kWriteMultipleCoils = 0x0f,
-      bytesRequiredStoreInArrayIndex<4>, //  kWriteMultipleRegisters = 0x10,
+      bytesRequiredStoreInArrayIndex<4>,  //  kWriteMultipleCoils = 0x0f,
+      bytesRequiredStoreInArrayIndex<4>,  //  kWriteMultipleRegisters = 0x10,
       nullptr, nullptr, nullptr,
-      nullptr,                           //  kReadFileRecords = 0x14,
-      nullptr,                           //  kWriteFileRecords = 0x15,
-      nullptr,                           //  kMaskWriteRegister = 0x16,
-      bytesRequiredStoreInArrayIndex<9>, //  kReadWriteMultipleRegisters =
-                                         //  0x17,
-      nullptr, //  kReadDeviceIdentificationCode = 0x2b
+      nullptr,                            //  kReadFileRecords = 0x14,
+      nullptr,                            //  kWriteFileRecords = 0x15,
+      nullptr,                            //  kMaskWriteRegister = 0x16,
+      bytesRequiredStoreInArrayIndex<9>,  //  kReadWriteMultipleRegisters =
+                                          //  0x17,
+      nullptr,  //  kReadDeviceIdentificationCode = 0x2b
   };
   return table;
 }
@@ -111,7 +111,7 @@ inline CheckSizeFuncTable creatDefaultCheckSizeFuncTableForServer() {
 class ModbusRtuFrameDecoder : public ModbusFrameDecoder {
   enum class State { kServerAddress, kFunctionCode, kData, kCrc0, kCrc1, kEnd };
 
-public:
+ public:
   explicit ModbusRtuFrameDecoder(const CheckSizeFuncTable &table)
       : ModbusFrameDecoder(table) {
     Clear();
@@ -123,73 +123,72 @@ public:
     CheckSizeResult result = CheckSizeResult::kNeedMoreData;
     while (buffer.Len() > 0 || state_ == State::kEnd) {
       switch (state_) {
-      case State::kServerAddress: {
-        const auto serverAddress = buffer.ReadByte();
-        adu->setServerAddress(serverAddress);
-        crcCtx_.crc16((const uint8_t *)&serverAddress, 1);
+        case State::kServerAddress: {
+          const auto serverAddress = buffer.ReadByte();
+          adu->setServerAddress(serverAddress);
+          crcCtx_.crc16((const uint8_t *)&serverAddress, 1);
 
-        state_ = State::kFunctionCode;
-      } break;
-      case State::kFunctionCode: {
-        auto functionCode = buffer.ReadByte();
-        adu->setFunctionCode(static_cast<FunctionCode>(functionCode));
-        crcCtx_.crc16((const uint8_t *)&functionCode, 1);
+          state_ = State::kFunctionCode;
+        } break;
+        case State::kFunctionCode: {
+          auto functionCode = buffer.ReadByte();
+          adu->setFunctionCode(static_cast<FunctionCode>(functionCode));
+          crcCtx_.crc16((const uint8_t *)&functionCode, 1);
 
-        state_ = State::kData;
+          state_ = State::kData;
 
-        function_ = adu->isException()
-                        ? bytesRequired<1>
-                        : checkSizeFuncTable_[adu->functionCode()];
+          function_ = adu->isException()
+                          ? bytesRequired<1>
+                          : checkSizeFuncTable_[adu->functionCode()];
 
-        if (!function_) {
-          error_ = Error::kIllegalFunctionCode;
+          if (!function_) {
+            error_ = Error::kIllegalFunctionCode;
+            state_ = State::kEnd;
+          }
+
+        } break;
+        case State::kData: {
+          size_t expectSize = 0;
+
+          uint8_t *p;
+          buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
+
+          result = function_(expectSize, p, buffer.Len());
+          if (result == CheckSizeResult::kNeedMoreData) {
+            goto exit_function;
+          }
+          // we need crc,
+          result = CheckSizeResult::kNeedMoreData;
+
+          buffer.ZeroCopyRead(&p, expectSize);
+
+          adu->setData(p, expectSize);
+          crcCtx_.crc16((uint8_t *)p, expectSize);
+
+          state_ = State::kCrc0;
+        } break;
+        case State::kCrc0: {
+          crc_[0] = buffer.ReadByte();
+
+          state_ = State::kCrc1;
+        } break;
+        case State::kCrc1: {
+          crc_[1] = buffer.ReadByte();
+
+          uint16_t crc = crcCtx_.end();
+          if (crc % 256 != crc_[0] || crc / 256 != crc_[1]) {
+            error_ = Error::kStorageParityError;
+          } else if (adu->isException()) {
+            error_ = Error(adu->data()[0]);
+          }
+
           state_ = State::kEnd;
-        }
-
-      } break;
-      case State::kData: {
-        size_t expectSize = 0;
-
-        uint8_t *p;
-        buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
-
-        result = function_(expectSize, p, buffer.Len());
-        if (result == CheckSizeResult::kNeedMoreData) {
+        } break;
+        case State::kEnd: {
+          result = CheckSizeResult::kSizeOk;
+          isDone_ = true;
           goto exit_function;
-        }
-        // we need crc,
-        result = CheckSizeResult::kNeedMoreData;
-
-        buffer.ZeroCopyRead(&p, expectSize);
-
-        adu->setData(p, expectSize);
-        crcCtx_.crc16((uint8_t *)p, expectSize);
-
-        state_ = State::kCrc0;
-      } break;
-      case State::kCrc0: {
-        crc_[0] = buffer.ReadByte();
-
-        state_ = State::kCrc1;
-      } break;
-      case State::kCrc1: {
-        crc_[1] = buffer.ReadByte();
-
-        uint16_t crc = crcCtx_.end();
-        if (crc % 256 != crc_[0] || crc / 256 != crc_[1]) {
-          error_ = Error::kStorageParityError;
-        } else if (adu->isException()) {
-          error_ = Error(adu->data()[0]);
-        }
-
-        state_ = State::kEnd;
-      } break;
-      case State::kEnd: {
-
-        result = CheckSizeResult::kSizeOk;
-        isDone_ = true;
-        goto exit_function;
-      } break;
+        } break;
       }
     }
   exit_function:
@@ -207,7 +206,7 @@ public:
 
   Error LasError() const override { return error_; }
 
-private:
+ private:
   State state_ = State::kServerAddress;
   bool isDone_ = false;
   uint8_t crc_[2];
@@ -227,7 +226,7 @@ class ModbusAsciiFrameDecoder : public ModbusFrameDecoder {
     kEnd
   };
 
-public:
+ public:
   explicit ModbusAsciiFrameDecoder(const CheckSizeFuncTable &table)
       : ModbusFrameDecoder(table) {
     Clear();
@@ -253,7 +252,7 @@ public:
 
   Error LasError() const override { return error_; }
 
-private:
+ private:
   State state_ = State::kServerAddress;
   bool isDone_ = false;
   CrcCtx crcCtx_;
@@ -264,7 +263,7 @@ private:
 class ModbusMbapFrameDecoder : public ModbusFrameDecoder {
   enum class State { kMBap, kServerAddress, kFunctionCode, kData, kEnd };
 
-public:
+ public:
   explicit ModbusMbapFrameDecoder(const CheckSizeFuncTable &table)
       : ModbusFrameDecoder(table) {
     Clear();
@@ -276,73 +275,72 @@ public:
     CheckSizeResult result = CheckSizeResult::kNeedMoreData;
     while (buffer.Len() > 0 || state_ == State::kEnd) {
       switch (state_) {
-      case State::kMBap: {
-        if (buffer.Len() < 6) {
-          goto exit_function;
-        }
-        uint8_t *p;
-        buffer.ZeroCopyRead(&p, 6);
+        case State::kMBap: {
+          if (buffer.Len() < 6) {
+            goto exit_function;
+          }
+          uint8_t *p;
+          buffer.ZeroCopyRead(&p, 6);
 
-        // transaction id
-        adu->setTransactionId(p[0] * 256 + p[1]);
+          // transaction id
+          adu->setTransactionId(p[0] * 256 + p[1]);
 
-        flag_ = p[2] * 256 + p[3];
-        len_ = p[4] * 256 + p[5];
+          flag_ = p[2] * 256 + p[3];
+          len_ = p[4] * 256 + p[5];
 
-        state_ = State::kServerAddress;
-      } break;
-      case State::kServerAddress: {
-        if (buffer.Len() < len_) {
-          goto exit_function;
-        }
+          state_ = State::kServerAddress;
+        } break;
+        case State::kServerAddress: {
+          if (buffer.Len() < len_) {
+            goto exit_function;
+          }
 
-        const auto serverAddress = buffer.ReadByte();
-        adu->setServerAddress(serverAddress);
+          const auto serverAddress = buffer.ReadByte();
+          adu->setServerAddress(serverAddress);
 
-        state_ = State::kFunctionCode;
-      } break;
-      case State::kFunctionCode: {
-        auto functionCode = buffer.ReadByte();
-        adu->setFunctionCode(static_cast<FunctionCode>(functionCode));
+          state_ = State::kFunctionCode;
+        } break;
+        case State::kFunctionCode: {
+          auto functionCode = buffer.ReadByte();
+          adu->setFunctionCode(static_cast<FunctionCode>(functionCode));
 
-        state_ = State::kData;
+          state_ = State::kData;
 
-        function_ = adu->isException()
-                        ? bytesRequired<1>
-                        : checkSizeFuncTable_[adu->functionCode()];
+          function_ = adu->isException()
+                          ? bytesRequired<1>
+                          : checkSizeFuncTable_[adu->functionCode()];
 
-        if (!function_) {
-          error_ = Error::kIllegalFunctionCode;
+          if (!function_) {
+            error_ = Error::kIllegalFunctionCode;
+            state_ = State::kEnd;
+          }
+        } break;
+        case State::kData: {
+          size_t expectSize = 0;
+
+          uint8_t *p;
+          buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
+
+          result = function_(expectSize, p, buffer.Len());
+          if (result == CheckSizeResult::kNeedMoreData) {
+            goto exit_function;
+          }
+
+          buffer.ZeroCopyRead(&p, expectSize);
+
+          adu->setData((uint8_t *)p, expectSize);
+          if (adu->isException()) {
+            error_ = Error(adu->data()[0]);
+          }
+
           state_ = State::kEnd;
-        }
-      } break;
-      case State::kData: {
-        size_t expectSize = 0;
+        } break;
 
-        uint8_t *p;
-        buffer.ZeroCopyPeekAt(&p, 0, buffer.Len());
-
-        result = function_(expectSize, p, buffer.Len());
-        if (result == CheckSizeResult::kNeedMoreData) {
+        case State::kEnd: {
+          result = CheckSizeResult::kSizeOk;
+          isDone_ = true;
           goto exit_function;
-        }
-
-        buffer.ZeroCopyRead(&p, expectSize);
-
-        adu->setData((uint8_t *)p, expectSize);
-        if (adu->isException()) {
-          error_ = Error(adu->data()[0]);
-        }
-
-        state_ = State::kEnd;
-      } break;
-
-      case State::kEnd: {
-
-        result = CheckSizeResult::kSizeOk;
-        isDone_ = true;
-        goto exit_function;
-      } break;
+        } break;
       }
     }
   exit_function:
@@ -361,7 +359,7 @@ public:
 
   Error LasError() const override { return error_; }
 
-private:
+ private:
   State state_ = State::kMBap;
   bool isDone_ = false;
   Error error_ = Error::kNoError;
@@ -371,7 +369,7 @@ private:
 };
 
 class ModbusRtuFrameEncoder : public ModbusFrameEncoder {
-public:
+ public:
   virtual ~ModbusRtuFrameEncoder() = default;
 
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
@@ -393,7 +391,7 @@ public:
 };
 
 class ModbusMbapFrameEncoder : public ModbusFrameEncoder {
-public:
+ public:
   virtual ~ModbusMbapFrameEncoder() = default;
 
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
@@ -406,8 +404,9 @@ public:
     buffer.Write(0);
     buffer.Write(0);
 
-    buffer.Write(data.size() / 256);
-    buffer.Write(data.size() % 256);
+    int size = data.size() + 2;
+    buffer.Write(size / 256);
+    buffer.Write(size % 256);
 
     buffer.Write(adu->serverAddress());
 
@@ -422,7 +421,7 @@ public:
 };
 
 class ModbusAsciiFrameEncoder : public ModbusFrameEncoder {
-public:
+ public:
   virtual ~ModbusAsciiFrameEncoder() = default;
 
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
@@ -430,41 +429,42 @@ public:
   }
 };
 
-inline std::unique_ptr<ModbusFrameDecoder>
-createModbusFrameDecoder(TransferMode mode, const CheckSizeFuncTable &table) {
+inline std::unique_ptr<ModbusFrameDecoder> createModbusFrameDecoder(
+    TransferMode mode, const CheckSizeFuncTable &table) {
   switch (mode) {
-  case TransferMode::kRtu:
-    return std::unique_ptr<ModbusFrameDecoder>(
-        new ModbusRtuFrameDecoder(table));
-  case TransferMode::kAscii:
-    return std::unique_ptr<ModbusFrameDecoder>(
-        new ModbusAsciiFrameDecoder(table));
-  case TransferMode::kMbap:
-    return std::unique_ptr<ModbusFrameDecoder>(
-        new ModbusMbapFrameDecoder(table));
-  default:
-    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
-    return nullptr;
+    case TransferMode::kRtu:
+      return std::unique_ptr<ModbusFrameDecoder>(
+          new ModbusRtuFrameDecoder(table));
+    case TransferMode::kAscii:
+      return std::unique_ptr<ModbusFrameDecoder>(
+          new ModbusAsciiFrameDecoder(table));
+    case TransferMode::kMbap:
+      return std::unique_ptr<ModbusFrameDecoder>(
+          new ModbusMbapFrameDecoder(table));
+    default:
+      smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
+      return nullptr;
   }
 }
 
-inline std::unique_ptr<ModbusFrameEncoder>
-createModbusFrameEncoder(TransferMode mode) {
+inline std::unique_ptr<ModbusFrameEncoder> createModbusFrameEncoder(
+    TransferMode mode) {
   switch (mode) {
-  case TransferMode::kRtu:
-    return std::unique_ptr<ModbusRtuFrameEncoder>(new ModbusRtuFrameEncoder());
-  case TransferMode::kAscii:
-    return std::unique_ptr<ModbusAsciiFrameEncoder>(
-        new ModbusAsciiFrameEncoder());
-  case TransferMode::kMbap:
-    return std::unique_ptr<ModbusMbapFrameEncoder>(
-        new ModbusMbapFrameEncoder());
-  default:
-    smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
-    return nullptr;
+    case TransferMode::kRtu:
+      return std::unique_ptr<ModbusRtuFrameEncoder>(
+          new ModbusRtuFrameEncoder());
+    case TransferMode::kAscii:
+      return std::unique_ptr<ModbusAsciiFrameEncoder>(
+          new ModbusAsciiFrameEncoder());
+    case TransferMode::kMbap:
+      return std::unique_ptr<ModbusMbapFrameEncoder>(
+          new ModbusMbapFrameEncoder());
+    default:
+      smart_assert("unsupported modbus transfer mode")(static_cast<int>(mode));
+      return nullptr;
   }
 }
 
-} // namespace modbus
+}  // namespace modbus
 
-#endif // __MODBUS_SERIAL_PORT_H_
+#endif  // __MODBUS_SERIAL_PORT_H_
