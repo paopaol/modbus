@@ -24,12 +24,22 @@ using namespace modbus;
 
 //============================================================
 
-TEST(TestModbusAdu, modbusAduConstructor) {
+TEST(TestModbusAdu, Constructor) {
   Adu adu(ServerAddress(1), FunctionCode::kReadCoils);
   EXPECT_EQ(FunctionCode::kReadCoils, adu.functionCode());
   EXPECT_EQ(adu.error(), Error::kNoError);
   EXPECT_EQ(adu.isValid(), false);
 }
+
+TEST(TestModbusAdu, ConstructorError) {
+  Adu adu(ServerAddress(1), FunctionCode::kReadCoils);
+  EXPECT_EQ(FunctionCode::kReadCoils, adu.functionCode());
+  adu.setError(Error::kTimeout);
+  EXPECT_EQ(adu.error(), Error::kTimeout);
+  EXPECT_EQ(adu.isValid(), true);
+}
+
+
 
 TEST(TestAdu, modbusAduMarshalData) {
   struct Result {

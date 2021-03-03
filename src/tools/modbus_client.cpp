@@ -372,14 +372,15 @@ void QModbusClient::onIoDeviceResponseTimeout() {
   const auto &request = *element->request;
   auto &response = element->response;
 
+  response.setServerAddress(request.serverAddress());
+  response.setFunctionCode(request.functionCode());
+  response.setTransactionId(request.transactionId());
+  response.setError(Error::kTimeout);
   if (element->retryTimes-- > 0) {
     log(LogLevel::kWarning,
         "{} waiting response timeout, retry it, retrytimes ",
         d->device_->name(), element->retryTimes);
 
-    response.setFunctionCode(request.functionCode());
-    response.setServerAddress(request.serverAddress());
-    response.setError(Error::kTimeout);
     processDiagnosis(request, response);
   } else {
     log(LogLevel::kWarning, "{}: waiting response timeout", d->device_->name());
@@ -387,7 +388,6 @@ void QModbusClient::onIoDeviceResponseTimeout() {
     /**
      * if have no retry times, remove this request
      */
-    response.setError(Error::kTimeout);
     auto e = d->elementQueue_.front();
     d->elementQueue_.pop_front();
     emit requestFinished(*e->request, e->response);
@@ -433,13 +433,15 @@ void QModbusClient::onIoDeviceReadyRead() {
                                 "]");
     return;
   }
+
   const auto lastError = d->decoder_->LasError();
   d->decoder_->Clear();
 
-  element->response.setError(lastError);
-
   // replace with swap/move
   Response response = element->response;
+  if(lastError != Error::kNoError){
+    response.setError(lastError);
+  }
 
   /**
    * When receiving a response from an undesired child node,

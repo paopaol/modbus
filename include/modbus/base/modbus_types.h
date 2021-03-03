@@ -152,7 +152,7 @@ enum class Error {
   kGatewayTargetDeviceResponseLoss = 0x0b,
 
   /// user defined error, not inlcuded in modbus protocol
-  kTimeout = 0x1000
+  kTimeout = 0xd0
 };
 inline std::ostream &operator<<(std::ostream &output, const Error &error) {
   switch (error) {

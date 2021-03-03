@@ -74,7 +74,10 @@ public:
   FunctionCode functionCode() const {
     return FunctionCode(uint8_t(functionCode_) & ~kExceptionByte);
   }
-
+  void setError(Error errorCode) {
+    functionCode_ = FunctionCode(functionCode_ | kExceptionByte);
+    setData({static_cast<uint8_t>(errorCode)});
+  }
   void setData(const ByteArray &byteArray) { data_ = byteArray; }
   void setData(const uint8_t *data, int n) {
     data_.resize(n);
@@ -90,6 +93,13 @@ public:
       return Error::kNoError;
     }
     return Error(data_[0]);
+  }
+
+  std::string errorString() const {
+    std::stringstream s;
+
+    s << error();
+    return s.str();
   }
 
   bool isValid() const { return !data_.empty(); }
@@ -177,18 +187,7 @@ private:
 /**
  * a modbus response
  */
-class Response : public Adu {
-public:
-  Response() : Adu(), errorCode_(Error::kNoError) {}
-  Response(const Adu &adu) : Adu(adu), errorCode_(Error::kNoError) {}
-  void setError(Error errorCode) { errorCode_ = errorCode; }
-
-  Error error() const { return errorCode_; }
-  std::string errorString() const { return std::to_string(errorCode_); }
-
-private:
-  Error errorCode_;
-};
+using Response = Adu;
 
 void registerLogMessage(const LogWriter &logger);
 
