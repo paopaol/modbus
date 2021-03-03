@@ -1,6 +1,7 @@
 #include <modbus/base/modbus.h>
 #include <modbus/base/sixteen_bit_access.h>
 #include <modbus_logger.h>
+#include <sstream>
 
 namespace modbus {
 static bool validateSixteenBitAccessResponse(const Response &resp);
@@ -26,13 +27,8 @@ bool processReadRegisters(const Request &request, const Response &response,
 }
 
 static bool validateSixteenBitAccessResponse(const Response &resp) {
-  if (resp.error() != modbus::Error::kNoError) {
-    log(LogLevel::kError, resp.errorString().c_str());
-    return false;
-  }
-
   if (resp.isException()) {
-    log(LogLevel::kError, resp.errorString().c_str());
+    log(LogLevel::kError, resp.errorString());
     return false;
   }
   return true;

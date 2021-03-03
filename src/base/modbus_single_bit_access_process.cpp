@@ -25,13 +25,8 @@ bool processReadSingleBit(const Request &request, const Response &response,
 }
 
 static bool validateSingleBitAccessResponse(const modbus::Response &resp) {
-  if (resp.error() != modbus::Error::kNoError) {
-    log(LogLevel::kError, resp.errorString().c_str());
-    return false;
-  }
-
   if (resp.isException()) {
-    log(LogLevel::kError, resp.errorString().c_str());
+    log(LogLevel::kError, resp.errorString());
     return false;
   }
   return true;

@@ -14,7 +14,6 @@ TEST(SingleBitAccessProcess, readSingleBitProcess) {
 
   response.setServerAddress(0x01);
   response.setFunctionCode(modbus::FunctionCode::kReadCoils);
-  response.setError(modbus::Error::kNoError);
   response.setData(modbus::ByteArray({0x01, 0x05}));
 
   bool ok = modbus::processReadSingleBit(request, response, &access);
