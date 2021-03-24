@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <iostream>
 #include <modbus/base/modbus.h>
-#include <thread>
 
 using namespace std::chrono;
 
@@ -30,9 +29,9 @@ static LogWriter g_logger = [](LogLevel level, const std::string &msg) {
   }
   std::cout << levelString << date << " - " << msg << std::endl;
 };
+
 void registerLogMessage(const LogWriter &logger) {
   static std::once_flag once_;
-
   std::call_once(once_, [&]() { g_logger = logger; });
 }
 

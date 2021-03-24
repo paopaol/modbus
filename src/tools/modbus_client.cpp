@@ -439,7 +439,7 @@ void QModbusClient::onIoDeviceReadyRead() {
 
   // replace with swap/move
   Response response = element->response;
-  if(lastError != Error::kNoError){
+  if (lastError != Error::kNoError) {
     response.setError(lastError);
   }
 
@@ -452,6 +452,17 @@ void QModbusClient::onIoDeviceReadyRead() {
     log(LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
+            dump(d->transferMode_, qdata) + "]");
+
+    d->readBuffer_.Reset();
+
+    return;
+  }
+
+  if (response.functionCode() != request->functionCode()) {
+    log(LogLevel::kWarning,
+        d->device_->name() +
+            ":got response, unexpected functioncode, discard it.[" +
             dump(d->transferMode_, qdata) + "]");
 
     d->readBuffer_.Reset();
@@ -571,12 +582,16 @@ void QModbusClient::processFunctionCode(const Request &request,
   case FunctionCode::kReadCoils:
   case FunctionCode::kReadInputDiscrete: {
     auto access = modbus::any::any_cast<SingleBitAccess>(data);
+    bool ok = false;
     if (!response.isException()) {
-      processReadSingleBit(request, response, &access);
+      ok = processReadSingleBit(request, response, &access);
     }
-    emit readSingleBitsFinished(request.serverAddress(), request.functionCode(),
-                                access.startAddress(), access.quantity(),
-                                toBitValueList(access), response.error());
+    if (ok) {
+      emit readSingleBitsFinished(request.serverAddress(),
+                                  request.functionCode(), access.startAddress(),
+                                  access.quantity(), toBitValueList(access),
+                                  response.error());
+    }
     return;
   }
   case FunctionCode::kWriteSingleCoil: {
@@ -594,12 +609,16 @@ void QModbusClient::processFunctionCode(const Request &request,
   case FunctionCode::kReadHoldingRegisters:
   case FunctionCode::kReadInputRegister: {
     auto access = modbus::any::any_cast<SixteenBitAccess>(data);
+    bool ok = false;
     if (!response.isException()) {
-      processReadRegisters(request, response, &access);
+      ok = processReadRegisters(request, response, &access);
     }
-    emit readRegistersFinished(request.serverAddress(), request.functionCode(),
-                               access.startAddress(), access.quantity(),
-                               access.value(), response.error());
+    if (ok) {
+      emit readRegistersFinished(request.serverAddress(),
+                                 request.functionCode(), access.startAddress(),
+                                 access.quantity(), access.value(),
+                                 response.error());
+    }
     return;
   }
   case FunctionCode::kWriteSingleRegister: {
