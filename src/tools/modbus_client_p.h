@@ -78,7 +78,7 @@ public:
       encoder_->Encode(ele->request.get(), writerBuffer_);
       ele->totalBytes = writerBuffer_.Len();
       if (enableDump_) {
-        log(LogLevel::kDebug, "{} will send: {}", device_->name(),
+        log(log_prefix_, LogLevel::kDebug, "{} will send: {}", device_->name(),
             dump(transferMode_, writerBuffer_));
       }
 
@@ -137,6 +137,7 @@ public:
 
   pp::bytes::Buffer readBuffer_;
   pp::bytes::Buffer writerBuffer_;
+  std::string log_prefix_;
 };
 
 class ReconnectableIoDevicePrivate : public QObject {
@@ -147,12 +148,14 @@ public:
       : QObject(parent), ioDevice_(iodevice) {
     ioDevice_->setParent(this);
   }
+
   ~ReconnectableIoDevicePrivate() override = default;
 
   int openRetryTimes_ = 0;
   int openRetryTimesBack_ = 0;
   int reopenDelay_ = 1000;
   AbstractIoDevice *ioDevice_;
+  std::string log_prefix_;
   /**
    * if user call ReconnectableIoDevice::close(), this is force close
    * if the connection broken,the device is closed, this is not force close

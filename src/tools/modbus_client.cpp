@@ -51,7 +51,8 @@ void QModbusClient::sendRequest(std::unique_ptr<Request> &request) {
   Q_D(QModbusClient);
 
   if (!isOpened()) {
-    log(LogLevel::kWarning, "{} closed, discard reuqest", d->device_->name());
+    log(d->log_prefix_, LogLevel::kWarning, "{} closed, discard reuqest",
+        d->device_->name());
     return;
   }
 
@@ -67,10 +68,13 @@ void QModbusClient::sendRequest(std::unique_ptr<Request> &request) {
 void QModbusClient::readSingleBits(ServerAddress serverAddress,
                                    FunctionCode functionCode,
                                    Address startAddress, Quantity quantity) {
+  Q_D(QModbusClient);
+
   if (functionCode != FunctionCode::kReadCoils &&
       functionCode != FunctionCode::kReadInputDiscrete) {
-    log(LogLevel::kError, "single bit access:[read] invalid function code(" +
-                              std::to_string(functionCode) + ")");
+    log(d->log_prefix_, LogLevel::kError,
+        "single bit access:[read] invalid function code(" +
+            std::to_string(functionCode) + ")");
   }
 
   SingleBitAccess access;
@@ -117,10 +121,13 @@ void QModbusClient::writeMultipleCoils(ServerAddress serverAddress,
 void QModbusClient::readRegisters(ServerAddress serverAddress,
                                   FunctionCode functionCode,
                                   Address startAddress, Quantity quantity) {
+  Q_D(QModbusClient);
+
   if (functionCode != FunctionCode::kReadHoldingRegisters &&
       functionCode != FunctionCode::kReadInputRegister) {
-    log(LogLevel::kError, "invalid function code for read registers" +
-                              std::to_string(functionCode));
+    log(d->log_prefix_, LogLevel::kError,
+        "invalid function code for read registers" +
+            std::to_string(functionCode));
   }
 
   SixteenBitAccess access;
@@ -330,6 +337,12 @@ QString QModbusClient::errorString() {
   return d->errorString_;
 }
 
+void QModbusClient::setPrefix(const QString &prefix) {
+  Q_D(QModbusClient);
+  d->log_prefix_ = prefix.toStdString();
+  d->device_->setPrefix(prefix);
+}
+
 void QModbusClient::enableDiagnosis(bool enable) {
   Q_D(QModbusClient);
   if (d->enableDiagnosis_ == enable) {
@@ -377,13 +390,14 @@ void QModbusClient::onIoDeviceResponseTimeout() {
   response.setTransactionId(request.transactionId());
   response.setError(Error::kTimeout);
   if (element->retryTimes-- > 0) {
-    log(LogLevel::kWarning,
+    log(d->log_prefix_, LogLevel::kWarning,
         "{} waiting response timeout, retry it, retrytimes ",
         d->device_->name(), element->retryTimes);
 
     processDiagnosis(request, response);
   } else {
-    log(LogLevel::kWarning, "{}: waiting response timeout", d->device_->name());
+    log(d->log_prefix_, LogLevel::kWarning, "{}: waiting response timeout",
+        d->device_->name());
 
     /**
      * if have no retry times, remove this request
@@ -411,7 +425,7 @@ void QModbusClient::onIoDeviceReadyRead() {
 
     std::stringstream stream;
     stream << d->sessionState_.state();
-    log(LogLevel::kWarning,
+    log(d->log_prefix_, LogLevel::kWarning,
         "{} now state is in {}.got unexpected data, discard them.[{}]",
         d->device_->name(), stream.str(), dump(d->transferMode_, qdata));
 
@@ -428,9 +442,9 @@ void QModbusClient::onIoDeviceReadyRead() {
 
   d->decoder_->Decode(d->readBuffer_, &element->response);
   if (!d->decoder_->IsDone()) {
-    log(LogLevel::kWarning, d->device_->name() + ":need more data." + "[" +
-                                dump(d->transferMode_, element->dumpReadArray) +
-                                "]");
+    log(d->log_prefix_, LogLevel::kWarning,
+        d->device_->name() + ":need more data." + "[" +
+            dump(d->transferMode_, element->dumpReadArray) + "]");
     return;
   }
 
@@ -449,7 +463,7 @@ void QModbusClient::onIoDeviceReadyRead() {
    * discard all recived dat
    */
   if (response.serverAddress() != request->serverAddress()) {
-    log(LogLevel::kWarning,
+    log(d->log_prefix_, LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected serveraddress, discard it.[" +
             dump(d->transferMode_, qdata) + "]");
@@ -460,7 +474,7 @@ void QModbusClient::onIoDeviceReadyRead() {
   }
 
   if (response.functionCode() != request->functionCode()) {
-    log(LogLevel::kWarning,
+    log(d->log_prefix_, LogLevel::kWarning,
         d->device_->name() +
             ":got response, unexpected functioncode, discard it.[" +
             dump(d->transferMode_, qdata) + "]");
@@ -474,8 +488,9 @@ void QModbusClient::onIoDeviceReadyRead() {
   d->sessionState_.setState(SessionState::kIdle);
 
   if (d->enableDump_) {
-    log(LogLevel::kDebug, d->device_->name() + " recived " +
-                              dump(d->transferMode_, element->dumpReadArray));
+    log(d->log_prefix_, LogLevel::kDebug,
+        d->device_->name() + " recived " +
+            dump(d->transferMode_, element->dumpReadArray));
   }
 
   /**
@@ -511,7 +526,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
     d->decoder_->Clear();
     d->scheduleNextRequest(d->waitConversionDelay_);
 
-    log(LogLevel::kWarning,
+    log(d->log_prefix_, LogLevel::kWarning,
         d->device_->name() + " brocast request, turn into idle status");
     return;
   }
@@ -574,6 +589,8 @@ void QModbusClient::processDiagnosis(const Request &request,
 
 void QModbusClient::processFunctionCode(const Request &request,
                                         const Response &response) {
+  Q_D(QModbusClient);
+
   const any &data = request.userData();
   if (data.empty()) {
     return;
@@ -584,7 +601,7 @@ void QModbusClient::processFunctionCode(const Request &request,
     auto access = modbus::any::any_cast<SingleBitAccess>(data);
     bool ok = false;
     if (!response.isException()) {
-      ok = processReadSingleBit(request, response, &access);
+      ok = processReadSingleBit(request, response, &access, d->log_prefix_);
     }
     if (ok) {
       emit readSingleBitsFinished(request.serverAddress(),
@@ -611,7 +628,7 @@ void QModbusClient::processFunctionCode(const Request &request,
     auto access = modbus::any::any_cast<SixteenBitAccess>(data);
     bool ok = false;
     if (!response.isException()) {
-      ok = processReadRegisters(request, response, &access);
+      ok = processReadRegisters(request, response, &access, d->log_prefix_);
     }
     if (ok) {
       emit readRegistersFinished(request.serverAddress(),
@@ -637,7 +654,7 @@ void QModbusClient::processFunctionCode(const Request &request,
     auto access = modbus::any::any_cast<ReadWriteRegistersAccess>(data);
     auto readAccess = access.readAccess;
     if (!response.isException()) {
-      processReadRegisters(request, response, &readAccess);
+      processReadRegisters(request, response, &readAccess, d->log_prefix_);
     }
     emit readWriteMultipleRegistersFinished(
         request.serverAddress(), readAccess.startAddress(),
@@ -683,7 +700,8 @@ Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
   return Request(serverAddress, functionCode, userData, data);
 }
 
-QModbusClient *createClient(const QString &url, QObject *parent) {
+QModbusClient *createClient(const std::string &log_prefix, const QString &url,
+                            QObject *parent) {
   static const QStringList schemaSupported = {"modbus.file", "modbus.tcp",
                                               "modbus.udp"};
   internal::Config config = internal::parseConfig(url);
@@ -692,14 +710,15 @@ QModbusClient *createClient(const QString &url, QObject *parent) {
       std::any_of(schemaSupported.begin(), schemaSupported.end(),
                   [config](const QString &el) { return config.scheme == el; });
   if (!ok) {
-    log(LogLevel::kError,
+    log(log_prefix, LogLevel::kError,
         "unsupported scheme {}, see modbus.file:/// or modbus.tcp:// or "
         "modbus.udp://",
         config.scheme.toStdString());
     return nullptr;
   }
 
-  log(LogLevel::kInfo, "instanced modbus client on {}", url.toStdString());
+  log(log_prefix, LogLevel::kInfo, "instanced modbus client on {}",
+      url.toStdString());
   if (config.scheme == "modbus.file") {
     return newQtSerialClient(config.serialName, config.baudRate,
                              config.dataBits, config.parity, config.stopBits,

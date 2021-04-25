@@ -231,7 +231,8 @@ private:
 };
 
 bool processReadSingleBit(const Request &request, const Response &response,
-                          SingleBitAccess *access);
+                          SingleBitAccess *access,
+                          const std::string &log_prefix = "");
 } // namespace modbus
 
 #endif /* FUNCTIONS_H */

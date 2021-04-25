@@ -86,13 +86,13 @@ public:
   bool listenAndServe() override {
     bool success = tcpServer_.listen(QHostAddress::Any, port_);
     if (!success) {
-      log(LogLevel::kError, "tcp server listen(:{}) failed. {}", port_,
-          tcpServer_.errorString().toStdString());
+      log(prefix(), LogLevel::kError, "tcp server listen(:{}) failed. {}",
+          port_, tcpServer_.errorString().toStdString());
       return false;
     }
 
     auto ipList = localIpList();
-    log(LogLevel::kInfo, "tcp server listened at [{}]:{}",
+    log(prefix(), LogLevel::kInfo, "tcp server listened at [{}]:{}",
         ipList.join(",").toStdString(), port_);
     return true;
   }
