@@ -118,8 +118,9 @@ public:
 
     handleFuncRouter_[functionCode] = entry;
 
-    log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
-        functionCode, access->startAddress(), access->quantity());
+    log(log_prefix_, LogLevel::kInfo,
+        "route add Function[{}] StartAddress[{}] Quantity[{}]", functionCode,
+        access->startAddress(), access->quantity());
   }
 
   void handleFunc(FunctionCode functionCode, SixteenBitAccess *access) {
@@ -131,8 +132,9 @@ public:
 
     handleFuncRouter_[functionCode] = entry;
 
-    log(LogLevel::kInfo, "route add Function[{}] StartAddress[{}] Quantity[{}]",
-        functionCode, access->startAddress(), access->quantity());
+    log(log_prefix_, LogLevel::kInfo,
+        "route add Function[{}] StartAddress[{}] Quantity[{}]", functionCode,
+        access->startAddress(), access->quantity());
   }
 
   bool updateValue(FunctionCode functionCode, Address address,
@@ -145,7 +147,7 @@ public:
 
     auto entry = handleFuncRouter_.find(functionCode);
     if (entry == handleFuncRouter_.end()) {
-      log(LogLevel::kWarning,
+      log(log_prefix_, LogLevel::kWarning,
           fmt::format("function code[{}] not supported", functionCode));
       return false;
     }
@@ -153,7 +155,7 @@ public:
     bool ok = true;
     entry->sixteenBitAccess->value(address, &ok);
     if (!ok) {
-      log(LogLevel::kWarning,
+      log(log_prefix_, LogLevel::kWarning,
           "address out of range.function "
           "code:{} address:{} [start {} quantity {}]",
           functionCode, address, entry->sixteenBitAccess->startAddress(),
@@ -172,7 +174,7 @@ public:
     bool ok = true;
     auto v = access.value(address, &ok);
     if (!ok) {
-      log(LogLevel::kWarning,
+      log(log_prefix_, LogLevel::kWarning,
           "address out of range.function "
           "address:{} [start {} quantity {}]",
           address, access.startAddress(), access.quantity());
@@ -224,7 +226,7 @@ public:
 
   void removeClient(qintptr fd) {
     sessionIteratorOrReturn(it, fd);
-    log(LogLevel::kInfo, "{} closed", it.value()->fullName());
+    log(log_prefix_, LogLevel::kInfo, "{} closed", it.value()->fullName());
     sessionList_.erase(it);
   }
 
@@ -232,7 +234,7 @@ public:
     sessionIteratorOrReturn(sessionIt, fd);
     auto &session = sessionIt.value();
     if (enableDump_) {
-      log(LogLevel::kDebug, "R[{}]:[{}]", session->fullName(),
+      log(log_prefix_, LogLevel::kDebug, "R[{}]:[{}]", session->fullName(),
           dump(transferMode_, *buffer));
     }
     session->handleModbusRequest(*buffer);
@@ -282,7 +284,7 @@ public:
     SingleBitAccess access;
     bool ok = access.unmarshalMultipleWriteRequest(request->data());
     if (!ok) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(functionCode, Error::kStorageParityError, response);
       return;
     }
@@ -332,7 +334,7 @@ public:
     Q_Q(QModbusServer);
     auto error = validateSingleBitAccess(you, my);
     if (error != Error::kNoError) {
-      log(LogLevel::kError,
+      log(log_prefix_, LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, my.startAddress(), my.quantity(), you.startAddress(),
@@ -362,7 +364,7 @@ public:
                    SingleBitAccess &my, const SingleBitAccess &you) {
     auto error = validateSingleBitAccess(you, my);
     if (error != Error::kNoError) {
-      log(LogLevel::kError,
+      log(log_prefix_, LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           functionCode, my.startAddress(), my.quantity(), you.startAddress(),
@@ -371,8 +373,8 @@ public:
     }
     error = writeCoilsInternal(StorageKind::kCoils, &coils_, &you);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid request ({}): bad data {}", functionCode,
-          dump(transferMode_, request.data()));
+      log(log_prefix_, LogLevel::kError, "invalid request ({}): bad data {}",
+          functionCode, dump(transferMode_, request.data()));
       return error;
     }
     return Error::kNoError;
@@ -385,7 +387,7 @@ public:
 
     bool ok = access.unmarshalSingleWriteRequest(request->data());
     if (!ok) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(functionCode, Error::kStorageParityError, response);
       return;
     }
@@ -428,7 +430,7 @@ public:
     SingleBitAccess access;
     bool ok = access.unmarshalReadRequest(request->data());
     if (!ok) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(request->functionCode(), Error::kStorageParityError,
                          response);
       return;
@@ -438,7 +440,7 @@ public:
     const auto &my = *entry.singleBitAccess;
     auto error = validateSingleBitAccess(access, my);
     if (error != Error::kNoError) {
-      log(LogLevel::kError,
+      log(log_prefix_, LogLevel::kError,
           "invalid request code({}):myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           request->functionCode(), my.startAddress(), my.quantity(),
@@ -468,7 +470,7 @@ public:
 
     bool ok = access.unmarshalAddressQuantity(request->data());
     if (ok == false) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(request->functionCode(), Error::kStorageParityError,
                          response);
       return;
@@ -477,7 +479,7 @@ public:
     const auto &my = *entry.sixteenBitAccess;
     auto error = validateSixteenAccess(access, my);
     if (error != Error::kNoError) {
-      log(LogLevel::kError,
+      log(log_prefix_, LogLevel::kError,
           "invalid request ({}) :myStartAddress({}),myMaxQuantity({}),"
           "requestStartAddress({}),requestQuantity({})",
           request->functionCode(), my.startAddress(), my.quantity(),
@@ -575,8 +577,8 @@ public:
     auto error = writeRegisterValuesInternal(StorageKind::kHoldingRegisters,
                                              &holdingRegister_, access);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid operation write holding register {}",
-          error);
+      log(log_prefix_, LogLevel::kError,
+          "invalid operation write holding register {}", error);
       return error;
     }
     return Error::kNoError;
@@ -594,7 +596,8 @@ public:
     auto error = writeRegisterValuesInternal(StorageKind::kInputRegisters,
                                              &inputRegister_, access);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid operation(set input register): {}", error);
+      log(log_prefix_, LogLevel::kError,
+          "invalid operation(set input register): {}", error);
       return error;
     }
     return Error::kNoError;
@@ -608,7 +611,8 @@ public:
     auto error = writeCoilsInternal(StorageKind::kInputDiscrete,
                                     &inputDiscrete_, &access);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid operation(set coils): {}", error);
+      log(log_prefix_, LogLevel::kError, "invalid operation(set coils): {}",
+          error);
       return error;
     }
     return Error::kNoError;
@@ -621,7 +625,8 @@ public:
     access.setValue(address, setValue);
     auto error = writeCoilsInternal(StorageKind::kCoils, &coils_, &access);
     if (error != Error::kNoError) {
-      log(LogLevel::kError, "invalid operation(set coils): {}", error);
+      log(log_prefix_, LogLevel::kError, "invalid operation(set coils): {}",
+          error);
       return error;
     }
     return Error::kNoError;
@@ -632,7 +637,7 @@ public:
 
     bool ok = access.unmarshalSingleWriteRequest(request->data());
     if (ok == false) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(request->functionCode(), Error::kStorageParityError,
                          response);
       return;
@@ -654,7 +659,7 @@ public:
 
     bool ok = access.unmarshalMulitpleWriteRequest(request->data());
     if (ok == false) {
-      log(LogLevel::kError, "invalid request");
+      log(log_prefix_, LogLevel::kError, "invalid request");
       createErrorReponse(request->functionCode(), Error::kStorageParityError,
                          response);
       return;
@@ -719,6 +724,8 @@ public:
   SixteenBitAccess inputRegister_;
   SixteenBitAccess holdingRegister_;
   bool enableDump_ = true;
+
+  std::string log_prefix_;
 };
 } // namespace modbus
 

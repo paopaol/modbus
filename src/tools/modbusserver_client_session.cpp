@@ -28,7 +28,8 @@ void ClientSession::handleModbusRequest(pp::bytes::Buffer &buffer) {
 void ClientSession::processModbusRequest(pp::bytes::Buffer &buffer) {
   decoder->Decode(buffer, &request_);
   if (!decoder->IsDone()) {
-    log(LogLevel::kDebug, "{} need more data", client->fullName());
+    log(d_->log_prefix_, LogLevel::kDebug, "{} need more data",
+        client->fullName());
     return;
   }
   const auto lastError = decoder->LasError();
@@ -41,7 +42,7 @@ void ClientSession::processModbusRequest(pp::bytes::Buffer &buffer) {
    */
   if (request_.serverAddress() != d_->serverAddress_ &&
       request_.serverAddress() != Adu::kBrocastAddress) {
-    log(LogLevel::kError,
+    log(d_->log_prefix_, LogLevel::kError,
         "{} unexpected server address,my "
         "address[{}]",
         client->fullName(), d_->serverAddress_);
@@ -49,7 +50,8 @@ void ClientSession::processModbusRequest(pp::bytes::Buffer &buffer) {
   }
 
   if (lastError != Error::kNoError) {
-    log(LogLevel::kError, "{} invalid request", client->fullName(), lastError);
+    log(d_->log_prefix_, LogLevel::kError, "{} invalid request",
+        client->fullName(), lastError);
     d_->createErrorReponse(request_.functionCode(), lastError, &response_);
     return;
   }
@@ -59,8 +61,8 @@ void ClientSession::processModbusRequest(pp::bytes::Buffer &buffer) {
    *discard the recive buffer,
    */
   if (!d_->handleFuncRouter_.contains(request_.functionCode())) {
-    log(LogLevel::kError, "{} unsupported function code", client->fullName(),
-        request_.functionCode());
+    log(d_->log_prefix_, LogLevel::kError, "{} unsupported function code",
+        client->fullName(), request_.functionCode());
 
     d_->createErrorReponse(request_.functionCode(), Error::kIllegalFunctionCode,
                            &response_);
@@ -88,7 +90,7 @@ void ClientSession::ReplyResponse() {
   client->write(reinterpret_cast<const char *>(p), len);
 
   if (d_->enableDump_) {
-    log(LogLevel::kDebug, "S[{}]:[{}]", client->fullName(),
+    log(d_->log_prefix_, LogLevel::kDebug, "S[{}]:[{}]", client->fullName(),
         dump(d_->transferMode_, reinterpret_cast<const char *>(p), len));
   }
 }

@@ -31,9 +31,15 @@ public:
   virtual std::string name() const = 0;
   virtual std::string fullName() const = 0;
 
+  void setPrefix(const QString &prefix) { log_prefix_ = prefix.toStdString(); }
+
+  const char *prefix() const { return log_prefix_.c_str(); }
 signals:
   void disconnected(quintptr fd);
   void messageArrived(quintptr fd, const BytesBufferPtr &message);
+
+private:
+  std::string log_prefix_;
 };
 
 class AbstractServer : public QObject {
@@ -49,8 +55,13 @@ public:
     handleNewConnFunc_ = functor;
   }
 
+  void setPrefix(const QString &prefix) { log_prefix_ = prefix.toStdString(); }
+
+  const char *prefix() const { return log_prefix_.c_str(); }
+
 protected:
   HandleNewConnFunc handleNewConnFunc_;
+  std::string log_prefix_;
 };
 
 using canWriteSingleBitValueFunc =
@@ -76,6 +87,7 @@ public:
   void addBlacklist(const QString &clientIp);
   void setServerAddress(ServerAddress serverAddress);
   void enableDump(bool enable);
+  void setPrefix(const QString &prefix);
 
   /**
    *for write request, 0x05, 0x0f, 0x06,0x16,0x23

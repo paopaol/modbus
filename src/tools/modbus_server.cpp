@@ -49,6 +49,11 @@ void QModbusServer::enableDump(bool enable) {
   d->enableDump(enable);
 }
 
+void QModbusServer::setPrefix(const QString &prefix) {
+  Q_D(QModbusServer);
+  d->log_prefix_ = prefix.toStdString();
+}
+
 ServerAddress QModbusServer::serverAddress() const {
   const Q_D(QModbusServer);
   return d->serverAddress();
@@ -156,13 +161,13 @@ QModbusServer *createServer(const QString &url, QObject *parent) {
       std::any_of(schemaSupported.begin(), schemaSupported.end(),
                   [config](const QString &el) { return config.scheme == el; });
   if (!ok) {
-    log(LogLevel::kError,
+    log("", LogLevel::kError,
         "unsupported scheme {}, see modbus.file:/// or modbus.tcp:// ",
         config.scheme.toStdString());
     return nullptr;
   }
 
-  log(LogLevel::kInfo, "instanced modbus server on {}", url.toStdString());
+  log("", LogLevel::kInfo, "instanced modbus server on {}", url.toStdString());
   if (config.scheme == "modbus.file") {
     return createQModbusSerialServer(config.serialName, config.baudRate,
                                      config.dataBits, config.parity,
