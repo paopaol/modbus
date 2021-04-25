@@ -155,7 +155,8 @@ public:
 
   bool unmarshalReadResponse(const ByteArray &data) {
     size_t size = 0;
-    auto result = bytesRequiredStoreInArrayIndex<0>(size, data.data(), data.size());
+    auto result =
+        bytesRequiredStoreInArrayIndex<0>(size, data.data(), data.size());
     if (result != CheckSizeResult::kSizeOk) {
       return false;
     }
@@ -178,7 +179,8 @@ private:
 };
 
 bool processReadRegisters(const Request &request, const Response &response,
-                          SixteenBitAccess *access);
+                          SixteenBitAccess *access,
+                          const std::string &log_prefix = "");
 } // namespace modbus
 
 #endif /* SIXTEEN_BIT_ACCESS_H */

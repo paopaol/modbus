@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
   QScopedPointer<modbus::QModbusClient> client(
       modbus::newQtSerialClient(serialportName));
 
+  client->setPrefix("one");
   client->setOpenRetryTimes(5, 5000);
   client->setRetryTimes(3);
 

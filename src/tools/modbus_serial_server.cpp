@@ -21,7 +21,8 @@ public:
   bool open() {
     bool success = serialPort_->open(QIODevice::ReadWrite);
     if (!success) {
-      log(LogLevel::kError, "open {} {}", serialPort_->portName().toStdString(),
+      log(prefix(), LogLevel::kError, "open {} {}",
+          serialPort_->portName().toStdString(),
           serialPort_->errorString().toStdString());
       return false;
     }

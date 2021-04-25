@@ -1,3 +1,4 @@
+#include "fmt/format.h"
 #include <assert.h>
 #include <chrono>
 #include <ctime>
@@ -35,7 +36,10 @@ void registerLogMessage(const LogWriter &logger) {
   std::call_once(once_, [&]() { g_logger = logger; });
 }
 
-void logString(LogLevel level, const std::string &msg) { g_logger(level, msg); }
+void logString(const std::string &prefix, LogLevel level,
+               const std::string &msg) {
+  g_logger(level, fmt::format("{} {}", prefix, msg));
+}
 
 static std::string timeOfNow() {
   char tmp[128] = {0};

@@ -1,32 +1,36 @@
+#include "modbus_logger.h"
 #include <modbus/base/single_bit_access.h>
-#include <modbus_logger.h>
 
 namespace modbus {
-static bool validateSingleBitAccessResponse(const modbus::Response &resp);
+static bool validateSingleBitAccessResponse(const modbus::Response &resp,
+                                            const std::string &log_prefix);
 
 bool processReadSingleBit(const Request &request, const Response &response,
-                          SingleBitAccess *access) {
+                          SingleBitAccess *access,
+                          const std::string &log_prefix) {
   if (!access) {
-    log(LogLevel::kError, "SingleBitAccess access is nullptr");
+    log(log_prefix, LogLevel::kError, "SingleBitAccess access is nullptr");
     return false;
   }
 
-  bool success = validateSingleBitAccessResponse(response);
+  bool success = validateSingleBitAccessResponse(response, log_prefix);
   if (!success) {
     return false;
   }
   *access = modbus::any::any_cast<modbus::SingleBitAccess>(request.userData());
   success = access->unmarshalReadResponse(response.data());
   if (!success) {
-    log(LogLevel::kWarning, "unmarshal single bit access: data is invalid");
+    log(log_prefix, LogLevel::kWarning,
+        "unmarshal single bit access: data is invalid");
     return false;
   }
   return true;
 }
 
-static bool validateSingleBitAccessResponse(const modbus::Response &resp) {
+static bool validateSingleBitAccessResponse(const modbus::Response &resp,
+                                            const std::string &log_prefix) {
   if (resp.isException()) {
-    log(LogLevel::kError, resp.errorString());
+    log(log_prefix, LogLevel::kError, resp.errorString());
     return false;
   }
   return true;

@@ -1204,7 +1204,7 @@ TEST(ModbusClient, frame_diagnostics) {
     /// wait for the operation can work done, because
     /// in rtu mode, the request must be send after t3.5
     QTest::qWait(5000);
-    EXPECT_EQ(spy.count(), 2);
+    EXPECT_EQ(spy.count(), 1);
     RuntimeDiagnosis diagnosis = serialClient.runtimeDiagnosis();
 
     /// timout(1) + + retry-success(1) + failed(1)

@@ -56,7 +56,7 @@ void ReconnectableIoDevice::open() {
   Q_D(ReconnectableIoDevice);
 
   if (!isClosed()) {
-    log(LogLevel::kInfo,
+    log(d->log_prefix_, LogLevel::kInfo,
         d->ioDevice_->name() + ": is already opened or opening or closing");
     return;
   }
@@ -90,6 +90,11 @@ void ReconnectableIoDevice::clear() {
 std::string ReconnectableIoDevice::name() {
   Q_D(ReconnectableIoDevice);
   return d->ioDevice_->name();
+}
+
+void ReconnectableIoDevice::setPrefix(const QString &prefix) {
+  Q_D(ReconnectableIoDevice);
+  d->log_prefix_ = prefix.toStdString();
 }
 
 void ReconnectableIoDevice::setupEnvironment() {
@@ -141,8 +146,9 @@ void ReconnectableIoDevice::onIoDeviceClosed() {
   emit connectionIsLostWillReconnect();
 
   /// do reconnect
-  log(LogLevel::kError, d->ioDevice_->name() + " closed, try reconnect after " +
-                            std::to_string(d->reopenDelay_) + "ms");
+  log(d->log_prefix_, LogLevel::kError,
+      d->ioDevice_->name() + " closed, try reconnect after " +
+          std::to_string(d->reopenDelay_) + "ms");
   d->openRetryTimes_ > 0 ? --d->openRetryTimes_ : 0;
   QTimer::singleShot(d->reopenDelay_, this, &ReconnectableIoDevice::open);
 }
@@ -171,7 +177,8 @@ void ReconnectableIoDevice::onIoDeviceError(const QString &errorString) {
     return;
   }
 
-  log(LogLevel::kError, d->ioDevice_->name() + " " + errorString.toStdString());
+  log(d->log_prefix_, LogLevel::kError,
+      d->ioDevice_->name() + " " + errorString.toStdString());
   if (isOpened()) {
     closeButNotSetForceCloseFlag();
   } else {
@@ -183,7 +190,7 @@ void ReconnectableIoDevice::closeButNotSetForceCloseFlag() {
   Q_D(ReconnectableIoDevice);
 
   if (!isOpened()) {
-    log(LogLevel::kInfo,
+    log(d->log_prefix_, LogLevel::kInfo,
         d->ioDevice_->name() + ": is already closed or closing or opening");
     return;
   }
