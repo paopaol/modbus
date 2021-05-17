@@ -255,7 +255,7 @@ QModbusClient *newSocketClient(QAbstractSocket::SocketType type,
 // modbus.file:///dev/ttyS0/?9600-8-n-1
 // modbus.tcp://192.168.4.66:502/
 // modbus.udp://192.168.4.66:502/
-QModbusClient *createClient(const std::string &log_prefix, const QString &url,
+QModbusClient *createClient(const QString &url,
                             QObject *parent = nullptr);
 
 } // namespace modbus

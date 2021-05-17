@@ -704,8 +704,7 @@ Request createRequest(ServerAddress serverAddress, FunctionCode functionCode,
   return Request(serverAddress, functionCode, userData, data);
 }
 
-QModbusClient *createClient(const std::string &log_prefix, const QString &url,
-                            QObject *parent) {
+QModbusClient *createClient(const QString &url, QObject *parent) {
   static const QStringList schemaSupported = {"modbus.file", "modbus.tcp",
                                               "modbus.udp"};
   internal::Config config = internal::parseConfig(url);
@@ -714,15 +713,14 @@ QModbusClient *createClient(const std::string &log_prefix, const QString &url,
       std::any_of(schemaSupported.begin(), schemaSupported.end(),
                   [config](const QString &el) { return config.scheme == el; });
   if (!ok) {
-    log(log_prefix, LogLevel::kError,
+    log("", LogLevel::kError,
         "unsupported scheme {}, see modbus.file:/// or modbus.tcp:// or "
         "modbus.udp://",
         config.scheme.toStdString());
     return nullptr;
   }
 
-  log(log_prefix, LogLevel::kInfo, "instanced modbus client on {}",
-      url.toStdString());
+  log("", LogLevel::kInfo, "instanced modbus client on {}", url.toStdString());
   if (config.scheme == "modbus.file") {
     return newQtSerialClient(config.serialName, config.baudRate,
                              config.dataBits, config.parity, config.stopBits,
