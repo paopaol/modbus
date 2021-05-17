@@ -493,6 +493,10 @@ void QModbusClient::onIoDeviceReadyRead() {
             dump(d->transferMode_, element->dumpReadArray));
   }
 
+  if(response.isException()){
+    log(d->log_prefix_, LogLevel::kError, response.errorString());
+  }
+
   /**
    * Pop at the end
    */

@@ -126,7 +126,7 @@ public:
       case State::kServerAddress: {
         const auto serverAddress = buffer.ReadByte();
         adu->setServerAddress(serverAddress);
-        crcCtx_.crc16((const uint8_t *)&serverAddress, 1);
+        crcCtx_.crc16(static_cast<const uint8_t *>(&serverAddress), 1);
 
         state_ = State::kFunctionCode;
       } break;
@@ -163,7 +163,7 @@ public:
         buffer.ZeroCopyRead(&p, expectSize);
 
         adu->setData(p, expectSize);
-        crcCtx_.crc16((uint8_t *)p, expectSize);
+        crcCtx_.crc16(p, expectSize);
 
         state_ = State::kCrc0;
       } break;
@@ -328,7 +328,7 @@ public:
 
         buffer.ZeroCopyRead(&p, expectSize);
 
-        adu->setData((uint8_t *)p, expectSize);
+        adu->setData(p, expectSize);
         if (adu->isException()) {
           error_ = Error(adu->data()[0]);
         }
@@ -370,7 +370,7 @@ private:
 
 class ModbusRtuFrameEncoder : public ModbusFrameEncoder {
 public:
-  virtual ~ModbusRtuFrameEncoder() = default;
+   ~ModbusRtuFrameEncoder() override = default;
 
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
     buffer.Write(adu->serverAddress());
@@ -392,7 +392,7 @@ public:
 
 class ModbusMbapFrameEncoder : public ModbusFrameEncoder {
 public:
-  virtual ~ModbusMbapFrameEncoder() = default;
+   ~ModbusMbapFrameEncoder() override = default;
 
   void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
     const auto &data = adu->data();
@@ -422,9 +422,9 @@ public:
 
 class ModbusAsciiFrameEncoder : public ModbusFrameEncoder {
 public:
-  virtual ~ModbusAsciiFrameEncoder() = default;
+   ~ModbusAsciiFrameEncoder() override = default;
 
-  void Encode(const Adu *adu, pp::bytes::Buffer &buffer) override {
+  void Encode(const Adu * /*adu*/, pp::bytes::Buffer & /*buffer*/) override {
     static_assert(true, "ascii mode not support yet");
   }
 };
