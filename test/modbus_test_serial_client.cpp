@@ -807,6 +807,68 @@ TEST(ModbusSerialClient,
   app.exec();
 }
 
+/**
+ * @brief when the request is sent, the client will start a timer, until
+ * response is got. but,sometimes we got a response successfully,and the timer
+ * is timeout too, although we explicit stoped the timer, but the `timeout`
+ * event has been enqueued into eventloop,call `timer.stop()` operation does not
+ * work. in this case, we must process the timeout handler,
+ *
+ * @param ModbusSerialClient
+ * @param sendRequest_responseIsGood_ButResponsetimerAlsoTriggered
+ */
+TEST(ModbusSerialClient,
+     sendRequest_responseIsGood_ButResponsetimerAlsoTriggered) {
+  declare_app(app);
+
+  /**
+   * @brief in this case,we simulation the wait response timer 100ms,
+   * and simulation the response arrived(`readyRead`) also 100ms after too.
+   *
+   * In this way, there is a great probability that we will receive a response,
+   * and even after the timer is stopped, a timeout event will still be issued
+   */
+  {
+    auto serialPort = new MockSerialPort();
+    QModbusClient serialClient(serialPort);
+
+    serialClient.setTimeout(100);
+    serialClient.setFrameInterval(0);
+    serialClient.setRetryTimes(0);
+
+    QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
+    EXPECT_CALL(*serialPort, write)
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
+          emit serialPort->bytesWritten(size);
+          QTimer::singleShot(100, [&]() { emit serialPort->readyRead(); });
+        }));
+
+    EXPECT_CALL(*serialPort, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x01\x01\x02\x01\x05\x78\x6f", 7);
+    }));
+
+    // make sure the client is opened
+    serialClient.open();
+    EXPECT_EQ(serialClient.isOpened(), true);
+
+    /// send the request
+    QTimer::singleShot(0, [&]() {
+      std::unique_ptr<Request> request(new Request);
+      request->setServerAddress(0x01);
+      request->setFunctionCode(FunctionCode::kReadCoils);
+      request->setData({0x00, 0x0a, 0x00, 0x03});
+      serialClient.sendRequest(request);
+    });
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(5000);
+    EXPECT_EQ(spy.count(), 1);
+  }
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 TEST(ModbusSerialClient, readRegisters_success) {
   declare_app(app);
   {
