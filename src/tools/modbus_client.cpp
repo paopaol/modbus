@@ -366,7 +366,23 @@ RuntimeDiagnosis QModbusClient::runtimeDiagnosis() const {
 
 void QModbusClient::onIoDeviceResponseTimeout() {
   Q_D(QModbusClient);
-  assert(d->sessionState_.state() == SessionState::kWaitingResponse);
+
+  /**
+   * @brief when the request is sent, the client will start a timer, until
+   * response is got. but,sometimes we got a response successfully,and the timer
+   * is timeout too, although we explicit stoped the timer and set state into
+   * `idle`, but the `timeout` event has been enqueued into eventloop,call
+   * `timer.stop()` operation does not work. in this case, we must process the
+   * timeout handler,
+   */
+  if (d->sessionState_.state() == SessionState::kIdle) {
+    log(d->log_prefix_, LogLevel::kWarning,
+        "waiting response timeout, but the response already processed before");
+    return;
+  }
+
+  smart_assert(d->sessionState_.state() ==
+               SessionState::kWaitingResponse)(d->sessionState_.state());
 
   auto &element = d->elementQueue_.front();
   element->bytesWritten = 0;
@@ -493,7 +509,7 @@ void QModbusClient::onIoDeviceReadyRead() {
             dump(d->transferMode_, element->dumpReadArray));
   }
 
-  if(response.isException()){
+  if (response.isException()) {
     log(d->log_prefix_, LogLevel::kError, response.errorString());
   }
 
