@@ -26,12 +26,9 @@ struct Session {
 static const Address kStartAddress = 10;
 static const Quantity kQuantity = 3;
 static const ServerAddress kServerAddress = 1;
-static const ServerAddress kBadServerAddress = 0x11;
 static std::unique_ptr<Request> createSingleBitAccessRequest();
 static std::unique_ptr<Request> createBrocastRequest();
-template <TransferMode mode>
-static void createReadCoils(ServerAddress serverAddress, Address startAddress,
-                            Quantity quantity, Session &session);
+template <TransferMode mode> static void createReadCoils(Session &session);
 
 TEST(ModbusClient, ClientConstruct_defaultIsClosed) {
   auto serialPort = new MockSerialPort();
@@ -111,8 +108,7 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
   declare_app(app);
 
   Session session;
-  createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress, kQuantity,
-                                      session);
+  createReadCoils<TransferMode::kRtu>(session);
 
   {
     auto serialPort = new MockSerialPort();
@@ -121,7 +117,7 @@ TEST(ModbusSerialClient, clientOpened_sendRequest_clientWriteFailed) {
     QSignalSpy spy(&serialClient, &QModbusClient::errorOccur);
 
     EXPECT_CALL(*serialPort, write(_, _))
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t /*size*/) {
           emit serialPort->error("write error");
         }));
 
@@ -153,8 +149,7 @@ TEST(ModbusSerialClient, clientIsOpened_sendRequest_clientWriteSuccess) {
   declare_app(app);
 
   Session session;
-  createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress, kQuantity,
-                                      session);
+  createReadCoils<TransferMode::kRtu>(session);
   {
     auto serialPort = new MockSerialPort();
     QModbusClient serialClient(serialPort);
@@ -221,8 +216,7 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
 
     auto serialPort = new MockSerialPort();
 
@@ -237,7 +231,7 @@ TEST(ModbusSerialClient,
      */
     EXPECT_CALL(*serialPort, write(_, _))
         .Times(3)
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
           serialPort->bytesWritten(size);
         }));
 
@@ -270,7 +264,7 @@ TEST(ModbusSerialClient,
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, write)
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
           emit serialPort->bytesWritten(size);
           QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
         }));
@@ -321,8 +315,7 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
     auto serialPort = new MockSerialPort();
 
     QModbusClient serialClient(serialPort);
@@ -332,8 +325,9 @@ TEST(ModbusSerialClient,
     EXPECT_CALL(*serialPort, write(_, _));
 
     session.responseRaw[session.responseRaw.size() - 1] = 0x00;
-    QByteArray qarray((const char *)session.responseRaw.data(),
-                      session.responseRaw.size());
+    QByteArray qarray(
+        reinterpret_cast<const char *>(session.responseRaw.data()),
+        session.responseRaw.size());
 
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
       return qarray;
@@ -363,8 +357,7 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
     FunctionCode functionCode =
         FunctionCode(session.response.functionCode() | Adu::kExceptionByte);
     session.response.setFunctionCode(functionCode);
@@ -390,7 +383,7 @@ TEST(ModbusSerialClient,
         static_cast<uint8_t>(Error::kSlaveDeviceBusy)};
 
     ByteArray responseWithCrc = tool::appendCrc(responseWithoutCrc);
-    QByteArray qarray((const char *)responseWithCrc.data(),
+    QByteArray qarray(reinterpret_cast<const char *>(responseWithCrc.data()),
                       responseWithCrc.size());
 
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
@@ -422,8 +415,7 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
     FunctionCode functionCode =
         FunctionCode(session.response.functionCode() | Adu::kExceptionByte);
     session.response.setServerAddress(0x00);
@@ -439,13 +431,14 @@ TEST(ModbusSerialClient,
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, write)
-        .WillRepeatedly(Invoke([&](const char */*data*/, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
           emit serialPort->bytesWritten(size);
           QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
         }));
 
-    QByteArray qarray((const char *)session.responseRaw.data(),
-                      session.responseRaw.size());
+    QByteArray qarray(
+        reinterpret_cast<const char *>(session.responseRaw.data()),
+        session.responseRaw.size());
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
       return qarray;
     }));
@@ -504,8 +497,7 @@ TEST(ModbusSerialClient,
 
   {
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
 
     auto serialPort = new MockSerialPort();
 
@@ -514,7 +506,7 @@ TEST(ModbusSerialClient,
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, write)
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
           emit serialPort->bytesWritten(size);
           QTimer::singleShot(10, [&]() { emit serialPort->readyRead(); });
         }));
@@ -556,7 +548,7 @@ TEST(ModbusSerialClient, sendBrocast_afterSomeDelay_modbusSerialClientInIdle) {
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
     EXPECT_CALL(*serialPort, write(_, _))
-        .WillRepeatedly(Invoke([&](const char *data, size_t size) {
+        .WillRepeatedly(Invoke([&](const char * /*data*/, size_t size) {
           emit serialPort->bytesWritten(size);
         }));
 
@@ -619,8 +611,7 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
     QModbusClient serialClient(serialPort);
 
     Session session;
-    createReadCoils<TransferMode::kRtu>(kServerAddress, kStartAddress,
-                                        kQuantity, session);
+    createReadCoils<TransferMode::kRtu>(session);
 
     QSignalSpy spy(&serialClient, &QModbusClient::requestFinished);
 
@@ -633,7 +624,7 @@ TEST(ModbusSerialClient, connectSuccess_sendFailed_pendingRequestIsZero) {
     }));
     EXPECT_CALL(*serialPort, write(_, _))
         .Times(1)
-        .WillOnce(Invoke([&](const char *data, size_t size) {
+        .WillOnce(Invoke([&](const char * /*data*/, size_t /*size*/) {
           serialPort->error("write error, just fot test");
         }));
     serialClient.open();
@@ -747,7 +738,7 @@ TEST(ModbusSerialClient, sendSingleBitAccess_readCoil_responseIsSuccess) {
 
     ByteArray responseWithCrc = tool::appendCrc(responseWithoutCrc);
 
-    QByteArray qarray((const char *)responseWithCrc.data(),
+    QByteArray qarray(reinterpret_cast<const char *>(responseWithCrc.data()),
                       responseWithCrc.size());
 
     EXPECT_CALL(*serialPort, readAll()).Times(1).WillOnce(Invoke([&]() {
@@ -1226,9 +1217,7 @@ TEST(ModbusClient, frame_diagnostics) {
   app.exec();
 }
 
-template <TransferMode mode>
-static void createReadCoils(ServerAddress serverAddress, Address startAddress,
-                            Quantity quantity, Session &session) {
+template <TransferMode mode> static void createReadCoils(Session &session) {
   SingleBitAccess access;
 
   access.setStartAddress(kStartAddress);
