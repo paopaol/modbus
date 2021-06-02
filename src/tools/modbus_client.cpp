@@ -323,6 +323,7 @@ void QModbusClient::clearPendingRequest() {
     d->elementQueue_.pop_front();
     delete e;
   }
+  d->waitTimerAlive_ = false;
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 }
@@ -372,12 +373,10 @@ void QModbusClient::onIoDeviceResponseTimeout() {
    * response is got. but,sometimes we got a response successfully,and the timer
    * is timeout too, although we explicit stoped the timer and set state into
    * `idle`, but the `timeout` event has been enqueued into eventloop,call
-   * `timer.stop()` operation does not work. in this case, we must process the
-   * timeout handler,
-   */
-  if (d->sessionState_.state() == SessionState::kIdle) {
-    log(d->log_prefix_, LogLevel::kWarning,
-        "waiting response timeout, but the response already processed before");
+   * `timer.stop()` operation does not work. in this case, we must use a flag
+   * indicates the timer had stopped
+   * */
+  if (!d->waitTimerAlive_) {
     return;
   }
 
@@ -500,6 +499,7 @@ void QModbusClient::onIoDeviceReadyRead() {
     return;
   }
 
+  d->waitTimerAlive_ = false;
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
 
@@ -561,6 +561,7 @@ void QModbusClient::onIoDeviceBytesWritten(qint16 bytes) {
   d->sessionState_.setState(SessionState::kWaitingResponse);
   d->waitResponseTimer_->setSingleShot(true);
   d->waitResponseTimer_->setInterval(d->waitResponseTimeout_);
+  d->waitTimerAlive_ = true;
   d->waitResponseTimer_->start();
 }
 
@@ -576,6 +577,7 @@ void QModbusClient::onIoDeviceError(const QString &errorString) {
     break;
   }
 
+  d->waitTimerAlive_ = false;
   d->sessionState_.setState(SessionState::kIdle);
   d->decoder_->Clear();
   emit errorOccur(errorString);

@@ -121,6 +121,7 @@ public:
   int waitResponseTimeout_;
   int retryTimes_;
   QTimer *waitResponseTimer_ = nullptr;
+  bool waitTimerAlive_ = true;
   QString errorString_;
 
   /// the default transfer mode must be rtu mode
