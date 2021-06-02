@@ -1279,6 +1279,42 @@ TEST(ModbusClient, frame_diagnostics) {
   app.exec();
 }
 
+TEST(ModbusClient, MbapBadTransactionId) {
+  declare_app(app);
+  {
+    auto io = new MockSerialPort();
+    QModbusClient client(io);
+    client.setTransferMode(modbus::TransferMode::kMbap);
+    client.setTimeout(300);
+
+    QSignalSpy spy(&client, &QModbusClient::requestFinished);
+
+    EXPECT_CALL(*io, write);
+    EXPECT_CALL(*io, readAll()).WillRepeatedly(Invoke([]() {
+      return QByteArray("\x00\x03\x00\x00\x00\x05\x01\x03\x02\x00\x01", 11);
+    }));
+
+    // make sure the client is opened
+    client.open();
+    EXPECT_EQ(client.isOpened(), true);
+
+    /// send the request
+    client.readRegisters(0x01, FunctionCode::kReadHoldingRegisters, Address(0),
+                         1);
+
+    /// wait for the operation can work done, because
+    /// in rtu mode, the request must be send after t3.5
+    QTest::qWait(1000);
+    EXPECT_EQ(spy.count(), 1);
+    QList<QVariant> arguments = spy.takeFirst();
+    Response response = qvariant_cast<Response>(arguments.at(1));
+    EXPECT_EQ(response.error(), modbus::Error::kTimeout);
+  }
+
+  QTimer::singleShot(1, [&]() { app.quit(); });
+  app.exec();
+}
+
 template <TransferMode mode> static void createReadCoils(Session &session) {
   SingleBitAccess access;
 

@@ -75,6 +75,11 @@ public:
        */
       auto &ele = elementQueue_.front();
 
+      // set next transactionId
+      if (transferMode_ == TransferMode::kMbap) {
+        ele->request->setTransactionId(nextTransactionId_++);
+      }
+
       encoder_->Encode(ele->request.get(), writerBuffer_);
       ele->totalBytes = writerBuffer_.Len();
       if (enableDump_) {
@@ -135,6 +140,7 @@ public:
   CheckSizeFuncTable checkSizeFuncTable_;
   std::unique_ptr<ModbusFrameDecoder> decoder_;
   std::unique_ptr<ModbusFrameEncoder> encoder_;
+  uint16_t nextTransactionId_ = 0x01;
 
   pp::bytes::Buffer readBuffer_;
   pp::bytes::Buffer writerBuffer_;

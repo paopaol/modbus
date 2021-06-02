@@ -499,6 +499,17 @@ void QModbusClient::onIoDeviceReadyRead() {
     return;
   }
 
+  if (response.transactionId() != request->transactionId()) {
+    log(d->log_prefix_, LogLevel::kWarning,
+        d->device_->name() +
+            ":got response, unexpected transaction Id, discard it.[" +
+            dump(d->transferMode_, qdata) + "]");
+
+    d->readBuffer_.Reset();
+
+    return;
+  }
+
   d->waitTimerAlive_ = false;
   d->waitResponseTimer_->stop();
   d->sessionState_.setState(SessionState::kIdle);
