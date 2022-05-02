@@ -2,7 +2,8 @@ include(ExternalProject)
 
 ExternalProject_Add(
   googletest
-  URL ${CMAKE_CURRENT_SOURCE_DIR}/googletest-release-1.8.1.tar.gz
+  GIT_REPOSITORY https://github.com/google/googletest
+  GIT_TAG	main
   PREFIX googletest
   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
              -Dgtest_force_shared_crt=ON
